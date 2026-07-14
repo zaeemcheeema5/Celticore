@@ -6,17 +6,14 @@ export interface ChatHistoryEntry {
 }
 
 export const chatbotService = {
-  startSession: (): Promise<{ sessionId: string; sessionToken: string }> =>
+  startSession: (): Promise<{ sessionId: string }> =>
     api.post('/api/chat/start', {}),
 
   sendMessage: (sessionId: string, message: string): Promise<{ response: string }> =>
     api.post('/api/chat/message', { sessionId, message }),
 
-  // sessionToken is required now — the sessionId alone is a sequential,
-  // guessable integer, and the backend rejects history reads that don't
-  // present the matching opaque token issued at session start.
-  getHistory: async (sessionId: string, sessionToken: string): Promise<ChatHistoryEntry[]> => {
-    const result = await api.get(`/api/chat/history/${sessionId}?token=${encodeURIComponent(sessionToken)}`);
+  getHistory: async (sessionId: string): Promise<ChatHistoryEntry[]> => {
+    const result = await api.get(`/api/chat/history/${sessionId}`);
 
     // Backend returns { success: true, messages: [{ role, message, ... }] }.
     // Guard against unexpected shapes so the widget never gets handed

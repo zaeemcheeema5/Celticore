@@ -4,7 +4,6 @@ const router = express.Router();
 const {
     signup,
     login,
-    logout,
     getProfile,
     forgotPassword,
     verifyOTP,
@@ -12,7 +11,6 @@ const {
 } = require("../controllers/authController");
 
 const authMiddleware = require("../middleware/authMiddleware");
-const { authLimiter, requestLimiter } = require("../middleware/rateLimit");
 
 /**
  * @swagger
@@ -63,7 +61,7 @@ const { authLimiter, requestLimiter } = require("../middleware/rateLimit");
  *       400:
  *         description: Invalid request
  */
-router.post("/signup", requestLimiter, signup);
+router.post("/signup", signup);
 
 /**
  * @swagger
@@ -93,7 +91,7 @@ router.post("/signup", requestLimiter, signup);
  *       400:
  *         description: Invalid credentials
  */
-router.post("/login", authLimiter, login);
+router.post("/login", login);
 
 /**
  * @swagger
@@ -110,8 +108,6 @@ router.post("/login", authLimiter, login);
  *         description: Unauthorized
  */
 router.get("/profile", authMiddleware, getProfile);
-
-router.post("/logout", logout);
 
 /**
  * @swagger
@@ -135,7 +131,7 @@ router.post("/logout", logout);
  *       200:
  *         description: OTP sent successfully
  */
-router.post("/forgot-password", requestLimiter, forgotPassword);
+router.post("/forgot-password", forgotPassword);
 
 /**
  * @swagger
@@ -165,7 +161,7 @@ router.post("/forgot-password", requestLimiter, forgotPassword);
  *       400:
  *         description: Invalid or expired OTP
  */
-router.post("/verify-otp", authLimiter, verifyOTP);
+router.post("/verify-otp", verifyOTP);
 
 /**
  * @swagger
@@ -199,6 +195,6 @@ router.post("/verify-otp", authLimiter, verifyOTP);
  *       400:
  *         description: Invalid or expired OTP
  */
-router.post("/reset-password", authLimiter, resetPassword);
+router.post("/reset-password", resetPassword);
 
 module.exports = router;

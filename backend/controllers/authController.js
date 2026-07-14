@@ -1,13 +1,12 @@
 const db = require("../db");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const crypto = require("crypto");
 
 const sendEmail = require("../services/emailService");
 const passwordResetTemplate = require("../templates/passwordReset");
 
-const JWT_SECRET = require("../utils/jwtSecret");
-const { setAuthCookie, clearAuthCookie } = require("../utils/authCookie");
+const JWT_SECRET =
+    process.env.JWT_SECRET || "your_jwt_secret_key_123";
 
 // ======================
 // SIGNUP
@@ -96,16 +95,13 @@ exports.signup = async (req, res) => {
 
                 );
 
-                // The JWT now lives only in an httpOnly cookie — never in
-                // the response body, so no JS on the page (including a
-                // future XSS payload) can ever read it out.
-                setAuthCookie(res, token);
-
                 res.status(201).json({
 
                     success: true,
 
                     message: 'Account created successfully',
+
+                    token,
 
                     role: "customer",
 
@@ -241,13 +237,13 @@ exports.login = async (req, res) => {
 
                 );
 
-                setAuthCookie(res, token);
-
                 return res.json({
 
                     success: true,
 
                     message: "Admin login successful",
+
+                    token,
 
                     role: "main_admin",
 
@@ -306,11 +302,10 @@ exports.login = async (req, res) => {
                             { expiresIn: "24h" }
                         );
 
-                        setAuthCookie(res, token);
-
                         return res.json({
                             success: true,
                             message: "Admin login successful",
+                            token,
                             role: "admin",
                             user: {
                                 id: secondaryAdmin.id,
@@ -394,13 +389,13 @@ exports.login = async (req, res) => {
 
                             );
 
-                            setAuthCookie(res, token);
-
                             res.json({
 
                                 success: true,
 
                                 message: "Login successful",
+
+                                token,
 
                                 role: "customer",
 
@@ -431,62 +426,10 @@ exports.login = async (req, res) => {
 };
 
 // ======================
-// LOGOUT
-// ======================
-// Clears the httpOnly auth cookie server-side. Simply deleting a token
-// from localStorage (the old approach) doesn't work anymore since the
-// frontend can no longer see or touch the cookie at all — this endpoint
-// is now the only way to actually log out.
-
-exports.logout = (req, res) => {
-    clearAuthCookie(res);
-    res.json({ success: true, message: "Logged out." });
-};
-
-// ======================
 // GET PROFILE
 // ======================
 
 exports.getProfile = (req, res) => {
-
-    // req.user comes from the verified JWT (authMiddleware), and its shape
-    // differs by role — main_admin tokens carry no DB row at all, secondary
-    // admins live in `admins`, customers live in `users`. The old version
-    // of this only ever queried `users`, so any admin session 404'd here
-    // and got treated as "invalid" — logging admins out on every reload.
-
-    if (req.user.role === "main_admin") {
-
-        return res.json({
-            user: {
-                name: "Administrator",
-                email: req.user.email,
-                role: "main_admin"
-            }
-        });
-    }
-
-    if (req.user.role === "admin") {
-
-        return db.get(
-            `SELECT id, username, email FROM admins WHERE id = ?`,
-            [req.user.id],
-            (err, admin) => {
-
-                if (err) return res.status(500).json({ error: err.message });
-                if (!admin) return res.status(404).json({ error: "Admin not found" });
-
-                res.json({
-                    user: {
-                        id: admin.id,
-                        name: admin.username,
-                        email: admin.email,
-                        role: "admin"
-                    }
-                });
-            }
-        );
-    }
 
     db.get(
 
@@ -519,14 +462,7 @@ exports.getProfile = (req, res) => {
 
             }
 
-            res.json({
-                user: {
-                    id: user.id,
-                    name: user.username,
-                    email: user.email,
-                    role: "customer"
-                }
-            });
+            res.json(user);
 
         }
 
@@ -568,7 +504,9 @@ exports.forgotPassword = (req, res) => {
                 });
             }
 
-            const otp = crypto.randomInt(100000, 1000000).toString();
+            const otp = Math.floor(
+                100000 + Math.random() * 900000
+            ).toString();
 
             const expiry = new Date(
                 Date.now() + 10 * 60 * 1000

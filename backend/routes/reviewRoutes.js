@@ -1,6 +1,5 @@
 const express = require('express');
 const router = express.Router();
-const adminAuthMiddleware = require('../middleware/adminAuthMiddleware');
 
 const {
     addReview,
@@ -85,7 +84,7 @@ router.get('/product/:productId', getProductReviews);
  *       200:
  *         description: List of all reviews
  */
-router.get('/', adminAuthMiddleware, getAllReviews);
+router.get('/', getAllReviews);
 
 /**
  * @swagger
@@ -106,7 +105,7 @@ router.get('/', adminAuthMiddleware, getAllReviews);
  *       404:
  *         description: Review not found
  */
-router.put('/:id/approve', adminAuthMiddleware, approveReview);
+router.put('/:id/approve', approveReview);
 
 /**
  * @swagger
@@ -127,7 +126,7 @@ router.put('/:id/approve', adminAuthMiddleware, approveReview);
  *       404:
  *         description: Review not found
  */
-router.put('/:id/reject', adminAuthMiddleware, rejectReview);
+router.put('/:id/reject', rejectReview);
 
 /**
  * @swagger
@@ -148,6 +147,6 @@ router.put('/:id/reject', adminAuthMiddleware, rejectReview);
  *       404:
  *         description: Review not found
  */
-router.delete('/:id', adminAuthMiddleware, deleteReview);
+router.delete('/:id', deleteReview);
 
 module.exports = router;

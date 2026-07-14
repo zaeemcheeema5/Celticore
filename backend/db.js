@@ -246,17 +246,11 @@ ADD COLUMN flavours TEXT
         product_name TEXT,
         quantity INTEGER,
         price REAL,
-        flavour TEXT,
 
         FOREIGN KEY(order_id)
         REFERENCES orders(id)
     )
     `);
-
-    addColumn(`
-ALTER TABLE order_items
-ADD COLUMN flavour TEXT
-`);
 
     // ==========================
     // REVIEWS
@@ -340,7 +334,7 @@ db.run(`
 CREATE TABLE IF NOT EXISTS nutrition_requests (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
 
-    name TEXT,
+    name TEXT NOT NULL,
     phone TEXT,
     email TEXT,
 
@@ -363,27 +357,6 @@ CREATE TABLE IF NOT EXISTS nutrition_requests (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 )
 `);
-
-addColumn(`
-ALTER TABLE nutrition_requests
-ADD COLUMN name TEXT
-`);
-
-addColumn(`
-ALTER TABLE nutrition_requests
-ADD COLUMN diet_preference TEXT
-`);
-
-addColumn(`
-ALTER TABLE nutrition_requests
-ADD COLUMN medical_conditions TEXT
-`);
-
-addColumn(`
-ALTER TABLE nutrition_requests
-ADD COLUMN notes TEXT
-`);
-
     // ==========================
     // CHATBOT KNOWLEDGE
     // ==========================
@@ -406,19 +379,6 @@ ADD COLUMN notes TEXT
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
     `);
-
-    // Opaque, unguessable per-session token — required to read chat history.
-    // The session's own auto-increment id is sequential/enumerable, so using
-    // it alone as the lookup key let anyone iterate ?sessionId=1,2,3... and
-    // read other people's chat transcripts with zero authentication.
-    db.run(`
-    ALTER TABLE chat_sessions
-    ADD COLUMN session_token TEXT
-    `, (err) => {
-        if (err && !err.message.includes("duplicate column name")) {
-            console.error(err.message);
-        }
-    });
 
     // ==========================
     // CHAT MESSAGES
@@ -470,8 +430,6 @@ CREATE TABLE IF NOT EXISTS settings (
 )
 `);
 
-const bcrypt = require('bcryptjs');
-
 const defaultSettings = [
 
     // ==========================
@@ -508,15 +466,10 @@ const defaultSettings = [
 
     // ==========================
     // ADMIN
-    // Default password is hashed before it ever touches the DB — a fresh
-    // install previously stored 'password123' here in plaintext. This is
-    // still a well-known default credential (admin@celticore.com /
-    // password123) shipped in the repo, so it MUST be changed via
-    // Settings > Admin Credentials immediately after first deploy.
     // ==========================
-    ['admin_password', bcrypt.hashSync('password123', 10)],
+    ['admin_password', 'password123'],
     ['admin_name', 'Administrator'],
-    ['admin_email', 'admin@celticore.com'],
+['admin_email', 'admin@celticore.com'],
     ['admin_phone', ''],
     ['admin_avatar', ''],
     ['last_login', ''],

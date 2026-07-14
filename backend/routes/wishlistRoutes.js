@@ -1,6 +1,5 @@
 const express = require('express');
 const router = express.Router();
-const authMiddleware = require('../middleware/authMiddleware');
 
 const {
     addToWishlist,
@@ -44,7 +43,7 @@ const {
  *       400:
  *         description: Invalid request
  */
-router.post('/', authMiddleware, addToWishlist);
+router.post('/', addToWishlist);
 
 /**
  * @swagger
@@ -65,7 +64,7 @@ router.post('/', authMiddleware, addToWishlist);
  *       404:
  *         description: User not found
  */
-router.get('/:userId', authMiddleware, getWishlist);
+router.get('/:userId', getWishlist);
 
 /**
  * @swagger
@@ -86,7 +85,7 @@ router.get('/:userId', authMiddleware, getWishlist);
  *       404:
  *         description: Wishlist item not found
  */
-router.delete('/item/:id', authMiddleware, removeWishlistItem);
+router.delete('/item/:id', removeWishlistItem);
 
 /**
  * @swagger
@@ -107,6 +106,6 @@ router.delete('/item/:id', authMiddleware, removeWishlistItem);
  *       404:
  *         description: User not found
  */
-router.delete('/clear/:userId', authMiddleware, clearWishlist);
+router.delete('/clear/:userId', clearWishlist);
 
 module.exports = router;

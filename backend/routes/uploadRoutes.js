@@ -1,6 +1,5 @@
 const express = require("express");
 const router = express.Router();
-const adminAuthMiddleware = require("../middleware/adminAuthMiddleware");
 
 const {
     uploadProductImage,
@@ -41,7 +40,6 @@ const {
  */
 router.post(
     "/product",
-    adminAuthMiddleware,
     uploadProduct.single("image"),
     uploadProductImage
 );
@@ -68,7 +66,6 @@ router.post(
  */
 router.post(
     "/category",
-    adminAuthMiddleware,
     uploadCategory.single("image"),
     uploadCategoryImage
 );

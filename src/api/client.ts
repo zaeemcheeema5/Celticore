@@ -3,7 +3,12 @@ export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 // Network Request Helper
 async function request(endpoint: string, options: RequestInit = {}) {
+  const token = localStorage.getItem('token');
   const headers = new Headers(options.headers || {});
+
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
 
   if (options.body && !(options.body instanceof FormData)) {
     headers.set('Content-Type', 'application/json');
@@ -11,13 +16,7 @@ async function request(endpoint: string, options: RequestInit = {}) {
 
   const config: RequestInit = {
     ...options,
-    headers,
-    // The auth token now lives in an httpOnly cookie set by the backend —
-    // it's invisible to JS entirely (that's the point, it can't be stolen
-    // via XSS). `credentials: 'include'` is what makes the browser attach
-    // that cookie to every request automatically; there's nothing left
-    // for this client to read or attach manually.
-    credentials: 'include'
+    headers
   };
 
   const res = await fetch(`${API_URL}${endpoint}`, config);

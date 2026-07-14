@@ -2,8 +2,6 @@ const express = require('express');
 
 const router = express.Router();
 
-const adminAuthMiddleware = require('../middleware/adminAuthMiddleware');
-
 const {
     getCategories,
     addCategory,
@@ -71,7 +69,6 @@ router.get(
  */
 router.post(
     '/',
-    adminAuthMiddleware,
     addCategory
 );
 
@@ -117,7 +114,6 @@ router.post(
  */
 router.put(
     '/:id',
-    adminAuthMiddleware,
     updateCategory
 );
 
@@ -140,7 +136,6 @@ router.put(
  */
 router.delete(
     '/:id',
-    adminAuthMiddleware,
     deleteCategory
 );
 

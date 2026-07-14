@@ -70,57 +70,6 @@ app.use(cors({
 
 
 // =====================================
-// STARTUP SECURITY CHECK
-// This project ships with a well-known default admin login
-// (admin@celticore.com / password123) so a fresh checkout is usable
-// immediately. That's fine for local development, but it's a real
-// takeover risk if it ever reaches a real deployment unchanged — anyone
-// who has read this source code (or just guesses it) gets full admin
-// access. Warn loudly on every boot until it's changed.
-// =====================================
-
-const db = require("./db");
-
-setTimeout(() => {
-
-    db.all(
-        `SELECT key, value FROM settings WHERE key IN ('admin_email', 'admin_password')`,
-        [],
-        (err, rows) => {
-
-            if (err) return;
-
-            const settings = {};
-            rows.forEach(r => { settings[r.key] = r.value; });
-
-            const isDefaultEmail = settings.admin_email === "admin@celticore.com";
-            const isPlaintext = settings.admin_password && !settings.admin_password.startsWith("$2");
-
-            if (isDefaultEmail || isPlaintext) {
-                console.warn("\n" + "!".repeat(70));
-                console.warn("! SECURITY WARNING: default/unhashed admin credentials in use.");
-                if (isDefaultEmail) console.warn("!  - admin email is still the default: admin@celticore.com");
-                if (isPlaintext) console.warn("!  - admin password is stored in PLAINTEXT, not hashed");
-                console.warn("!  Change these now under Settings > Admin Credentials.");
-                console.warn("!".repeat(70) + "\n");
-            }
-        }
-    );
-
-}, 500);
-
-
-// =====================================
-// RATE LIMITING
-// Baseline abuse protection across the whole API; tighter, endpoint-specific
-// limits are applied directly on the auth routes (login/signup/OTP).
-// =====================================
-
-const { apiLimiter } = require("./middleware/rateLimit");
-app.use("/api", apiLimiter);
-
-
-// =====================================
 // WEBHOOK
 // Must come BEFORE express.json()
 // =====================================
@@ -133,7 +82,6 @@ app.use("/api", webhookRoutes);
 // =====================================
 
 app.use(express.json());
-app.use(require("cookie-parser")());
 
 
 // =====================================
@@ -148,12 +96,7 @@ app.use(
 
 // =====================================
 // SWAGGER
-// Full API surface documentation — genuinely useful in development, but
-// not something a production deployment should serve publicly with no
-// auth in front of it. Gated behind NODE_ENV.
 // =====================================
-
-if ((process.env.NODE_ENV || "development") !== "production") {
 
 const swaggerOptions = {
 
@@ -209,8 +152,6 @@ app.get("/swagger.json", (req, res) => {
     res.send(swaggerSpec);
 
 });
-
-} // end swagger dev-only guard
 
 
 // =====================================
@@ -291,16 +232,11 @@ app.use((err, req, res, next) => {
 
     console.error(err.stack);
 
-    const isDev = (process.env.NODE_ENV || "development") !== "production";
-
     res.status(500).json({
 
         success: false,
 
-        // Raw err.message can contain internal details (SQL text, file
-        // paths, stack info) that shouldn't reach an untrusted client in
-        // production. Full detail still goes to the server console above.
-        error: isDev ? (err.message || "Internal Server Error") : "Internal Server Error"
+        error: err.message || "Internal Server Error"
 
     });
 

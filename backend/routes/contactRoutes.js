@@ -1,6 +1,5 @@
 const express = require('express');
 const router = express.Router();
-const adminAuthMiddleware = require('../middleware/adminAuthMiddleware');
 
 const {
     sendMessage,
@@ -64,7 +63,7 @@ router.post('/', sendMessage);
  *       200:
  *         description: List of contact messages
  */
-router.get('/', adminAuthMiddleware, getMessages);
+router.get('/', getMessages);
 
 /**
  * @swagger
@@ -85,7 +84,7 @@ router.get('/', adminAuthMiddleware, getMessages);
  *       404:
  *         description: Message not found
  */
-router.put('/:id/read', adminAuthMiddleware, markRead);
+router.put('/:id/read', markRead);
 
 /**
  * @swagger
@@ -106,6 +105,6 @@ router.put('/:id/read', adminAuthMiddleware, markRead);
  *       404:
  *         description: Message not found
  */
-router.delete('/:id', adminAuthMiddleware, deleteMessage);
+router.delete('/:id', deleteMessage);
 
 module.exports = router;

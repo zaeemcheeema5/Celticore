@@ -5,7 +5,8 @@ const router = express.Router();
 const nutritionController =
     require('../controllers/nutritionController');
 
-const adminAuthMiddleware = require('../middleware/adminAuthMiddleware');
+console.log('Nutrition Controller Loaded');
+console.log(nutritionController);
 /**
  * @swagger
  * tags:
@@ -62,25 +63,21 @@ router.post(
 
 router.get(
     '/',
-    adminAuthMiddleware,
     nutritionController.getNutritionRequests
 );
 
 router.get(
     '/:id',
-    adminAuthMiddleware,
     nutritionController.getNutritionRequest
 );
 
 router.put(
     '/:id/status',
-    adminAuthMiddleware,
     nutritionController.updateNutritionStatus
 );
 
 router.put(
     '/:id/notes',
-    adminAuthMiddleware,
     nutritionController.addAdminNotes
 );
 

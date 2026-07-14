@@ -181,17 +181,17 @@ exports.updateCategory = (req, res) => {
 
             slug,
 
-            image || '',
+            image,
 
-            card_image || image || '',
+            card_image,
 
-            tagline || '',
+            tagline,
 
-            description || '',
+            description,
 
-            accent_color || '#10b981',
+            accent_color,
 
-            effect || 'energy',
+            effect,
 
             req.params.id
 

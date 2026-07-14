@@ -1,5 +1,4 @@
 const db = require("../db");
-const stripe = require("../utils/stripeClient");
 
 const sendEmail = require("../services/emailService");
 const orderConfirmation = require("../templates/orderConfirmation");
@@ -7,10 +6,6 @@ const orderConfirmation = require("../templates/orderConfirmation");
 // ==========================
 // Place Order
 // ==========================
-// items sent by CartContext.placeOrder are
-// { product_id, name, price, quantity, flavour } — NOT { id, ... }.
-// Reading item.id here (instead of item.product_id) meant every order
-// item bound `undefined` to the INSERT and crashed the whole request.
 
 exports.placeOrder = async (req, res) => {
 
@@ -24,10 +19,8 @@ exports.placeOrder = async (req, res) => {
         country,
         items,
         total,
-        discount,
         paymentMethod,
         paymentStatus,
-        stripePaymentIntentId,
         deliveryMethod,
         deliveryCost
     } = req.body;
@@ -36,58 +29,6 @@ exports.placeOrder = async (req, res) => {
         return res.status(400).json({
             error: 'Order must contain at least one item'
         });
-    }
-
-    if (!customerName || !customerEmail || !address || !city || !postalCode) {
-        return res.status(400).json({
-            error: "Customer name, email, address, city and postal code are required."
-        });
-    }
-
-    const subtotal = total + (discount || 0);
-
-    // For real card payments, don't trust the client's claimed paymentStatus —
-    // confirm the PaymentIntent actually succeeded, and that its amount matches
-    // this order's total, directly against Stripe. (gpay/applepay stay
-    // client-reported since those are simulated flows in this codebase, not
-    // real payment rails.)
-    let isPaid = paymentStatus === 'paid';
-
-    if (paymentMethod === 'card') {
-
-        if (!stripePaymentIntentId) {
-            return res.status(400).json({
-                error: "A Stripe payment intent id is required for card orders."
-            });
-        }
-
-        try {
-
-            const intent = await stripe.paymentIntents.retrieve(stripePaymentIntentId);
-            const expectedAmount = Math.round(total * 100);
-
-            if (intent.status !== 'succeeded') {
-                return res.status(402).json({
-                    error: `Payment has not succeeded (status: ${intent.status}).`
-                });
-            }
-
-            if (intent.amount !== expectedAmount) {
-                return res.status(400).json({
-                    error: "Payment amount does not match order total."
-                });
-            }
-
-            isPaid = true;
-
-        } catch (stripeErr) {
-
-            return res.status(400).json({
-                error: "Could not verify payment with Stripe: " + stripeErr.message
-            });
-
-        }
-
     }
 
     db.serialize(() => {
@@ -106,15 +47,15 @@ exports.placeOrder = async (req, res) => {
             delivery_cost,
             payment_method,
             payment_status,
-            stripe_payment_intent,
             subtotal,
             discount,
-            total,
-            status,
-            paid_at
+            total
         )
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         `;
+
+        const subtotal = total;
+        const discount = 0;
 
         db.run(
             orderSql,
@@ -129,13 +70,10 @@ exports.placeOrder = async (req, res) => {
                 deliveryMethod || "standard",
                 deliveryCost || 0,
                 paymentMethod || "card",
-                isPaid ? 'paid' : (paymentStatus || 'pending'),
-                stripePaymentIntentId || null,
+                paymentStatus || "pending",
                 subtotal,
-                discount || 0,
-                total,
-                isPaid ? 'Paid' : 'Pending',
-                isPaid ? new Date().toISOString() : null
+                discount,
+                total
             ],
             async function (err) {
 
@@ -147,50 +85,36 @@ exports.placeOrder = async (req, res) => {
 
                 const orderId = this.lastID;
 
-                try {
+                const itemSql = `
+                INSERT INTO order_items
+                (
+                    order_id,
+                    product_id,
+                    product_name,
+                    quantity,
+                    price
+                )
+                VALUES (?,?,?,?,?)
+                `;
 
-                    const itemSql = `
-                    INSERT INTO order_items
-                    (
-                        order_id,
-                        product_id,
-                        product_name,
-                        quantity,
-                        price,
-                        flavour
-                    )
-                    VALUES (?,?,?,?,?,?)
-                    `;
+                const stmt = db.prepare(itemSql);
 
-                    const stmt = db.prepare(itemSql);
+                items.forEach(item => {
 
-                    items.forEach(item => {
+                    stmt.run(
+                        orderId,
+                        item.id,
+                        item.name,
+                        item.quantity,
+                        item.price
+                    );
 
-                        stmt.run(
-                            orderId,
-                            item.product_id,
-                            item.name,
-                            item.quantity,
-                            item.price,
-                            item.flavour || ''
-                        );
+                });
 
-                    });
-
-                    await new Promise((resolve, reject) => {
-                        stmt.finalize(err2 => err2 ? reject(err2) : resolve());
-                    });
-
-                } catch (itemErr) {
-
-                    return res.status(500).json({
-                        error: "Order was created but items failed to save: " + itemErr.message
-                    });
-
-                }
+                stmt.finalize();
 
                 // ==========================
-                // Send Confirmation Email (best-effort — never fails the order)
+                // Send Confirmation Email
                 // ==========================
 
                 try {
@@ -217,15 +141,15 @@ exports.placeOrder = async (req, res) => {
 
                                 subtotal,
 
-                                discount: discount || 0,
+                                discount,
 
                                 total,
 
-                                paymentMethod: paymentMethod || 'card',
+                                paymentMethod,
 
-                                deliveryMethod: deliveryMethod || 'standard',
+                                deliveryMethod,
 
-                                address: `${address}, ${city}, ${postalCode}, ${country || ''}`,
+                                address,
 
                                 currency: "£"
 
@@ -237,48 +161,17 @@ exports.placeOrder = async (req, res) => {
 
                 } catch (emailError) {
 
-                    console.error("Order confirmation email failed:", emailError.message);
+                    console.error("Email Error:", emailError);
 
                 }
 
-                // Return the full order object — the frontend's success screen
-                // (and ordersService.placeOrder mapping) reads fields like
-                // id/total/customerName/address off this.
                 res.json({
 
                     success: true,
 
                     orderId,
 
-                    message: "Order placed successfully",
-
-                    order: {
-                        id: orderId,
-                        customer_name: customerName,
-                        customer_email: customerEmail || "",
-                        phone: phone || "",
-                        address: address || "",
-                        city: city || "",
-                        postal_code: postalCode || "",
-                        country: country || "",
-                        items: items.map(item => ({
-                            product_id: item.product_id,
-                            name: item.name,
-                            quantity: item.quantity,
-                            price: item.price,
-                            flavour: item.flavour || ''
-                        })),
-                        total,
-                        subtotal,
-                        discount: discount || 0,
-                        payment_method: paymentMethod || "card",
-                        payment_status: isPaid ? 'paid' : (paymentStatus || 'pending'),
-                        stripe_payment_intent_id: stripePaymentIntentId || '',
-                        delivery_method: deliveryMethod || "standard",
-                        delivery_cost: deliveryCost || 0,
-                        status: isPaid ? 'Paid' : 'Pending',
-                        created_at: new Date().toISOString()
-                    }
+                    message: "Order placed successfully"
 
                 });
 
@@ -342,6 +235,9 @@ exports.getOrders = (req, res) => {
                 return res.json(orders);
             }
 
+            // Attach each order's line items (order_items was never being
+            // joined back in before, so the admin UI could never show what
+            // was actually purchased)
             const orderIds = orders.map(o => o.id);
             const placeholders = orderIds.map(() => '?').join(',');
 
@@ -349,11 +245,10 @@ exports.getOrders = (req, res) => {
                 `
                 SELECT
                     order_id,
-                    product_id,
+                    product_id AS id,
                     product_name AS name,
                     quantity,
-                    price,
-                    flavour
+                    price
                 FROM order_items
                 WHERE order_id IN (${placeholders})
                 `,
@@ -372,11 +267,10 @@ exports.getOrders = (req, res) => {
                             itemsByOrder[row.order_id] = [];
                         }
                         itemsByOrder[row.order_id].push({
-                            product_id: row.product_id,
+                            id: row.id,
                             name: row.name,
                             quantity: row.quantity,
-                            price: row.price,
-                            flavour: row.flavour || ''
+                            price: row.price
                         });
                     });
 
@@ -402,12 +296,6 @@ exports.updateOrderStatus = (req, res) => {
 
     const { status } = req.body;
 
-    if (!status) {
-        return res.status(400).json({
-            error: "A 'status' value is required."
-        });
-    }
-
     db.run(
         `
         UPDATE orders
@@ -425,14 +313,7 @@ exports.updateOrderStatus = (req, res) => {
 
             }
 
-            if (this.changes === 0) {
-                return res.status(404).json({
-                    error: "Order not found."
-                });
-            }
-
             res.json({
-                success: true,
                 message: "Order status updated"
             });
 

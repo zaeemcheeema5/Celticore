@@ -161,7 +161,6 @@ function MainAppLayout() {
           setIsAdminOpen(false);
           loadCatalog(); // Reload main app catalog when admin closes (in case custom products were added)
         }}
-        onCatalogChange={loadCatalog}
       />
 
       <ProductDetailsModal

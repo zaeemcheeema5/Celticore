@@ -2,8 +2,6 @@ const express = require('express');
 
 const router = express.Router();
 
-const adminAuthMiddleware = require('../middleware/adminAuthMiddleware');
-
 const {
     placeOrder,
     getOrders,
@@ -24,7 +22,7 @@ const {
  *     summary: Get all orders
  *     tags: [Orders]
  */
-router.get('/', adminAuthMiddleware, getOrders);
+router.get('/', getOrders);
 
 /**
  * @swagger
@@ -42,8 +40,8 @@ router.post('/', placeOrder);
  *     summary: Update order status
  *     tags: [Orders]
  */
-router.put('/:id', adminAuthMiddleware, updateOrderStatus);
-router.put('/:id/status', adminAuthMiddleware, updateOrderStatus);
+router.put('/:id', updateOrderStatus);
+router.put('/:id/status', updateOrderStatus);
 
 /**
  * @swagger
@@ -52,6 +50,6 @@ router.put('/:id/status', adminAuthMiddleware, updateOrderStatus);
  *     summary: Delete order
  *     tags: [Orders]
  */
-router.delete('/:id', adminAuthMiddleware, deleteOrder);
+router.delete('/:id', deleteOrder);
 
 module.exports = router;
