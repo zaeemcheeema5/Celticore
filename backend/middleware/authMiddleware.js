@@ -1,28 +1,27 @@
 const jwt = require('jsonwebtoken');
 
-// Must match the secret used to SIGN tokens in authController.js / settingsController.js.
-// Previously hardcoded to a literal that did not match process.env.JWT_SECRET ("celticore"),
-// which caused every valid token to fail verification here.
-const JWT_SECRET =
-    process.env.JWT_SECRET || 'your_jwt_secret_key_123';
+const JWT_SECRET = require('../utils/jwtSecret');
 
 module.exports = (req, res, next) => {
 
+    // The browser app now authenticates via an httpOnly cookie (can't be
+    // read or stolen by JS/XSS). The Authorization header is kept as a
+    // fallback purely for non-browser API clients (Postman, curl, the
+    // Swagger "Authorize" button) that can't rely on cookies.
     const authHeader = req.headers.authorization;
+    const headerToken = authHeader && authHeader.startsWith('Bearer ')
+        ? authHeader.split(' ')[1]
+        : null;
 
-    if (
-        !authHeader ||
-        !authHeader.startsWith('Bearer ')
-    ) {
+    const token = (req.cookies && req.cookies.token) || headerToken;
+
+    if (!token) {
 
         return res.status(401).json({
             error: 'Access denied'
         });
 
     }
-
-    const token =
-        authHeader.split(' ')[1];
 
     try {
 

@@ -17,10 +17,11 @@ export const ChatbotWidget: React.FC = () => {
     const startSession = async () => {
       try {
         const storedSession = sessionStorage.getItem('chat_session_id');
-        if (storedSession) {
+        const storedToken = sessionStorage.getItem('chat_session_token');
+        if (storedSession && storedToken) {
           setSessionId(storedSession);
           try {
-            const history = await chatbotService.getHistory(storedSession);
+            const history = await chatbotService.getHistory(storedSession, storedToken);
             // Defensive: never hand the renderer anything but an array,
             // even if the API response shape changes unexpectedly.
             setMessages(Array.isArray(history) ? history : []);
@@ -38,6 +39,7 @@ export const ChatbotWidget: React.FC = () => {
           const newSessionId = String(result.sessionId);
           setSessionId(newSessionId);
           sessionStorage.setItem('chat_session_id', newSessionId);
+          sessionStorage.setItem('chat_session_token', result.sessionToken);
           // Initial greeting
           setMessages([
             { sender: 'bot', text: 'Hi! I am your Celti Core fitness assistant. Ask me anything about proteins, creatine, or workouts!' }

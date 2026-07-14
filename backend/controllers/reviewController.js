@@ -12,36 +12,71 @@ exports.addReview = (req, res) => {
         comment
     } = req.body;
 
-    db.run(
-        `
-        INSERT INTO reviews
-        (
-            product_id,
-            user_id,
-            rating,
-            comment
-        )
-        VALUES (?,?,?,?)
-        `,
-        [
-            product_id,
-            user_id,
-            rating,
-            comment
-        ],
-        function(err){
+    if (!product_id) {
+        return res.status(400).json({ error: 'product_id is required' });
+    }
 
-            if(err){
+    const ratingNum = Number(rating);
+    if (!Number.isInteger(ratingNum) || ratingNum < 1 || ratingNum > 5) {
+        return res.status(400).json({ error: 'rating must be an integer between 1 and 5' });
+    }
 
-                return res.status(500).json({
-                    error: err.message
-                });
+    const trimmedComment = typeof comment === 'string' ? comment.trim() : '';
+    if (!trimmedComment) {
+        return res.status(400).json({ error: 'comment is required' });
+    }
+    if (trimmedComment.length > 2000) {
+        return res.status(400).json({ error: 'comment must be 2000 characters or fewer' });
+    }
+
+    // Confirm the product actually exists before attaching a review to it —
+    // previously any product_id (including ones that don't exist) was
+    // accepted silently.
+    db.get(
+        `SELECT id FROM products WHERE id = ?`,
+        [product_id],
+        (lookupErr, product) => {
+
+            if (lookupErr) {
+                return res.status(500).json({ error: lookupErr.message });
             }
 
-            res.json({
-                id:this.lastID,
-                message:'Review submitted'
-            });
+            if (!product) {
+                return res.status(404).json({ error: 'Product not found' });
+            }
+
+            db.run(
+                `
+                INSERT INTO reviews
+                (
+                    product_id,
+                    user_id,
+                    rating,
+                    comment
+                )
+                VALUES (?,?,?,?)
+                `,
+                [
+                    product_id,
+                    user_id || null,
+                    ratingNum,
+                    trimmedComment
+                ],
+                function(err){
+
+                    if(err){
+
+                        return res.status(500).json({
+                            error: err.message
+                        });
+                    }
+
+                    res.json({
+                        id:this.lastID,
+                        message:'Review submitted'
+                    });
+                }
+            );
         }
     );
 };

@@ -14,6 +14,7 @@ const {
 } = require("../controllers/settingsController");
 
 const adminAuthMiddleware = require("../middleware/adminAuthMiddleware");
+const { authLimiter } = require("../middleware/rateLimit");
 
 /**
  * @swagger
@@ -32,7 +33,7 @@ const adminAuthMiddleware = require("../middleware/adminAuthMiddleware");
  *       200:
  *         description: Store settings retrieved successfully
  */
-router.get("/", getSettings);
+router.get("/", adminAuthMiddleware, getSettings);
 
 /**
  * @swagger
@@ -109,7 +110,7 @@ router.put("/", adminAuthMiddleware, updateSettings);
  *       401:
  *         description: Invalid credentials
  */
-router.post("/admin-login", adminLogin);
+router.post("/admin-login", authLimiter, adminLogin);
 
 /**
  * @swagger

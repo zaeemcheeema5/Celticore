@@ -22,7 +22,7 @@ type PaymentMethodType = 'card' | 'gpay' | 'applepay';
 export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
 
-  const { cartItems, subtotal, discount, total, placeOrder } = useCart();
+  const { cartItems, subtotal, discount, total, coupon, placeOrder } = useCart();
 
   // Checkout flow step: 'form' | 'success'
   const [step, setStep] = useState<'form' | 'success'>('form');
@@ -389,6 +389,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
                             postalCode={postalCode}
                             country={country}
                             total={total}
+                            items={cartItems.map(item => ({ id: item.product.id, quantity: item.quantity }))}
+                            couponCode={coupon?.code}
                             onSubmitSuccess={(intentId) => handleOrderSubmission('card', intentId)}
                           />
                         </Elements>
@@ -769,8 +771,28 @@ interface StripeSubFormProps {
   postalCode: string;
   country: string;
   total: number;
+  items: { id: string; quantity: number }[];
+  couponCode?: string;
   onSubmitSuccess: (paymentIntentId: string) => Promise<void>;
 }
+
+const CARD_BRAND_ICONS: Record<string, JSX.Element> = {
+  visa: (
+    <svg viewBox="0 0 32 20" className="h-3.5 w-auto"><rect width="32" height="20" rx="3" fill="#1A1F71" /><text x="16" y="14" textAnchor="middle" fontSize="8" fontWeight="900" fontStyle="italic" fill="#fff" fontFamily="Arial, sans-serif">VISA</text></svg>
+  ),
+  mastercard: (
+    <svg viewBox="0 0 32 20" className="h-3.5 w-auto"><rect width="32" height="20" rx="3" fill="#0a0a0a" /><circle cx="13" cy="10" r="6" fill="#EB001B" /><circle cx="19" cy="10" r="6" fill="#F79E1B" fillOpacity="0.9" /></svg>
+  ),
+  amex: (
+    <svg viewBox="0 0 32 20" className="h-3.5 w-auto"><rect width="32" height="20" rx="3" fill="#2E77BC" /><text x="16" y="14" textAnchor="middle" fontSize="7" fontWeight="800" fill="#fff" fontFamily="Arial, sans-serif">AMEX</text></svg>
+  ),
+  discover: (
+    <svg viewBox="0 0 32 20" className="h-3.5 w-auto"><rect width="32" height="20" rx="3" fill="#111" /><text x="16" y="14" textAnchor="middle" fontSize="6" fontWeight="800" fill="#FF6000" fontFamily="Arial, sans-serif">DISC</text></svg>
+  ),
+  unknown: (
+    <svg viewBox="0 0 32 20" className="h-3.5 w-auto opacity-30"><rect width="32" height="20" rx="3" fill="none" stroke="#ffffff40" /></svg>
+  ),
+};
 
 const StripePaymentSubForm: React.FC<StripeSubFormProps> = ({
   email,
@@ -780,11 +802,17 @@ const StripePaymentSubForm: React.FC<StripeSubFormProps> = ({
   postalCode,
   country,
   total,
+  items,
+  couponCode,
   onSubmitSuccess
 }) => {
   const stripe = useStripe();
   const elements = useElements();
   const [loading, setLoading] = useState(false);
+  const [focused, setFocused] = useState(false);
+  const [cardBrand, setCardBrand] = useState('unknown');
+  const [cardComplete, setCardComplete] = useState(false);
+  const [cardError, setCardError] = useState<string | null>(null);
 
   const handleSubmit = async () => {
 
@@ -801,9 +829,12 @@ const StripePaymentSubForm: React.FC<StripeSubFormProps> = ({
     setLoading(true);
 
     try {
-      // 1. Create PaymentIntent on server
+      // 1. Create PaymentIntent on server. The server recalculates the
+      // charge from real product prices + coupon — it does not trust a
+      // client-supplied amount, so we send the cart contents, not a total.
       const { clientSecret } = await api.post('/api/payment/create-intent', {
-        amount: Math.round(total * 100), // amount in pence
+        items,
+        couponCode,
         currency: 'gbp',
         receipt_email: email
       });
@@ -846,32 +877,62 @@ const StripePaymentSubForm: React.FC<StripeSubFormProps> = ({
 
   return (
     // This renders inside CheckoutModal's own <form onSubmit={handleCheckoutSubmit}>
-    // higher up the tree (the shipping/customer-info form). A <form> was
+    // (the shipping/customer-info form further up the tree). A <form> was
     // nested inside that outer <form> here before — invalid HTML, and the
-    // cause of "clicking Pay & Place Order reloads the page back to Home":
-    // nested forms make the browser's native submit-button-owner
+    // likely cause of "clicking Pay & Place Order reloads the page back to
+    // Home": nested forms make the browser's native submit-button-owner
     // resolution unreliable, so the click could fall through to a real
-    // native form submission (a full page reload) instead of being
+    // native form submission (a full page GET/reload) instead of being
     // handled by this component's own JS. Using a plain <div> here plus a
     // type="button" + onClick below means there is no second <form> at
-    // all, so there is no native submission path left to fall through to.
+    // all, so there's no native submission path left to fall through to.
     <div className="space-y-4">
       <div className="flex justify-between items-center text-[10px] text-white/40">
         <span className="flex items-center gap-1"><Lock size={10} className="text-emerald-400" /> SECURE CARD PAYMENT PROTOCOL</span>
-        <span className="px-1.5 py-0.5 bg-emerald-500/15 text-emerald-400 rounded-sm font-bold">SECURE CHANNEL</span>
+        <div className="flex items-center gap-1.5">
+          {['visa', 'mastercard', 'amex', 'discover'].map((brand) => (
+            <span
+              key={brand}
+              className="transition-opacity duration-200"
+              style={{ opacity: cardBrand === 'unknown' || cardBrand === brand ? 1 : 0.25 }}
+            >
+              {CARD_BRAND_ICONS[brand]}
+            </span>
+          ))}
+        </div>
       </div>
 
-      <div className="p-3 bg-black border border-white/10 rounded-sm">
+      {/* Card input — glows emerald on focus, red on validation error */}
+      <div
+        className="relative p-4 bg-gradient-to-b from-white/[0.04] to-transparent border rounded-lg transition-all duration-200"
+        style={{
+          borderColor: cardError ? 'rgba(239,68,68,0.6)' : focused ? 'rgba(16,185,129,0.7)' : 'rgba(255,255,255,0.1)',
+          boxShadow: cardError
+            ? '0 0 0 3px rgba(239,68,68,0.08)'
+            : focused
+            ? '0 0 0 3px rgba(16,185,129,0.10)'
+            : 'none',
+        }}
+      >
         <CardElement
+          onChange={(e) => {
+            setCardBrand(e.brand || 'unknown');
+            setCardComplete(e.complete);
+            setCardError(e.error ? e.error.message : null);
+          }}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
           options={{
+            hidePostalCode: true, // postal code is already collected in the shipping section above
             style: {
               base: {
                 color: '#ffffff',
                 fontFamily: '"DM Sans", sans-serif',
                 fontSmoothing: 'antialiased',
-                fontSize: '13px',
+                fontSize: '14px',
+                letterSpacing: '0.02em',
                 '::placeholder': {
-                  color: 'rgba(255,255,255,0.3)',
+                  color: 'rgba(255,255,255,0.28)',
                 },
               },
               invalid: {
@@ -881,13 +942,20 @@ const StripePaymentSubForm: React.FC<StripeSubFormProps> = ({
             },
           }}
         />
+        {cardComplete && !cardError && (
+          <CheckCircle2 size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-emerald-400" />
+        )}
       </div>
+
+      {cardError && (
+        <p className="text-[10px] text-red-400 flex items-center gap-1 -mt-2">{cardError}</p>
+      )}
 
       <button
         type="button"
         onClick={handleSubmit}
-        disabled={loading || !stripe}
-        className="w-full py-3.5 bg-emerald-500 hover:bg-emerald-400 text-black font-black uppercase tracking-widest text-xs flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+        disabled={loading || !stripe || !cardComplete}
+        className="w-full py-3.5 bg-emerald-500 hover:bg-emerald-400 text-black font-black uppercase tracking-widest text-xs flex items-center justify-center gap-2 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed transition-all rounded-sm"
         style={{ fontFamily: "'Barlow Condensed', sans-serif" }}
       >
         {loading ? (
@@ -899,6 +967,12 @@ const StripePaymentSubForm: React.FC<StripeSubFormProps> = ({
           </>
         )}
       </button>
+
+      <div className="flex items-center justify-center gap-1.5 text-[9px] text-white/30 pt-0.5">
+        <ShieldCheck size={11} className="text-white/30" />
+        <span>Payments secured & encrypted by</span>
+        <span className="font-bold text-white/50 tracking-tight">stripe</span>
+      </div>
     </div>
   );
 };

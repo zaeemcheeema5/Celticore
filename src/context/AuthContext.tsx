@@ -4,7 +4,6 @@ import { authService } from '../api/auth';
 
 interface AuthContextType {
   user: User | null;
-  token: string | null;
   isAuthenticated: boolean;
   isAdmin: boolean;
   loading: boolean;
@@ -17,40 +16,46 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const savedToken = localStorage.getItem('token');
-    const savedUser = localStorage.getItem('user');
-
-    if (savedToken && savedUser) {
-      setToken(savedToken);
-      setUser(JSON.parse(savedUser));
-      
-      // Verify token/load profile in background
-      authService.getProfile()
-        .then((profile) => {
-          setUser(profile);
-          localStorage.setItem('user', JSON.stringify(profile));
-        })
-        .catch(() => {
-          // Token expired or invalid
-          logout();
-        })
-        .finally(() => setLoading(false));
-    } else {
-      setLoading(false);
+    // The JWT itself now lives in an httpOnly cookie the frontend can
+    // never read — there's no token to pull out of localStorage anymore.
+    // A cached `user` object (just display data, nothing sensitive) is
+    // used for an instant, flicker-free UI on load, then reconciled
+    // against the server, which is the actual source of truth: if the
+    // cookie is missing/expired, this call 401s and we fall back to
+    // logged-out state.
+    const cachedUser = localStorage.getItem('user');
+    if (cachedUser) {
+      try {
+        setUser(JSON.parse(cachedUser));
+      } catch {
+        localStorage.removeItem('user');
+      }
     }
+
+    authService.getProfile()
+      .then((data) => {
+        setUser(data.user);
+        localStorage.setItem('user', JSON.stringify(data.user));
+      })
+      .catch(() => {
+        // No valid session cookie (never logged in, expired, or logged
+        // out elsewhere) — make sure stale cached UI state doesn't linger.
+        setUser(null);
+        localStorage.removeItem('user');
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   const login = async (credentials: any) => {
     setLoading(true);
     try {
+      // The backend sets the auth cookie itself via Set-Cookie on this
+      // response — nothing for the client to store except display data.
       const data = await authService.login(credentials);
-      setToken(data.token);
       setUser(data.user);
-      localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
     } finally {
       setLoading(false);
@@ -61,9 +66,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoading(true);
     try {
       const data = await authService.signup(userData);
-      setToken(data.token);
       setUser(data.user);
-      localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
     } finally {
       setLoading(false);
@@ -71,17 +74,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = () => {
-    setToken(null);
     setUser(null);
-    localStorage.removeItem('token');
     localStorage.removeItem('user');
+    // Fire-and-forget: clears the httpOnly cookie server-side. UI updates
+    // immediately above regardless of whether this network call succeeds.
+    authService.logout().catch(() => {});
   };
 
-  const isAuthenticated = !!token;
+  const isAuthenticated = !!user;
   const isAdmin = user?.role === 'admin' || user?.role === 'main_admin';
 
   return (
-    <AuthContext.Provider value={{ user, token, isAuthenticated, isAdmin, loading, login, signup, logout }}>
+    <AuthContext.Provider value={{ user, isAuthenticated, isAdmin, loading, login, signup, logout }}>
       {children}
     </AuthContext.Provider>
   );

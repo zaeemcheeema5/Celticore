@@ -1,10 +1,19 @@
 const jwt = require("jsonwebtoken");
 
+const JWT_SECRET = require("../utils/jwtSecret");
+
 module.exports = (req, res, next) => {
 
+    // Same dual-source read as authMiddleware.js — cookie for the browser
+    // app, Authorization header as a fallback for non-browser API clients.
     const authHeader = req.headers.authorization;
+    const headerToken = authHeader && authHeader.startsWith("Bearer ")
+        ? authHeader.split(" ")[1]
+        : null;
 
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    const token = (req.cookies && req.cookies.token) || headerToken;
+
+    if (!token) {
 
         return res.status(401).json({
             success: false,
@@ -13,13 +22,11 @@ module.exports = (req, res, next) => {
 
     }
 
-    const token = authHeader.split(" ")[1];
-
     try {
 
         const decoded = jwt.verify(
             token,
-            process.env.JWT_SECRET
+            JWT_SECRET
         );
 
         if (decoded.role !== "admin" && decoded.role !== "main_admin") {

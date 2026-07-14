@@ -4,17 +4,13 @@ const bcrypt = require('bcryptjs');
 
 /*
 =====================================
-JWT SECRET (no insecure fallback)
+JWT SECRET — single validated source (utils/jwtSecret.js).
+Throws at startup if unset or weak, instead of silently allowing
+admin login with a guessable/known-default secret.
 =====================================
 */
-const JWT_SECRET = process.env.JWT_SECRET;
-
-if (!JWT_SECRET) {
-    console.warn(
-        '[WARNING] JWT_SECRET is not set in environment variables. ' +
-        'Admin login will be disabled until this is configured.'
-    );
-}
+const JWT_SECRET = require('../utils/jwtSecret');
+const { setAuthCookie } = require('../utils/authCookie');
 
 /*
 =====================================
@@ -37,8 +33,19 @@ exports.getSettings = (req, res) => {
 
             const settings = {};
 
+            // Never echo secrets back in a JSON response, even to an
+            // authenticated admin — admin_password/openai_api_key/etc are
+            // write-only from the API's perspective.
+            const secretKeys = new Set([
+                'admin_password',
+                'stripe_secret_key',
+                'openai_api_key'
+            ]);
+
             rows.forEach(row => {
-                settings[row.key] = row.value;
+                if (!secretKeys.has(row.key)) {
+                    settings[row.key] = row.value;
+                }
             });
 
             res.json({
@@ -202,6 +209,12 @@ exports.adminLogin = (req, res) => {
                     expiresIn: '24h'
                 }
             );
+
+            // Sets the same httpOnly cookie the main /api/auth/login flow
+            // uses. The response body still includes `token` below too,
+            // kept for backward compatibility with any existing caller of
+            // this endpoint that reads it directly.
+            setAuthCookie(res, token);
 
             // Update last_login timestamp
             const lastLogin = new Date().toISOString();

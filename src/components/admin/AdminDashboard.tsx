@@ -16,11 +16,12 @@ import { toast } from 'sonner';
 interface AdminDashboardProps {
   isOpen: boolean;
   onClose: () => void;
+  onCatalogChange?: () => void;
 }
 
 type TabType = 'stats' | 'orders' | 'products' | 'categories' | 'reviews' | 'coupons' | 'contact' | 'nutrition' | 'admins';
 
-export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose }) => {
+export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose, onCatalogChange }) => {
   if (!isOpen) return null;
 
   const { user } = useAuth();
@@ -209,6 +210,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
       // Reload products list
       const data = await productsService.getProducts();
       setProducts(data);
+      onCatalogChange?.();
     } catch (err: any) {
       toast.error(err.message || "Failed to save product");
     }
@@ -254,6 +256,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
       await productsService.deleteProduct(id);
       toast.success("Product deleted.");
       setProducts(prev => prev.filter(p => p.id !== id));
+      onCatalogChange?.();
       if (editingProduct && editingProduct.id === id) {
         handleCancelEditProduct();
       }
@@ -331,6 +334,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
       // Reload category list
       const data = await productsService.getCategories();
       setCategories(data);
+      onCatalogChange?.();
     } catch (err: any) {
       toast.error(err.message || "Failed to save category");
     }
@@ -365,6 +369,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
       await productsService.deleteCategory(id);
       toast.success("Category deleted.");
       setCategories(prev => prev.filter(c => c.id !== id));
+      onCatalogChange?.();
       if (editingCategory && editingCategory.id === id) {
         handleCancelEditCategory();
       }
