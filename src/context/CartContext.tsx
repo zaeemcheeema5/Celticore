@@ -102,9 +102,17 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const applyCouponCode = async (code: string) => {
     try {
-      const result = await couponsService.applyCoupon(code);
-      setCoupon(result);
-      toast.success(`Coupon "${result.code}" applied! ${result.discountPercent}% off.`);
+      // Backend needs the current subtotal to validate/calculate the discount
+      const result = await couponsService.applyCoupon(code, subtotal);
+      const appliedCoupon: Coupon = result.coupon;
+      setCoupon(appliedCoupon);
+
+      const label =
+        appliedCoupon.discount_type === 'percentage'
+          ? `${appliedCoupon.discount_value}% off`
+          : `£${appliedCoupon.discount_value} off`;
+
+      toast.success(`Coupon "${appliedCoupon.code}" applied! ${label}.`);
     } catch (err: any) {
       toast.error(err.message || "Failed to apply coupon");
       throw err;
@@ -160,7 +168,18 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Calculations
   const cartCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
   const subtotal = cartItems.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
-  const discount = coupon ? (subtotal * coupon.discountPercent) / 100 : 0;
+
+  // Recompute discount from the coupon's own fields (not a stale server value) so it
+  // stays correct if the cart changes (quantity updates, removals) after the coupon
+  // was applied, without needing to re-call the API.
+  let discount = 0;
+  if (coupon && subtotal > 0) {
+    if (coupon.discount_type === 'percentage') {
+      discount = (subtotal * coupon.discount_value) / 100;
+    } else if (coupon.discount_type === 'fixed') {
+      discount = coupon.discount_value;
+    }
+  }
   const total = Math.max(0, subtotal - discount);
 
   return (

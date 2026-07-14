@@ -427,7 +427,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
     try {
       await couponsService.createCoupon({
         code: couponCode.toUpperCase(),
-        discountPercent: parseInt(couponPercent)
+        discount_type: "percentage",
+        discount_value: parseInt(couponPercent),
+        expiry_date: null
       });
       toast.success("Coupon code created.");
       setCouponCode('');
@@ -1271,7 +1273,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
                     <div key={c.id} className="flex justify-between items-center p-3 bg-white/5 border border-white/5 text-xs">
                       <div>
                         <span className="font-black text-white px-2 py-0.5 bg-white/10 mr-2 tracking-widest">{c.code}</span>
-                        <span className="text-emerald-400 font-bold">{c.discountPercent}% OFF</span>
+                        <span className="text-emerald-400 font-bold">
+                          {c.discount_type === 'percentage'
+                            ? `${c.discount_value}% OFF`
+                            : `Rs. ${c.discount_value} OFF`}
+                        </span>
                       </div>
                       <button onClick={() => handleDeleteCoupon(c.id)} className="text-white/30 hover:text-red-400 p-1 cursor-pointer"><Trash2 size={13} /></button>
                     </div>

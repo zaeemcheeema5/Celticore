@@ -82,8 +82,10 @@ export interface Order {
 export interface Coupon {
   id: number;
   code: string;
-  discountPercent: number;
-  active: boolean;
+  discount_type: 'percentage' | 'fixed';
+  discount_value: number;
+  expiry_date?: string | null;
+  is_active?: boolean | number;
 }
 
 export interface NutritionRequest {
