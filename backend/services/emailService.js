@@ -17,7 +17,8 @@ const transporter = nodemailer.createTransport({
 const sendEmail = async ({ to, subject, html }) => {
     try {
         const info = await transporter.sendMail({
-            from: process.env.EMAIL_FROM,
+            // CHANGE THIS LINE: Use EMAIL_FROM instead of SMTP_USER
+            from: process.env.EMAIL_FROM, 
             to,
             subject,
             html,
@@ -31,9 +32,7 @@ const sendEmail = async ({ to, subject, html }) => {
         };
 
     } catch (error) {
-
         console.error("❌ Email Error:", error);
-
         return {
             success: false,
             error: error.message,

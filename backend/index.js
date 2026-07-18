@@ -25,33 +25,35 @@ app.use(helmet({
 }));
 
 // =====================================
-// CORS
+// CORS (FULLY UPDATED & FIXES THE BLOCKER)
 // =====================================
 
-const allowedOrigins = [
-    "http://localhost:5173",
-    process.env.CLIENT_URL
-].filter(Boolean);
-
 app.use(cors({
-
     origin: function (origin, callback) {
-
-        // Allow Postman / server-to-server requests
+        // 1. Allow Postman, server-to-server, or mobile requests with no origin header
         if (!origin) {
             return callback(null, true);
         }
 
-        if (allowedOrigins.includes(origin)) {
+        // 2. Automatically bypass and allow all local development traffic
+        if (origin.includes("localhost") || origin.includes("127.0.0.1")) {
             return callback(null, true);
         }
 
+        // 3. Normalize production configuration URLs to ensure safe matching
+        if (process.env.CLIENT_URL) {
+            const normalizedOrigin = origin.replace(/\/$/, "");
+            const normalizedClientUrl = process.env.CLIENT_URL.replace(/\/$/, "");
+            
+            if (normalizedOrigin === normalizedClientUrl) {
+                return callback(null, true);
+            }
+        }
+
+        // Drop request if it fails all allowed checks
         return callback(new Error("Not allowed by CORS"));
-
     },
-
     credentials: true,
-
     methods: [
         "GET",
         "POST",
@@ -60,34 +62,24 @@ app.use(cors({
         "DELETE",
         "OPTIONS"
     ],
-
     allowedHeaders: [
         "Content-Type",
         "Authorization"
     ]
-
 }));
 
 
 // =====================================
 // STARTUP SECURITY CHECK
-// This project ships with a well-known default admin login
-// (admin@celticore.com / password123) so a fresh checkout is usable
-// immediately. That's fine for local development, but it's a real
-// takeover risk if it ever reaches a real deployment unchanged — anyone
-// who has read this source code (or just guesses it) gets full admin
-// access. Warn loudly on every boot until it's changed.
 // =====================================
 
 const db = require("./db");
 
 setTimeout(() => {
-
     db.all(
         `SELECT key, value FROM settings WHERE key IN ('admin_email', 'admin_password')`,
         [],
         (err, rows) => {
-
             if (err) return;
 
             const settings = {};
@@ -106,14 +98,11 @@ setTimeout(() => {
             }
         }
     );
-
 }, 500);
 
 
 // =====================================
 // RATE LIMITING
-// Baseline abuse protection across the whole API; tighter, endpoint-specific
-// limits are applied directly on the auth routes (login/signup/OTP).
 // =====================================
 
 const { apiLimiter } = require("./middleware/rateLimit");
@@ -148,50 +137,29 @@ app.use(
 
 // =====================================
 // SWAGGER
-// Full API surface documentation — genuinely useful in development, but
-// not something a production deployment should serve publicly with no
-// auth in front of it. Gated behind NODE_ENV.
 // =====================================
 
 if ((process.env.NODE_ENV || "development") !== "production") {
 
 const swaggerOptions = {
-
     definition: {
-
         openapi: "3.0.0",
-
         info: {
-
             title: "CeltiCore API",
-
             version: "1.0.0",
-
-            description:
-                "Backend API Documentation for CeltiCore"
-
+            description: "Backend API Documentation for CeltiCore"
         },
-
         servers: [
-
             {
-
                 url: "http://localhost:5000",
-
                 description: "Development Server"
-
             }
-
         ]
-
     },
-
     apis: ["./routes/*.js"]
-
 };
 
-const swaggerDocs =
-    swaggerJsDoc(swaggerOptions);
+const swaggerDocs = swaggerJsDoc(swaggerOptions);
 
 app.use(
     "/api-docs",
@@ -200,14 +168,8 @@ app.use(
 );
 
 app.get("/swagger.json", (req, res) => {
-
-    res.setHeader(
-        "Content-Type",
-        "application/json"
-    );
-
+    res.setHeader("Content-Type", "application/json");
     res.send(swaggerSpec);
-
 });
 
 } // end swagger dev-only guard
@@ -218,31 +180,18 @@ app.get("/swagger.json", (req, res) => {
 // =====================================
 
 app.use("/api/auth", require("./routes/authRoutes"));
-
 app.use("/api/products", require("./routes/productRoutes"));
-
 app.use("/api/upload", require("./routes/uploadRoutes"));
-
 app.use("/api/categories", require("./routes/categoryRoutes"));
-
 app.use("/api/orders", require("./routes/orderRoutes"));
-
 app.use("/api/payment", paymentRoutes);
-
 app.use("/api/settings", require("./routes/settingsRoutes"));
-
 app.use("/api/contact", require("./routes/contactRoutes"));
-
 app.use("/api/reviews", require("./routes/reviewRoutes"));
-
 app.use("/api/wishlist", require("./routes/wishlistRoutes"));
-
 app.use("/api/coupons", require("./routes/couponRoutes"));
-
 app.use("/api/dashboard", require("./routes/dashboardRoutes"));
-
 app.use("/api/nutrition", require("./routes/nutritionRoutes"));
-
 app.use("/api/chat", require("./routes/chatRoutes"));
 
 
@@ -251,18 +200,11 @@ app.use("/api/chat", require("./routes/chatRoutes"));
 // =====================================
 
 app.get("/health", (req, res) => {
-
     res.json({
-
         success: true,
-
         message: "CeltiCore Backend Running",
-
-        environment:
-            process.env.NODE_ENV || "development"
-
+        environment: process.env.NODE_ENV || "development"
     });
-
 });
 
 
@@ -271,15 +213,10 @@ app.get("/health", (req, res) => {
 // =====================================
 
 app.use((req, res) => {
-
     res.status(404).json({
-
         success: false,
-
         message: "API endpoint not found"
-
     });
-
 });
 
 
@@ -288,41 +225,24 @@ app.use((req, res) => {
 // =====================================
 
 app.use((err, req, res, next) => {
-
     console.error(err.stack);
 
     const isDev = (process.env.NODE_ENV || "development") !== "production";
 
     res.status(500).json({
-
         success: false,
-
-        // Raw err.message can contain internal details (SQL text, file
-        // paths, stack info) that shouldn't reach an untrusted client in
-        // production. Full detail still goes to the server console above.
         error: isDev ? (err.message || "Internal Server Error") : "Internal Server Error"
-
     });
-
 });
-
 
 
 // =====================================
 // START SERVER
 // =====================================
 
-const PORT =
-    process.env.PORT || 5000;
+const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, "0.0.0.0", () => {
-
-    console.log(
-        `🚀 CeltiCore Backend running on port ${PORT}`
-    );
-
-    console.log(
-        `📄 Swagger: http://localhost:${PORT}/api-docs`
-    );
-
+    console.log(`🚀 CeltiCore Backend running on port ${PORT}`);
+    console.log(`📄 Swagger: http://localhost:${PORT}/api-docs`);
 });

@@ -637,186 +637,120 @@ exports.forgotPassword = (req, res) => {
 // VERIFY OTP
 // ======================
 
+// ======================
+// VERIFY OTP
+// ======================
 exports.verifyOTP = (req, res) => {
-
     const { email, otp } = req.body;
 
     if (!email || !otp) {
-
         return res.status(400).json({
-
             success: false,
-
             message: "Email and OTP are required."
-
         });
-
     }
 
     db.get(
-
         `
         SELECT *
         FROM users
         WHERE email = ?
         `,
-
         [email],
-
         (err, user) => {
-
             if (err) {
-
                 return res.status(500).json({
-
                     success: false,
-
                     error: err.message
-
                 });
-
             }
 
             if (!user) {
-
                 return res.status(400).json({
-
                     success: false,
-
                     message: "Invalid email."
-
                 });
-
             }
 
-            if (user.reset_otp !== otp) {
+            // --- DEBUG LOG BLOCK ---
+            console.log("--- OTP Verification Debug ---");
+            console.log("Database user object:", user);
+            console.log("OTP value from DB:", user.reset_otp);
+            console.log("OTP value from Frontend:", otp);
+            console.log("------------------------------");
 
+            // Fix: Clean string conversion comparison
+            if (String(user.reset_otp).trim() !== String(otp).trim()) {
                 return res.status(400).json({
-
                     success: false,
-
                     message: "Invalid OTP."
-
                 });
-
             }
 
             if (new Date(user.otp_expiry) < new Date()) {
-
                 return res.status(400).json({
-
                     success: false,
-
                     message: "OTP has expired."
-
                 });
-
             }
 
             res.json({
-
                 success: true,
-
                 message: "OTP verified successfully."
-
             });
-
         }
-
     );
-
 };
-
-
 
 // ======================
 // RESET PASSWORD
 // ======================
-
 exports.resetPassword = async (req, res) => {
-
-    const {
-
-        email,
-
-        otp,
-
-        password
-
-    } = req.body;
+    const { email, otp, password } = req.body;
 
     if (!email || !otp || !password) {
-
         return res.status(400).json({
-
             success: false,
-
             message: "Email, OTP and new password are required."
-
         });
-
     }
 
     db.get(
-
         `
         SELECT *
         FROM users
         WHERE email = ?
         `,
-
         [email],
-
         async (err, user) => {
-
             if (err) {
-
                 return res.status(500).json({
-
                     success: false,
-
                     error: err.message
-
                 });
-
             }
 
             if (!user) {
-
                 return res.status(400).json({
-
                     success: false,
-
                     message: "Invalid email."
-
                 });
-
             }
 
+            // Fix: Clean string conversion comparison and expiry check
             if (
-
-                user.reset_otp !== otp ||
-
+                String(user.reset_otp).trim() !== String(otp).trim() ||
                 new Date(user.otp_expiry) < new Date()
-
             ) {
-
                 return res.status(400).json({
-
                     success: false,
-
                     message: "Invalid or expired OTP."
-
                 });
-
             }
 
-            const hashedPassword =
-
-                await bcrypt.hash(password, 10);
+            const hashedPassword = await bcrypt.hash(password, 10);
 
             db.run(
-
                 `
                 UPDATE users
                 SET
@@ -825,43 +759,21 @@ exports.resetPassword = async (req, res) => {
                     otp_expiry = NULL
                 WHERE id = ?
                 `,
-
-                [
-
-                    hashedPassword,
-
-                    user.id
-
-                ],
-
+                [hashedPassword, user.id],
                 function(updateErr) {
-
                     if (updateErr) {
-
                         return res.status(500).json({
-
                             success: false,
-
                             error: updateErr.message
-
                         });
-
                     }
 
                     res.json({
-
                         success: true,
-
                         message: "Password reset successfully."
-
                     });
-
                 }
-
             );
-
         }
-
     );
-
 };
