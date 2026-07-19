@@ -36,8 +36,8 @@ jobs:
           TARGET: "/home/${{ secrets.SSH_USERNAME }}/domains/thecelticore.com/public_html/"
           SOURCE: "dist/"
 
-      # --- AUTOMATED BACKEND DEPLOY & RESTART STEP ---
-      - name: Deploy Backend and Restart Hostinger Application
+      # --- AUTOMATED BACKEND DEPLOY & SUBDOMAIN ROUTING STEP ---
+      - name: Deploy Backend and Configure Routing
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -45,23 +45,30 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT }}
           script: |
-            # Target the directory where Hostinger expects your Node app folder to live
             cd /home/${{ secrets.SSH_USERNAME }}/domains/thecelticore.com/
             
-            # Ensure the target nodejs folder exists
+            # 1. Ensure the nodejs folder exists and update files
             mkdir -p nodejs
-            
-            # Remove old backend files inside nodejs to prevent conflicts, then copy fresh ones
             rm -rf nodejs/*
-            
-            # Sync the repository's backend files straight into your active application root
-            # Note: adjust 'backend/' below if your backend source directory uses a different name
             cp -r backend/* nodejs/
             
-            # Go inside and install production modules fresh on the server engine
-            cd nodejs
-            npm install --production
+            # 2. Inject/Overwrite the .htaccess inside the subdomain folder to fix the 404
+            # (Checks both common subdomain folder locations on Hostinger)
+            if [ -d "api.thecelticore.com" ]; then
+              cd api.thecelticore.com
+            else
+              cd nodejs
+            fi
             
-            # Force Hostinger's Passenger manager to clear cache and reboot immediately
+            cat << 'EOF' > .htaccess
+            RewriteEngine On
+            RewriteCond %{REQUEST_FILENAME} !-f
+            RewriteCond %{REQUEST_FILENAME} !-d
+            RewriteRule ^(.*)$ http://127.0.0.1:%{ENV:PORT}/$1 [P,L]
+            EOF
+            
+            # 3. Head back to the execution application root, install packages, and clear cache
+            cd /home/${{ secrets.SSH_USERNAME }}/domains/thecelticore.com/nodejs
+            npm install --production
             mkdir -p tmp
             touch tmp/restart.txt
