@@ -46,12 +46,18 @@ exports.placeOrder = async (req, res) => {
 
     const subtotal = total + (discount || 0);
 
-    // For real card payments, don't trust the client's claimed paymentStatus —
-    // confirm the PaymentIntent actually succeeded, and that its amount matches
-    // this order's total, directly against Stripe. (gpay/applepay stay
-    // client-reported since those are simulated flows in this codebase, not
-    // real payment rails.)
-    let isPaid = paymentStatus === 'paid';
+    // Only a real, server-verified card payment can mark an order as Paid.
+    // Every other method (COD, bank transfer, gpay, applepay) starts as
+    // Pending regardless of what the client claims — the client's
+    // paymentStatus field is never trusted for these. COD is paid on
+    // delivery and bank transfer needs manual verification, so Pending is
+    // correct there anyway. gpay/applepay are a simulated (non-real)
+    // integration in this codebase, not a live payment rail, so treating
+    // them as automatically "paid" let anyone create a free order via a
+    // direct API call — they now require the same manual admin
+    // confirmation as bank transfer until they're wired to real,
+    // server-verified payment processing.
+    let isPaid = false;
 
     if (paymentMethod === 'card') {
 
@@ -129,7 +135,7 @@ exports.placeOrder = async (req, res) => {
                 deliveryMethod || "standard",
                 deliveryCost || 0,
                 paymentMethod || "card",
-                isPaid ? 'paid' : (paymentStatus || 'pending'),
+                isPaid ? 'paid' : 'pending',
                 stripePaymentIntentId || null,
                 subtotal,
                 discount || 0,
@@ -272,7 +278,7 @@ exports.placeOrder = async (req, res) => {
                         subtotal,
                         discount: discount || 0,
                         payment_method: paymentMethod || "card",
-                        payment_status: isPaid ? 'paid' : (paymentStatus || 'pending'),
+                        payment_status: isPaid ? 'paid' : 'pending',
                         stripe_payment_intent_id: stripePaymentIntentId || '',
                         delivery_method: deliveryMethod || "standard",
                         delivery_cost: deliveryCost || 0,

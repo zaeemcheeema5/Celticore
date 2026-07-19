@@ -28,6 +28,15 @@ app.use(helmet({
 // CORS (FULLY UPDATED & FIXES THE BLOCKER)
 // =====================================
 
+const isProdEnv = (process.env.NODE_ENV || "development") === "production";
+
+// Exact-match localhost/127.0.0.1 origins (any port) — used only in
+// development. This used to be a substring check (origin.includes(...))
+// with no environment gate, which meant an attacker-controlled origin like
+// "http://localhost.attacker.com" would also pass, in production too —
+// a real CORS bypass when combined with credentials:true.
+const LOCAL_DEV_ORIGIN_RE = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
+
 app.use(cors({
     origin: function (origin, callback) {
         // 1. Allow Postman, server-to-server, or mobile requests with no origin header
@@ -35,8 +44,9 @@ app.use(cors({
             return callback(null, true);
         }
 
-        // 2. Automatically bypass and allow all local development traffic
-        if (origin.includes("localhost") || origin.includes("127.0.0.1")) {
+        // 2. In development only, allow local dev traffic on any port —
+        //    exact host match, not a substring check.
+        if (!isProdEnv && LOCAL_DEV_ORIGIN_RE.test(origin)) {
             return callback(null, true);
         }
 

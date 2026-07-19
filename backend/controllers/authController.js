@@ -672,14 +672,7 @@ exports.verifyOTP = (req, res) => {
                 });
             }
 
-            // --- DEBUG LOG BLOCK ---
-            console.log("--- OTP Verification Debug ---");
-            console.log("Database user object:", user);
-            console.log("OTP value from DB:", user.reset_otp);
-            console.log("OTP value from Frontend:", otp);
-            console.log("------------------------------");
-
-            // Fix: Clean string conversion comparison
+            // Clean string conversion comparison
             if (String(user.reset_otp).trim() !== String(otp).trim()) {
                 return res.status(400).json({
                     success: false,

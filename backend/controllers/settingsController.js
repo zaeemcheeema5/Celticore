@@ -61,9 +61,37 @@ exports.getSettings = (req, res) => {
 UPDATE SETTINGS
 =====================================
 */
+// Keys that must never be settable through this generic endpoint, even by
+// a main_admin — they either grant login/account-takeover (admin_email,
+// admin_username, admin_password) or expose payment credentials
+// (stripe_secret_key). admin_password in particular must always go through
+// updateAdminCredentials so it gets bcrypt-hashed rather than stored as
+// plaintext — this endpoint used to accept any key/value pair here,
+// which meant ANY admin (not just main_admin — adminAuthMiddleware allows
+// both roles) could overwrite the master admin's email/password or the
+// Stripe secret key just by including them in a normal "save settings"
+// request.
+const BLOCKED_SETTINGS_KEYS = new Set([
+    'admin_email',
+    'admin_username',
+    'admin_password',
+    'stripe_secret_key'
+]);
+
 exports.updateSettings = (req, res) => {
 
     const settings = req.body;
+
+    const blockedKeysPresent = Object.keys(settings)
+        .filter(key => BLOCKED_SETTINGS_KEYS.has(key));
+
+    if (blockedKeysPresent.length > 0) {
+        return res.status(403).json({
+            success: false,
+            error: `The following settings cannot be changed here: ${blockedKeysPresent.join(', ')}. ` +
+                   `Admin credentials must be updated via PUT /api/settings/admin/credentials.`
+        });
+    }
 
     // Validate currency if provided
     if (settings.currency) {
