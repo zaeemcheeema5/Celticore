@@ -1,60 +1,28 @@
 const multer = require("multer");
-const path = require("path");
 
-// Allowed file types
-const allowedTypes = /jpeg|jpg|png|webp/;
+// Keep the file in memory buffer so we can parse magic bytes before upload
+const storage = multer.memoryStorage();
 
+// Handle basic extensions / MIME types filtering swiftly at the entry point
 const fileFilter = (req, file, cb) => {
-    const extname = allowedTypes.test(
-        path.extname(file.originalname).toLowerCase()
-    );
-
-    const mimetype = allowedTypes.test(file.mimetype);
-
-    if (extname && mimetype) {
+    const allowedTypes = /jpeg|jpg|png|webp/;
+    const isMimeValid = allowedTypes.test(file.mimetype);
+    
+    if (isMimeValid) {
         return cb(null, true);
     }
-
-    cb(new Error("Only JPG, JPEG, PNG and WEBP images are allowed."));
+    cb(new Error("Only JPG, JPEG, PNG and WEBP images are allowed."), false);
 };
 
-// Storage factory
-const storage = (folder) =>
-    multer.diskStorage({
-        destination: (req, file, cb) => {
-            cb(null, `uploads/${folder}`);
-        },
-
-        filename: (req, file, cb) => {
-            const uniqueName =
-                Date.now() +
-                "-" +
-                Math.round(Math.random() * 1e9) +
-                path.extname(file.originalname);
-
-            cb(null, uniqueName);
-        },
-    });
-
-// Product Upload
 const uploadProduct = multer({
-    storage: storage("products"),
-
-    limits: {
-        fileSize: 5 * 1024 * 1024, // 5MB
-    },
-
+    storage: storage,
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit remains intact
     fileFilter,
 });
 
-// Category Upload
 const uploadCategory = multer({
-    storage: storage("categories"),
-
-    limits: {
-        fileSize: 5 * 1024 * 1024,
-    },
-
+    storage: storage,
+    limits: { fileSize: 5 * 1024 * 1024 },
     fileFilter,
 });
 
