@@ -25,7 +25,7 @@ jobs:
           npm run build
 
       # --- AUTOMATED DEPLOYMENT STEP VIA SSH ---
-      - name: Deploy Assets via rsync over SSH
+      - name: Deploy Frontend via rsync over SSH
         uses: easingthemes/ssh-deploy@v5.1.0
         with:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
@@ -45,18 +45,23 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT }}
           script: |
+            # Target the directory where Hostinger expects your Node app folder to live
             cd /home/${{ secrets.SSH_USERNAME }}/domains/thecelticore.com/
             
-            # Create nodejs directory if it doesn't exist
+            # Ensure the target nodejs folder exists
             mkdir -p nodejs
             
-            # Sync backend folder files into the active nodejs engine directory
+            # Remove old backend files inside nodejs to prevent conflicts, then copy fresh ones
+            rm -rf nodejs/*
+            
+            # Sync the repository's backend files straight into your active application root
+            # Note: adjust 'backend/' below if your backend source directory uses a different name
             cp -r backend/* nodejs/
             
-            # Install production dependencies inside nodejs folder
+            # Go inside and install production modules fresh on the server engine
             cd nodejs
             npm install --production
             
-            # Force Hostinger's Passenger utility to reload the application instantly
+            # Force Hostinger's Passenger manager to clear cache and reboot immediately
             mkdir -p tmp
             touch tmp/restart.txt
