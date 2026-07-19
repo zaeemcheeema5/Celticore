@@ -225,8 +225,8 @@ app.get("/health", (req, res) => {
 // SERVE FRONTEND STATIC FILES (VITE DIST)
 // =====================================
 
-// Serve the compiled frontend (Vite build)
-app.use(express.static(path.join(__dirname, "../dist")));
+// Serve the compiled frontend (Vite build mapped locally inside git workspace root)
+app.use(express.static(path.join(__dirname, "dist")));
 
 // Express 5 compatible SPA fallback
 app.use((req, res, next) => {
@@ -244,7 +244,7 @@ app.use((req, res, next) => {
     }
 
     // Serve React app for all other frontend routes
-    res.sendFile(path.join(__dirname, "../dist/index.html"));
+    res.sendFile(path.join(__dirname, "dist/index.html"));
 });
 
 // =====================================
