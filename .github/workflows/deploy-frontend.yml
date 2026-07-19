@@ -45,29 +45,24 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT }}
           script: |
+            # 1. Sync the backend source files into the nodejs environment root folder
             cd /home/${{ secrets.SSH_USERNAME }}/domains/thecelticore.com/
-            
-            # 1. Clean out the nodejs app directory and sync fresh files
             mkdir -p nodejs
-            
-            # Clean up the .htaccess file from the nodejs directory if it was put there previously
             rm -f nodejs/.htaccess
-            
             rm -rf nodejs/*
             cp -r backend/* nodejs/
             
-            # 2. Safely place the reverse proxy rules only inside the separate subdomain folder
-            if [ -d "api.thecelticore.com" ]; then
-              cat << 'EOF' > api.thecelticore.com/.htaccess
+            # 2. Inject the proxy routing file into the exact subdomain directory path
+            mkdir -p public_html/api
+            cat << 'EOF' > public_html/api/.htaccess
             RewriteEngine On
             RewriteCond %{REQUEST_FILENAME} !-f
             RewriteCond %{REQUEST_FILENAME} !-d
             RewriteRule ^(.*)$ http://127.0.0.1:%{ENV:PORT}/$1 [P,L]
             EOF
-            fi
             
-            # 3. Re-install modules and cycle the Passenger engine
-            cd /home/${{ secrets.SSH_USERNAME }}/domains/thecelticore.com/nodejs
+            # 3. Complete the dependencies installation and clear Passenger app cache
+            cd nodejs
             npm install --production
             mkdir -p tmp
             touch tmp/restart.txt
