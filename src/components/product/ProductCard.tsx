@@ -184,14 +184,14 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, accent, onOpe
               className="text-xl font-black text-white"
               style={{ fontFamily: "'Barlow Condensed', sans-serif" }}
             >
-              £{product.price.toFixed(2)}
+              €{product.price.toFixed(2)}
             </span>
             {product.originalPrice && (
               <span
                 className="text-xs text-white/30 line-through ml-2"
                 style={{ fontFamily: "'DM Sans', sans-serif" }}
               >
-                £{parseFloat(product.originalPrice.toString()).toFixed(2)}
+                €{parseFloat(product.originalPrice.toString()).toFixed(2)}
               </span>
             )}
           </div>

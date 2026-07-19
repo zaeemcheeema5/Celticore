@@ -649,7 +649,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
                 <div className="p-4 bg-white/5 border border-white/5 rounded">
                   <p className="text-[10px] uppercase text-white/40 font-bold tracking-wider">Total Sales Revenue</p>
                   <p className="text-3xl font-black text-emerald-400 mt-1" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
-                    £{stats.totalRevenue.toFixed(2)}
+                    €{stats.totalRevenue.toFixed(2)}
                   </p>
                 </div>
                 <div className="p-4 bg-white/5 border border-white/5 rounded">
@@ -757,7 +757,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
 
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="block text-[9px] uppercase text-white/40 mb-1">Price (£) *</label>
+                    <label className="block text-[9px] uppercase text-white/40 mb-1">Price (€) *</label>
                     <input
                       type="number" step="0.01" required placeholder="39.99"
                       value={prodPrice} onChange={e => setProdPrice(e.target.value)}
@@ -765,7 +765,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
                     />
                   </div>
                   <div>
-                    <label className="block text-[9px] uppercase text-white/40 mb-1">Original Price (£)</label>
+                    <label className="block text-[9px] uppercase text-white/40 mb-1">Original Price (€)</label>
                     <input
                       type="number" step="0.01" placeholder="49.99"
                       value={prodOrigPrice} onChange={e => setProdOrigPrice(e.target.value)}
@@ -931,7 +931,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
                             {p.badge && <span className="text-[9px] text-black bg-yellow-400 font-bold px-1">{p.badge}</span>}
                           </div>
                           <p className="text-[10px] text-white/40 uppercase mt-0.5">
-                            {p.category} · £{p.price.toFixed(2)} {p.originalPrice && <span className="line-through text-white/20">£{p.originalPrice.toFixed(2)}</span>}
+                            {p.category} · €{p.price.toFixed(2)} {p.originalPrice && <span className="line-through text-white/20">€{p.originalPrice.toFixed(2)}</span>}
                           </p>
                           <div className="flex items-center gap-3 mt-1 text-[9px]">
                             <span className={isLowStock ? 'text-red-400 font-bold' : 'text-emerald-400'}>
@@ -1445,13 +1445,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
                           {order.items.map((item, idx) => (
                             <div key={idx} className="flex justify-between text-white/70">
                               <span>{item.name} ({item.flavour}) x{item.quantity}</span>
-                              <span className="font-semibold text-white">£{(item.price * item.quantity).toFixed(2)}</span>
+                              <span className="font-semibold text-white">€{(item.price * item.quantity).toFixed(2)}</span>
                             </div>
                           ))}
                         </div>
                         <div className="flex justify-between border-t border-white/5 pt-1.5 mt-2 font-bold text-white text-xs">
                           <span>Grand Total</span>
-                          <span className="text-emerald-400">£{order.total.toFixed(2)}</span>
+                          <span className="text-emerald-400">€{order.total.toFixed(2)}</span>
                         </div>
                       </div>
                     </div>

@@ -195,11 +195,11 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
                 <p className="text-[10px] font-bold tracking-widest uppercase text-white/30">Price</p>
                 <div className="mt-1 flex items-baseline justify-end">
                   <span className="text-2xl font-black text-white" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
-                    £{(product.price * quantity).toFixed(2)}
+                    €{(product.price * quantity).toFixed(2)}
                   </span>
                   {product.originalPrice && (
                     <span className="text-xs text-white/30 line-through ml-2" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                      £{(parseFloat(product.originalPrice.toString()) * quantity).toFixed(2)}
+                      €{(parseFloat(product.originalPrice.toString()) * quantity).toFixed(2)}
                     </span>
                   )}
                 </div>

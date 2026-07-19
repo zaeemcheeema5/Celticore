@@ -85,7 +85,7 @@ exports.sendMessage = (req, res) => {
 
 // Looks back over the last few messages in a session and extracts:
 //  - lastCategory: the most recently discussed product category
-//  - lastBudget:   the most recently mentioned "under £X" budget
+//  - lastBudget:   the most recently mentioned "under €X" budget
 //  - shownProducts: product names already shown to the user, so
 //                    follow-ups like "show more" don't repeat them
 function getSessionContext(session_id, callback) {
@@ -133,11 +133,11 @@ function getSessionContext(session_id, callback) {
 
                 if (row.role === 'assistant') {
 
-                    // Assistant replies are formatted as "Name - £Price" per line
+                    // Assistant replies are formatted as "Name - €Price" per line
                     row.message
                         .split('\n')
                         .forEach(line => {
-                            const match = line.match(/^(.*?)\s-\s£\d+(\.\d+)?$/);
+                            const match = line.match(/^(.*?)\s-\s€\d+(\.\d+)?$/);
                             if (match) {
                                 context.shownProducts.add(match[1].trim());
                             }
@@ -454,7 +454,7 @@ function findProductDetail(session_id, query, originalMessage, res, onNoMatch) {
             const product = rows.sort((a, b) => a.name.length - b.name.length)[0];
 
             const parts = [
-                `${product.name}${product.brand ? ` by ${product.brand}` : ''} — £${product.price}.`,
+                `${product.name}${product.brand ? ` by ${product.brand}` : ''} — €${product.price}.`,
             ];
 
             if (product.description) {
@@ -518,7 +518,7 @@ function routeMessage(session_id, rawUserMessage, originalMessage, context, res)
     const userMessage = correctTypos(rawUserMessage);
 
     const budgetMatch = userMessage.match(/under\s+(\d+)/);
-    const bareNumberMatch = userMessage.match(/^\s*£?(\d+)\s*$/);
+    const bareNumberMatch = userMessage.match(/^\s*€?(\d+)\s*$/);
 
     const CATEGORY_TRIGGERS_NO_SHOW = [
         'protein', 'creatine', 'whey', 'gainer', 'isolate',
@@ -638,7 +638,7 @@ function routeMessage(session_id, rawUserMessage, originalMessage, context, res)
     }
 
 
-    // BUDGET SEARCH ("under £X"), checked before the generic category
+    // BUDGET SEARCH ("under €X"), checked before the generic category
     // search below. Previously "show whey under 30" fell into the generic
     // keyword search first, which searched for the literal phrase
     // "show whey under 30" as if it were a product name — matching
@@ -918,7 +918,7 @@ function searchProducts(
             const reply =
                 products
                     .map(
-                        p => `${p.name} - £${p.price}`
+                        p => `${p.name} - €${p.price}`
                     )
                     .join("\n");
 
@@ -1028,7 +1028,7 @@ function budgetProducts(
 
                 const message = (excludeNames && excludeNames.size > 0)
                     ? "That's all I have within that budget for now."
-                    : `No products found under £${budget}${category ? ` in ${category}` : ''}`;
+                    : `No products found under €${budget}${category ? ` in ${category}` : ''}`;
 
                 return saveChat(
                     session_id,
@@ -1055,7 +1055,7 @@ function budgetProducts(
             const reply =
                 products
                     .map(
-                        p => `${p.name} - £${p.price}`
+                        p => `${p.name} - €${p.price}`
                     )
                     .join("\n");
 

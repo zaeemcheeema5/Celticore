@@ -456,7 +456,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
                         <>Processing Order...</>
                       ) : (
                         <>
-                          Pay & Place Order (£{total.toFixed(2)})
+                          Pay & Place Order (€{total.toFixed(2)})
                           <ArrowRight size={14} />
                         </>
                       )}
@@ -481,9 +481,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
                         <div className="flex-1 min-w-0">
                           <p className="font-bold text-white truncate uppercase" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>{item.product.name}</p>
                           <p className="text-[10px] text-emerald-400 font-semibold">{item.flavour}</p>
-                          <p className="text-[10px] text-white/40 mt-0.5">Qty: {item.quantity} · £{item.product.price.toFixed(2)}</p>
+                          <p className="text-[10px] text-white/40 mt-0.5">Qty: {item.quantity} · €{item.product.price.toFixed(2)}</p>
                         </div>
-                        <span className="font-bold text-white pl-2">£{(item.product.price * item.quantity).toFixed(2)}</span>
+                        <span className="font-bold text-white pl-2">€{(item.product.price * item.quantity).toFixed(2)}</span>
                       </div>
                     ))}
                   </div>
@@ -493,17 +493,17 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
                 <div className="border-t border-white/5 pt-4 mt-6 space-y-2 text-xs text-white/50">
                   <div className="flex justify-between">
                     <span>Subtotal</span>
-                    <span className="text-white">£{subtotal.toFixed(2)}</span>
+                    <span className="text-white">€{subtotal.toFixed(2)}</span>
                   </div>
                   {discount > 0 && (
                     <div className="flex justify-between text-emerald-400">
                       <span>Discount</span>
-                      <span>-£{discount.toFixed(2)}</span>
+                      <span>-€{discount.toFixed(2)}</span>
                     </div>
                   )}
                   <div className="flex justify-between text-sm font-black text-white pt-2.5 border-t border-white/5">
                     <span>Grand Total</span>
-                    <span className="text-emerald-400 text-lg">£{total.toFixed(2)}</span>
+                    <span className="text-emerald-400 text-lg">€{total.toFixed(2)}</span>
                   </div>
 
                   <div className="flex items-center gap-1.5 text-[9px] text-white/30 pt-3 justify-center">
@@ -537,7 +537,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
                   </div>
                   <div className="flex justify-between border-b border-white/5 pb-1.5">
                     <span className="text-white/40">Paid Amount:</span>
-                    <span className="font-bold text-emerald-400">£{placedOrder.total.toFixed(2)}</span>
+                    <span className="font-bold text-emerald-400">€{placedOrder.total.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between border-b border-white/5 pb-1.5">
                     <span className="text-white/40">Payment Gateway:</span>
@@ -600,7 +600,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
             <div className="text-center py-2 space-y-1">
               <p className="text-xs text-white/50 uppercase tracking-widest font-bold">Pay Merchant</p>
               <h4 className="text-lg font-black uppercase text-emerald-400" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>Phase Fit Supplements</h4>
-              <p className="text-2xl font-black text-white">£{total.toFixed(2)}</p>
+              <p className="text-2xl font-black text-white">€{total.toFixed(2)}</p>
             </div>
 
             {/* GPay Details */}
@@ -692,7 +692,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
             <div className="text-center py-1 space-y-1">
               <p className="text-[10px] text-white/40 uppercase tracking-widest font-black">Pay Merchant</p>
               <h4 className="text-md font-bold uppercase text-white">Phase Fit Supplements</h4>
-              <p className="text-2xl font-black text-white">£{total.toFixed(2)}</p>
+              <p className="text-2xl font-black text-white">€{total.toFixed(2)}</p>
             </div>
 
             {/* Apple Pay Details */}
@@ -835,7 +835,6 @@ const StripePaymentSubForm: React.FC<StripeSubFormProps> = ({
       const { clientSecret } = await api.post('/api/payment/create-intent', {
         items,
         couponCode,
-        currency: 'gbp',
         receipt_email: email
       });
 
@@ -962,7 +961,7 @@ const StripePaymentSubForm: React.FC<StripeSubFormProps> = ({
           <>Authorising Payment...</>
         ) : (
           <>
-            Pay & Place Order (£{total.toFixed(2)})
+            Pay & Place Order (€{total.toFixed(2)})
             <ArrowRight size={14} />
           </>
         )}

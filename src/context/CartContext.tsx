@@ -110,7 +110,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const label =
         appliedCoupon.discount_type === 'percentage'
           ? `${appliedCoupon.discount_value}% off`
-          : `£${appliedCoupon.discount_value} off`;
+          : `€${appliedCoupon.discount_value} off`;
 
       toast.success(`Coupon "${appliedCoupon.code}" applied! ${label}.`);
     } catch (err: any) {

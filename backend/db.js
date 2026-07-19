@@ -529,7 +529,7 @@ const defaultSettings = [
     ['store_phone', ''],
     ['store_address', ''],
     ['support_email', 'support@celticore.com'],
-    ['currency', 'GBP'],
+    ['currency', 'EUR'],
 
     // ==========================
     // CHATBOT

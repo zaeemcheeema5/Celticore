@@ -8,7 +8,7 @@ module.exports = ({
     paymentMethod,
     deliveryMethod,
     address,
-    currency = "£"
+    currency = "€"
 }) => {
 
     const products = items.map(item => `

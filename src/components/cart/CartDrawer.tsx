@@ -123,7 +123,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, onOpenC
 
                     {/* Price */}
                     <span className="text-sm font-bold text-white" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
-                      £{(item.product.price * item.quantity).toFixed(2)}
+                      €{(item.product.price * item.quantity).toFixed(2)}
                     </span>
                   </div>
                 </div>
@@ -182,17 +182,17 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, onOpenC
             <div className="space-y-1.5 text-xs text-white/50" style={{ fontFamily: "'DM Sans', sans-serif" }}>
               <div className="flex justify-between">
                 <span>Subtotal</span>
-                <span className="text-white">£{subtotal.toFixed(2)}</span>
+                <span className="text-white">€{subtotal.toFixed(2)}</span>
               </div>
               {discount > 0 && (
                 <div className="flex justify-between text-emerald-400">
                   <span>Discount</span>
-                  <span>-£{discount.toFixed(2)}</span>
+                  <span>-€{discount.toFixed(2)}</span>
                 </div>
               )}
               <div className="flex justify-between text-sm font-black text-white pt-2 border-t border-white/5">
                 <span>Total</span>
-                <span className="text-base text-emerald-400">£{total.toFixed(2)}</span>
+                <span className="text-base text-emerald-400">€{total.toFixed(2)}</span>
               </div>
             </div>
 

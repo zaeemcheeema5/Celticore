@@ -233,7 +233,7 @@ exports.placeOrder = async (req, res) => {
 
                                 address: `${address}, ${city}, ${postalCode}, ${country || ''}`,
 
-                                currency: "£"
+                                currency: "€"
 
                             })
 
