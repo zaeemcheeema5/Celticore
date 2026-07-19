@@ -221,6 +221,22 @@ app.get("/health", (req, res) => {
     });
 });
 
+// =====================================
+// SERVE FRONTEND STATIC FILES (VITE DIST)
+// =====================================
+
+// Serves the compiled index.html and assets from the root 'dist' folder
+app.use(express.static(path.join(__dirname, "../dist")));
+
+// Fallback all non-API web routing requests to React Router's index.html
+app.get("*", (req, res, next) => {
+    if (req.path.startsWith("/api") || req.path.startsWith("/uploads")) {
+        return next(); // Pass actual missing API/upload endpoints to the 404 handler
+    }
+    res.sendFile(path.join(__dirname, "../dist/index.html"));
+});
+
+
 
 // =====================================
 // 404 HANDLER
