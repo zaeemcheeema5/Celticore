@@ -470,7 +470,8 @@ initSchema()
         console.log('✅ MySQL schema ready');
     })
     .catch(err => {
-        console.error('❌ Failed to initialize MySQL schema:', err.message);
+        console.error('❌ Failed to initialize MySQL schema:');
+console.error(err);
         process.exit(1);
     });
 

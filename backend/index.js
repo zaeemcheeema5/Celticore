@@ -225,18 +225,27 @@ app.get("/health", (req, res) => {
 // SERVE FRONTEND STATIC FILES (VITE DIST)
 // =====================================
 
-// Serves the compiled index.html and assets from the root 'dist' folder
+// Serve the compiled frontend (Vite build)
 app.use(express.static(path.join(__dirname, "../dist")));
 
-// Fallback all non-API web routing requests to React Router's index.html
-app.get("*", (req, res, next) => {
-    if (req.path.startsWith("/api") || req.path.startsWith("/uploads")) {
-        return next(); // Pass actual missing API/upload endpoints to the 404 handler
+// Express 5 compatible SPA fallback
+app.use((req, res, next) => {
+    // Only handle GET requests
+    if (req.method !== "GET") {
+        return next();
     }
+
+    // Don't intercept API or uploads
+    if (
+        req.path.startsWith("/api") ||
+        req.path.startsWith("/uploads")
+    ) {
+        return next();
+    }
+
+    // Serve React app for all other frontend routes
     res.sendFile(path.join(__dirname, "../dist/index.html"));
 });
-
-
 
 // =====================================
 // 404 HANDLER
