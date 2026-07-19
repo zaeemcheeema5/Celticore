@@ -1,4 +1,4 @@
-name: Build and Deploy Frontend
+name: Unified Frontend & Backend Production Deployment
 
 on:
   push:
@@ -6,32 +6,57 @@ on:
       - main
 
 jobs:
-  web-deploy:
-    name: Deploy Frontend to Hostinger
+  build-and-deploy:
     runs-on: ubuntu-latest
-    
+
     steps:
-    - name: Get latest code
-      uses: actions/checkout@v4
+      - name: Get latest code
+        uses: actions/checkout@v4
 
-    - name: Set up Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: 22.x
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
 
-    - name: Install dependencies
-      run: npm install
+      # --- FRONTEND BUILD STEP ---
+      - name: Install dependencies & Build React App
+        run: |
+          npm install
+          npm run build
 
-    - name: Build React Project
-      run: npm run build
+      # --- AUTOMATED DEPLOYMENT STEP VIA SSH ---
+      - name: Deploy Assets via rsync over SSH
+        uses: easingthemes/ssh-deploy@v5.1.0
+        with:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          ARGS: "-rlgoDzvO --delete"
+          REMOTE_HOST: ${{ secrets.SSH_HOST }}
+          REMOTE_USER: ${{ secrets.SSH_USERNAME }}
+          REMOTE_PORT: ${{ secrets.SSH_PORT }}
+          TARGET: "/home/${{ secrets.SSH_USERNAME }}/domains/thecelticore.com/public_html/"
+          SOURCE: "dist/"
 
-    - name: Sync Files via FTP
-      uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-      with:
-        server: ${{ secrets.FTP_SERVER }}
-        username: ${{ secrets.FTP_USERNAME }}
-        password: ${{ secrets.FTP_PASSWORD }}
-        local-dir: ./dist/
-        server-dir: ./public_html/
-        security: ftps
-        dangerous-clean-slate: false
+      # --- AUTOMATED BACKEND DEPLOY & RESTART STEP ---
+      - name: Deploy Backend and Restart Hostinger Application
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          script: |
+            cd /home/${{ secrets.SSH_USERNAME }}/domains/thecelticore.com/
+            
+            # Create nodejs directory if it doesn't exist
+            mkdir -p nodejs
+            
+            # Sync backend folder files into the active nodejs engine directory
+            cp -r backend/* nodejs/
+            
+            # Install production dependencies inside nodejs folder
+            cd nodejs
+            npm install --production
+            
+            # Force Hostinger's Passenger utility to reload the application instantly
+            mkdir -p tmp
+            touch tmp/restart.txt
