@@ -139,6 +139,11 @@ app.use(require("cookie-parser")());
 // STATIC FILES
 // =====================================
 
+// New product/category uploads now go straight to Cloudinary (see
+// uploadController.js) and never touch this server's disk. This static
+// route is kept only to keep serving any images that were uploaded to
+// local disk before that migration — re-upload those through the admin
+// panel to move them to Cloudinary too.
 app.use(
     "/uploads",
     express.static(path.join(__dirname, "uploads"))
