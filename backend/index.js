@@ -85,32 +85,31 @@ app.use(cors({
 
 const db = require("./db");
 
-setTimeout(() => {
-    db.all(
-        `SELECT key, value FROM settings WHERE key IN ('admin_email', 'admin_password')`,
-        [],
-        (err, rows) => {
-            if (err) return;
+setTimeout(async () => {
+    try {
+        const database = await db;
+        const [rows] = await database.execute(
+            `SELECT \`key\`, value FROM settings WHERE \`key\` IN ('admin_email', 'admin_password')`
+        );
 
-            const settings = {};
-            rows.forEach(r => { settings[r.key] = r.value; });
+        const settings = {};
+        rows.forEach(r => { settings[r.key] = r.value; });
 
-            const isDefaultEmail = settings.admin_email === "admin@celticore.com";
-            const isPlaintext = settings.admin_password && !settings.admin_password.startsWith("$2");
+        const isDefaultEmail = settings.admin_email === "admin@celticore.com";
+        const isPlaintext = settings.admin_password && !settings.admin_password.startsWith("$2");
 
-            if (isDefaultEmail || isPlaintext) {
-                console.warn("\n" + "!".repeat(70));
-                console.warn("! SECURITY WARNING: default/unhashed admin credentials in use.");
-                if (isDefaultEmail) console.warn("!  - admin email is still the default: admin@celticore.com");
-                if (isPlaintext) console.warn("!  - admin password is stored in PLAINTEXT, not hashed");
-                console.warn("!  Change these now under Settings > Admin Credentials.");
-                console.warn("!".repeat(70) + "\n");
-            }
+        if (isDefaultEmail || isPlaintext) {
+            console.warn("\n" + "!".repeat(70));
+            console.warn("! SECURITY WARNING: default/unhashed admin credentials in use.");
+            if (isDefaultEmail) console.warn("!  - admin email is still the default: admin@celticore.com");
+            if (isPlaintext) console.warn("!  - admin password is stored in PLAINTEXT, not hashed");
+            console.warn("!  Change these now under Settings > Admin Credentials.");
+            console.warn("!".repeat(70) + "\n");
         }
-    );
-}, 500);
-
-
+    } catch (err) {
+        console.error("⚠️ Startup security check database error:", err.message);
+    }
+}, 1000);
 // =====================================
 // RATE LIMITING
 // =====================================
