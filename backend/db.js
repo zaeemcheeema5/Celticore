@@ -143,7 +143,14 @@ function prepare(sql) {
     return stmt;
 }
 
-const db = { run, get, all, serialize, prepare };
+const db = { 
+    run, 
+    get, 
+    all, 
+    serialize, 
+    prepare,
+    execute: (sql, params) => promisePool.execute(translateSql(sql), params)
+};
 
 /*
 =====================================
