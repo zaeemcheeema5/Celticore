@@ -47,27 +47,26 @@ jobs:
           script: |
             cd /home/${{ secrets.SSH_USERNAME }}/domains/thecelticore.com/
             
-            # 1. Ensure the nodejs folder exists and update files
+            # 1. Clean out the nodejs app directory and sync fresh files
             mkdir -p nodejs
+            
+            # Clean up the .htaccess file from the nodejs directory if it was put there previously
+            rm -f nodejs/.htaccess
+            
             rm -rf nodejs/*
             cp -r backend/* nodejs/
             
-            # 2. Inject/Overwrite the .htaccess inside the subdomain folder to fix the 404
-            # (Checks both common subdomain folder locations on Hostinger)
+            # 2. Safely place the reverse proxy rules only inside the separate subdomain folder
             if [ -d "api.thecelticore.com" ]; then
-              cd api.thecelticore.com
-            else
-              cd nodejs
-            fi
-            
-            cat << 'EOF' > .htaccess
+              cat << 'EOF' > api.thecelticore.com/.htaccess
             RewriteEngine On
             RewriteCond %{REQUEST_FILENAME} !-f
             RewriteCond %{REQUEST_FILENAME} !-d
             RewriteRule ^(.*)$ http://127.0.0.1:%{ENV:PORT}/$1 [P,L]
             EOF
+            fi
             
-            # 3. Head back to the execution application root, install packages, and clear cache
+            # 3. Re-install modules and cycle the Passenger engine
             cd /home/${{ secrets.SSH_USERNAME }}/domains/thecelticore.com/nodejs
             npm install --production
             mkdir -p tmp
