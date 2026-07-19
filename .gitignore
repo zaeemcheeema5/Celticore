@@ -8,8 +8,7 @@ backend/.env
 
 # Database files
 *.db
-*.sqlite
-*.sqlite3
+
 
 # Logs
 *.log
