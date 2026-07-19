@@ -277,9 +277,9 @@ app.use((err, req, res, next) => {
 // START SERVER
 // =====================================
 
-const PORT = process.env.PORT || 5000;
-
-app.listen(PORT, "0.0.0.0", () => {
+app.listen(PORT, () => {
     console.log(`🚀 CeltiCore Backend running on port ${PORT}`);
-    console.log(`📄 Swagger: http://localhost:${PORT}/api-docs`);
+    if (process.env.NODE_ENV !== 'production') {
+        console.log(`📄 Swagger: http://localhost:${PORT}/api-docs`);
+    }
 });
