@@ -217,12 +217,16 @@ app.get("/health", (req, res) => {
 });
 
 // =====================================
-// BACKEND ONLY
+// API ROOT
 // =====================================
 
-// This backend only serves API routes and uploads.
-// The React frontend is deployed separately on
-// https://thecelticore.com
+app.get("/", (req, res) => {
+    res.json({
+        success: true,
+        message: "CeltiCore API is running",
+        version: "1.0.0"
+    });
+});
 // =====================================
 // 404 HANDLER
 // =====================================
