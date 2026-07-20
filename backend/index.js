@@ -28,42 +28,37 @@ app.use(helmet({
 // CORS (FULLY UPDATED & FIXES THE BLOCKER)
 // =====================================
 
-const isProdEnv = (process.env.NODE_ENV || "development") === "production";
+// =====================================
+// CORS
+// =====================================
 
-// Exact-match localhost/127.0.0.1 origins (any port) — used only in
-// development. This used to be a substring check (origin.includes(...))
-// with no environment gate, which meant an attacker-controlled origin like
-// "http://localhost.attacker.com" would also pass, in production too —
-// a real CORS bypass when combined with credentials:true.
-const LOCAL_DEV_ORIGIN_RE = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
+const allowedOrigins = [
+    "https://thecelticore.com",
+    "https://www.thecelticore.com",
+    "https://api.thecelticore.com",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173"
+];
 
 app.use(cors({
-    origin: function (origin, callback) {
-        // 1. Allow Postman, server-to-server, or mobile requests with no origin header
+    origin(origin, callback) {
+
+        // Allow requests without Origin (Postman, curl, server-to-server)
         if (!origin) {
             return callback(null, true);
         }
 
-        // 2. In development only, allow local dev traffic on any port —
-        //    exact host match, not a substring check.
-        if (!isProdEnv && LOCAL_DEV_ORIGIN_RE.test(origin)) {
+        if (allowedOrigins.includes(origin)) {
             return callback(null, true);
         }
 
-        // 3. Normalize production configuration URLs to ensure safe matching
-        if (process.env.CLIENT_URL) {
-            const normalizedOrigin = origin.replace(/\/$/, "");
-            const normalizedClientUrl = process.env.CLIENT_URL.replace(/\/$/, "");
-            
-            if (normalizedOrigin === normalizedClientUrl) {
-                return callback(null, true);
-            }
-        }
+        console.log("❌ Blocked Origin:", origin);
 
-        // Drop request if it fails all allowed checks
         return callback(new Error("Not allowed by CORS"));
     },
+
     credentials: true,
+
     methods: [
         "GET",
         "POST",
@@ -72,6 +67,7 @@ app.use(cors({
         "DELETE",
         "OPTIONS"
     ],
+
     allowedHeaders: [
         "Content-Type",
         "Authorization"
@@ -222,29 +218,28 @@ app.get("/health", (req, res) => {
 });
 
 // =====================================
-// SERVE FRONTEND STATIC FILES (VITE DIST)
+// SERVE FRONTEND
 // =====================================
 
-// Serve the compiled frontend (Vite build mapped locally inside git workspace root)
 app.use(express.static(path.join(__dirname, "dist")));
-// // Express 5 compatible SPA fallback
-// app.use((req, res, next) => {
-//   // Only handle GET requests
-//   if (req.method !== "GET") {
-//       return next();
-//   }
 
-//   // Don't intercept API or uploads
-//   if (
-//       req.path.startsWith("/api") ||
-//       req.path.startsWith("/uploads")
-//   ) {
-//       return next();
-//   }
+// React SPA fallback (Express 5 compatible)
+app.use((req, res, next) => {
 
-//   // Serve React app for all other frontend routes
-//   res.sendFile(path.join(__dirname, "dist/index.html"));
-// });
+    if (req.method !== "GET") {
+        return next();
+    }
+
+    if (
+        req.path.startsWith("/api") ||
+        req.path.startsWith("/uploads") ||
+        req.path === "/health"
+    ) {
+        return next();
+    }
+
+    res.sendFile(path.join(__dirname, "dist", "index.html"));
+});
 // =====================================
 // 404 HANDLER
 // =====================================
