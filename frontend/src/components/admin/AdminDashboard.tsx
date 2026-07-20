@@ -565,14 +565,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start lg:items-center justify-center p-0 sm:p-4 overflow-y-auto bg-black/90 backdrop-blur-md"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto bg-black/90 backdrop-blur-md"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
-        className="relative w-full max-w-[98vw] xl:max-w-7xl rounded border border-white/10 bg-[#090909] text-white flex flex-col lg:flex-row h-[100dvh] lg:h-[90vh] overflow-hidden"        style={{ boxShadow: "0 0 50px rgba(16,185,129,0.15)" }}
+        className="relative w-full max-w-5xl rounded border border-white/10 bg-[#090909] text-white flex flex-col md:flex-row h-[85vh] overflow-hidden"
+        style={{ boxShadow: "0 0 50px rgba(16,185,129,0.15)" }}
       >
         {/* Sidebar Navigation */}
-        <div className="w-full lg:w-56 lg:min-w-[224px] bg-[#0c0c0c] border-b lg:border-b-0 lg:border-r border-white/5 flex flex-col shrink-0 p-4 overflow-x-auto">
+        <div className="w-full md:w-56 bg-[#0c0c0c] border-r border-white/5 flex flex-col justify-between shrink-0 p-4">
           <div className="space-y-6">
             <div className="flex items-center gap-2 text-emerald-400">
               <ShieldAlert size={18} />
@@ -580,7 +581,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
             </div>
 
             {/* Nav Tabs */}
-            <div className="flex lg:flex-col gap-2 overflow-x-auto lg:overflow-visible whitespace-nowrap pb-2">
+            <div className="flex flex-col gap-1 text-xs">
               {(
                 [
                   { id: 'stats', label: 'Dashboard Stats', icon: BarChart3 },
@@ -620,7 +621,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
         </div>
 
         {/* Content Panel */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 bg-[#070707] flex flex-col min-w-0">
+        <div className="flex-1 overflow-y-auto p-6 md:p-8 bg-[#070707] flex flex-col">
           <div className="flex items-center justify-between pb-4 border-b border-white/5 mb-6">
             <h2 className="text-xl font-black uppercase tracking-wider text-white" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
               {activeTab === 'stats' && 'Sales & Store Statistics'}
@@ -685,9 +686,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
 
           {/* TAB CONTENT: PRODUCTS (PRODUCT MANAGER) */}
           {activeTab === 'products' && (
-            <div className="flex flex-col xl:flex-row gap-6 flex-1 overflow-y-auto xl:overflow-hidden min-h-0">
+            <div className="space-y-8 flex-1 flex flex-col lg:flex-row gap-6 overflow-hidden min-h-0">
               {/* Product Upload/Edit Form */}
-              <form onSubmit={handleAddProduct} className="w-full xl:w-[380px] 2xl:w-[420px] flex flex-col gap-3 shrink-0 p-4 border border-white/5 bg-[#090909] text-xs overflow-y-auto">
+              <form onSubmit={handleAddProduct} className="w-full lg:w-96 flex flex-col gap-3 shrink-0 p-4 border border-white/5 bg-[#090909] text-xs overflow-y-auto">
                 <div className="flex justify-between items-center mb-1">
                   <h3 className="font-bold text-white uppercase tracking-wider">
                     {editingProduct ? 'Edit Product' : 'Add Custom Product'}
@@ -732,7 +733,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
                   />
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-2">
                   <div>
                     <label className="block text-[9px] uppercase text-white/40 mb-1">Brand</label>
                     <input
@@ -754,7 +755,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-2">
                   <div>
                     <label className="block text-[9px] uppercase text-white/40 mb-1">Price (€) *</label>
                     <input
@@ -775,13 +776,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
 
                 <div>
                   <label className="block text-[9px] uppercase text-white/40 mb-1">Product Image File</label>
-                  <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
+                  <div className="flex gap-2 items-center">
                     <input
                       type="text" required placeholder="/uploads/products/..."
                       value={prodImage} onChange={e => setProdImage(e.target.value)}
                       className="flex-1 px-3 py-2 text-white bg-black border border-white/10 focus:border-emerald-500 outline-none"
                     />
-                    <label <div className="flex flex-col sm:flex-row gap-className="w-full sm:w-auto px-3 py-2 bg-emerald-500 text-black font-bold uppercase cursor-pointer hover:bg-emerald-400 flex items-center justify-center gap-1"2 items-stretch sm:items-center">>
+                    <label className="px-3 py-2 bg-emerald-500 text-black font-bold uppercase cursor-pointer hover:bg-emerald-400 flex items-center gap-1">
                       <Upload size={12} />
                       {uploadingProdImg ? '...' : 'Upload'}
                       <input
@@ -819,7 +820,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
                     ))}
                     {flavoursList.length === 0 && <span className="text-[10px] text-white/30 italic">No flavours added (Unflavoured)</span>}
                   </div>
-                  <div className="flex flex-col sm:flex-row gap-2">
+                  <div className="flex gap-2">
                     <input
                       type="text" placeholder="Add flavour (e.g. Mint Chocolate)"
                       value={newFlavour} onChange={e => setNewFlavour(e.target.value)}
@@ -849,7 +850,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-2">
                   <div>
                     <label className="block text-[9px] uppercase text-white/40 mb-1">Promo Badge</label>
                     <select
@@ -874,7 +875,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 items-center">
+                <div className="grid grid-cols-2 gap-2 items-center">
                   <div>
                     <label className="block text-[9px] uppercase text-white/40 mb-1">Low Stock Threshold</label>
                     <input
@@ -912,7 +913,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
               </form>
 
               {/* Product list */}
-              <div className="flex-1 overflow-y-auto space-y-3 min-h-0 min-w-0 pr-1">
+              <div className="flex-1 overflow-y-auto space-y-3 min-h-0 pr-1">
                 <h3 className="font-bold text-xs uppercase tracking-wider text-white mb-2">Current Catalog ({products.length})</h3>
                 {products.length === 0 ? (
                   <p className="text-xs text-white/30 italic">No products found.</p>
@@ -921,7 +922,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
                     const isLowStock = (p.stockQuantity ?? 0) <= (p.lowStockThreshold ?? 5);
                     const isActive = p.isActive === undefined ? true : !!p.isActive;
                     return (
-                      <div key={p.id} className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 bg-white/5 border border-white/5 text-xs">
+                      <div key={p.id} className="flex items-center gap-3 p-3 bg-white/5 border border-white/5 text-xs">
                         <img src={p.image} alt={p.name} className="w-10 h-10 object-cover shrink-0" />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
@@ -967,9 +968,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
 
           {/* TAB CONTENT: CATEGORIES (CATEGORY MANAGER) */}
           {activeTab === 'categories' && (
-            <div className="flex flex-col xl:flex-row gap-6 flex-1 overflow-y-auto xl:overflow-hidden min-h-0">
+            <div className="space-y-8 flex-1 flex flex-col lg:flex-row gap-6 overflow-hidden min-h-0">
               {/* Category Upload/Edit Form */}
-              <form onSubmit={handleAddCategory} className="w-full xl:w-[380px] 2xl:w-[420px] flex flex-col gap-3 shrink-0 p-4 border border-white/5 bg-[#090909] text-xs overflow-y-auto">
+              <form onSubmit={handleAddCategory} className="w-full lg:w-96 flex flex-col gap-3 shrink-0 p-4 border border-white/5 bg-[#090909] text-xs overflow-y-auto">
                 <div className="flex justify-between items-center mb-1">
                   <h3 className="font-bold text-white uppercase tracking-wider">
                     {editingCategory ? 'Edit Category' : 'Create New Category'}
@@ -1018,10 +1019,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
                   />
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-2">
                   <div>
                     <label className="block text-[9px] uppercase text-white/40 mb-1">Accent Color</label>
-                    <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
+                    <div className="flex gap-2 items-center">
                       <input
                         type="color"
                         value={catAccentColor} onChange={e => setCatAccentColor(e.target.value)}
@@ -1052,13 +1053,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
 
                 <div>
                   <label className="block text-[9px] uppercase text-white/40 mb-1">Category Image (Main)</label>
-                  <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
+                  <div className="flex gap-2 items-center">
                     <input
                       type="text" placeholder="/uploads/categories/..."
                       value={catImage} onChange={e => setCatImage(e.target.value)}
                       className="flex-1 px-3 py-2 text-white bg-black border border-white/10 focus:border-emerald-500 outline-none"
                     />
-                    <label <div className="flex flex-col sm:flex-row gap-className="w-full sm:w-auto px-3 py-2 bg-emerald-500 text-black font-bold uppercase cursor-pointer hover:bg-emerald-400 flex items-center justify-center gap-1"2 items-stretch sm:items-center">>
+                    <label className="px-3 py-2 bg-emerald-500 text-black font-bold uppercase cursor-pointer hover:bg-emerald-400 flex items-center gap-1">
                       <Upload size={12} />
                       {uploadingCatImg ? '...' : 'Upload'}
                       <input
@@ -1081,13 +1082,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
 
                 <div>
                   <label className="block text-[9px] uppercase text-white/40 mb-1">Card Background Image (Wide)</label>
-                  <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
+                  <div className="flex gap-2 items-center">
                     <input
                       type="text" placeholder="/uploads/categories/...card.png"
                       value={catCardImage} onChange={e => setCatCardImage(e.target.value)}
                       className="flex-1 px-3 py-2 text-white bg-black border border-white/10 focus:border-emerald-500 outline-none"
                     />
-                    <label <div className="flex flex-col sm:flex-row gap-className="w-full sm:w-auto px-3 py-2 bg-emerald-500 text-black font-bold uppercase cursor-pointer hover:bg-emerald-400 flex items-center justify-center gap-1"2 items-stretch sm:items-center">>
+                    <label className="px-3 py-2 bg-emerald-500 text-black font-bold uppercase cursor-pointer hover:bg-emerald-400 flex items-center gap-1">
                       <Upload size={12} />
                       {uploadingCatCardImg ? '...' : 'Upload'}
                       <input
@@ -1127,7 +1128,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
               </form>
 
               {/* Category list */}
-              <div className="flex-1 overflow-y-auto space-y-3 min-h-0 min-w-0 pr-1">
+              <div className="flex-1 overflow-y-auto space-y-3 min-h-0 pr-1">
                 <h3 className="font-bold text-xs uppercase tracking-wider text-white mb-2">Category Configurations ({categories.length})</h3>
                 {categories.length === 0 ? (
                   <p className="text-xs text-white/30 italic">No categories found in database.</p>
@@ -1136,7 +1137,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
                     const cardImg = c.card_image || c.cardImage || c.image || "";
                     const accent = c.accent_color || c.accentColor || "#10b981";
                     return (
-                      <div key={c.id} className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 bg-white/5 border border-white/5 text-xs">
+                      <div key={c.id} className="flex items-center gap-3 p-3 bg-white/5 border border-white/5 text-xs">
                         <img src={cardImg || "/placeholder.png"} alt={c.name} className="w-16 h-10 object-cover shrink-0 bg-black/40 border border-white/5" />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
@@ -1234,8 +1235,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
 
           {/* TAB CONTENT: COUPONS */}
           {activeTab === 'coupons' && (
-            <div className="flex flex-col xl:flex-row gap-6 flex-1 overflow-y-auto xl:overflow-hidden min-h-0">
-              <form onSubmit={handleAddCoupon} className="w-full xl:w-80 p-4 border border-white/5 bg-[#090909] text-xs shrink-0 flex flex-col gap-3">
+            <div className="space-y-6 flex-1 flex flex-col lg:flex-row gap-6 overflow-hidden min-h-0">
+              <form onSubmit={handleAddCoupon} className="w-full lg:w-72 p-4 border border-white/5 bg-[#090909] text-xs shrink-0 flex flex-col gap-3">
                 <h3 className="font-bold text-white uppercase tracking-wider mb-1">Create Coupon Code</h3>
                 <div>
                   <label className="block text-[9px] uppercase text-white/40 mb-1">Coupon Code</label>
@@ -1263,7 +1264,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
                 </button>
               </form>
 
-              <div className="flex-1 overflow-y-auto space-y-3 min-h-0 min-w-0 pr-1">
+              <div className="flex-1 overflow-y-auto space-y-3 min-h-0 pr-1">
                 <h3 className="font-bold text-xs uppercase tracking-wider text-white mb-2">Available Coupons ({coupons.length})</h3>
                 {coupons.length === 0 ? (
                   <p className="text-xs text-white/30 italic">No coupons created.</p>
@@ -1312,7 +1313,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 p-3 bg-black/30 rounded border border-white/5">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-3 bg-black/30 rounded border border-white/5">
                       <div>
                         <p className="text-[9px] uppercase text-white/40 font-bold mb-0.5">Phone</p>
                         <p className="text-white font-semibold">{req.phone || 'N/A'}</p>
@@ -1352,7 +1353,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
 
                     <div className="pt-2">
                       <label className="block text-[10px] uppercase text-white/40 font-bold mb-1">Advisor Notes (Admin Only)</label>
-                      <div className="flex flex-col sm:flex-row gap-2">
+                      <div className="flex gap-2">
                         <input
                           type="text"
                           key={`${req.id}-${req.admin_notes}`}
@@ -1440,7 +1441,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
                       {/* Items List */}
                       <div className="space-y-1.5 border-t md:border-t-0 md:border-l border-white/5 pt-3 md:pt-0 md:pl-4">
                         <p className="text-[9px] uppercase text-white/40 font-bold mb-1">Items Ordered</p>
-                        <div className="space-y-1 max-h-40 overflow-y-auto pr-1">
+                        <div className="space-y-1 max-h-32 overflow-y-auto pr-1">
                           {order.items.map((item, idx) => (
                             <div key={idx} className="flex justify-between text-white/70">
                               <span>{item.name} ({item.flavour}) x{item.quantity}</span>
@@ -1502,7 +1503,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
           {/* TAB CONTENT: ADMIN & CREDENTIALS */}
           {activeTab === 'admins' && (
             <div className="space-y-6 flex-1 overflow-y-auto min-h-0 pr-1 text-xs">
-              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 
                 {/* Section 1: Change Personal Credentials */}
                 <div className="p-4 bg-white/5 border border-white/5 rounded space-y-4">
@@ -1627,7 +1628,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
                 <h3 className="font-black text-xs uppercase tracking-wider text-emerald-400 flex items-center gap-1.5" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
                   <Database size={14} /> Registered Accounts Directory ({users.length})
                 </h3>
-                <div className="overflow-x-auto w-full">
+                <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse text-xs">
                     <thead>
                       <tr className="border-b border-white/10 text-[10px] uppercase text-white/40">
