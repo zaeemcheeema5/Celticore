@@ -39,7 +39,6 @@ const allowedOrigins = [
     "http://localhost:5173",
     "http://127.0.0.1:5173"
 ];
-
 app.use(cors({
     origin(origin, callback) {
 
@@ -218,28 +217,12 @@ app.get("/health", (req, res) => {
 });
 
 // =====================================
-// SERVE FRONTEND
+// BACKEND ONLY
 // =====================================
 
-app.use(express.static(path.join(__dirname, "dist")));
-
-// React SPA fallback (Express 5 compatible)
-app.use((req, res, next) => {
-
-    if (req.method !== "GET") {
-        return next();
-    }
-
-    if (
-        req.path.startsWith("/api") ||
-        req.path.startsWith("/uploads") ||
-        req.path === "/health"
-    ) {
-        return next();
-    }
-
-    res.sendFile(path.join(__dirname, "dist", "index.html"));
-});
+// This backend only serves API routes and uploads.
+// The React frontend is deployed separately on
+// https://thecelticore.com
 // =====================================
 // 404 HANDLER
 // =====================================
