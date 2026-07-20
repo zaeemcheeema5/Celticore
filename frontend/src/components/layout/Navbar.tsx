@@ -54,7 +54,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           style={{ filter: "drop-shadow(0 0 4px rgba(16,185,129,0.3))" }}
         />
         <span
-          className="text-[1.1rem] font-black tracking-[0.2em] uppercase"
+          className="className="text-base sm:text-lg lg:text-[1.1rem]" font-black tracking-[0.2em] uppercase"
           style={{
             fontFamily: "'Barlow Condensed', sans-serif",
             background: "linear-gradient(120deg, #ffffff 0%, #10B981 55%, #D4AF37 100%)",

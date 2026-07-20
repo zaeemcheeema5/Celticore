@@ -49,7 +49,7 @@ export const Footer: React.FC<FooterProps> = ({ onOpenNutrition, onNavigate }) =
     >
       <div className="absolute inset-0 pointer-events-none opacity-[0.01]" style={{ backgroundImage: 'radial-gradient(#10B981 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
       
-      <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 mb-12">
+      <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-10 lg:gap-12 mb-12">
         {/* Left Column: Store Details & Links */}
         <div className="flex flex-col justify-between">
           <div>
@@ -57,10 +57,10 @@ export const Footer: React.FC<FooterProps> = ({ onOpenNutrition, onNavigate }) =
               <img
                 src={logoImage}
                 alt="Celti Core Logo"
-                className="w-9 h-9 shrink-0 object-contain rounded-full border border-emerald-500/30"
+                className="w-8 h-8 sm:w-9 sm:h-9 shrink-0 object-contain rounded-full border border-emerald-500/30"
                 style={{ filter: "drop-shadow(0 0 4px rgba(16,185,129,0.3))" }}
               />
-              <span className="text-xl font-black tracking-[0.2em] uppercase text-white" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>Celti Core</span>
+              <span className="text-lg sm:text-xl font-black tracking-[0.2em] uppercase text-white" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>Celti Core</span>
             </div>
             
             <p className="text-white/40 text-sm leading-relaxed max-w-md mb-8" style={{ fontFamily: "'DM Sans', sans-serif" }}>

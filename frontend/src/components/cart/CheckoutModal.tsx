@@ -232,11 +232,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
   return (
     <>
       <div
-        className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto bg-black/95 backdrop-blur-md"
+        className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 overflow-y-auto bg-black/95 backdrop-blur-md"
         onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
       >
         <div
-          className="relative w-full max-w-4xl rounded border border-white/10 bg-[#090909] text-white flex flex-col md:flex-row shadow-2xl overflow-hidden animate-fade-up"
+          className="relative w-full max-w-6xl rounded border border-white/10 bg-[#090909] text-white flex flex-col lg:flex-row shadow-2xl overflow-hidden animate-fade-up max-h-[95vh]"
           style={{
             boxShadow: "0 0 60px rgba(16,185,129,0.12)",
           }}
@@ -252,7 +252,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
           {step === 'form' ? (
             <>
               {/* Left Panel: Shipping & Payment Form */}
-              <div className="flex-1 p-6 md:p-8 space-y-6 max-h-[85vh] overflow-y-auto">
+              <div className="flex-1 p-4 sm:p-6 lg:p-8 space-y-6 overflow-y-auto max-h-[95vh] lg:max-h-none">
                 <div>
                   <h2 className="text-2xl font-black uppercase tracking-wider text-emerald-400" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
                     Secure Checkout
@@ -297,7 +297,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
                           className="w-full px-3 py-2 bg-black border border-white/10 focus:border-emerald-500/60 outline-none text-white transition-colors"
                         />
                       </div>
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                           <label className="block text-[9px] uppercase text-white/50 mb-1">City *</label>
                           <input
@@ -418,7 +418,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
                             </div>
                           </div>
 
-                          <div className="grid grid-cols-2 gap-3">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div>
                               <label className="block text-[9px] uppercase text-white/50 mb-1">Expiry Date</label>
                               <input
@@ -466,7 +466,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
               </div>
 
               {/* Right Panel: Order Summary */}
-              <div className="w-full md:w-80 bg-[#0c0c0c] border-t md:border-t-0 md:border-l border-white/5 p-6 md:p-8 flex flex-col justify-between max-h-[85vh] overflow-y-auto">
+              <div className="w-full lg:w-96 xl:w-[420px] bg-[#0c0c0c] border-t lg:border-t-0 lg:border-l border-white/5 p-4 sm:p-6 md:p-8 flex flex-col overflow-y-auto">
                 <div className="space-y-4">
                   <h3 className="text-sm font-black uppercase tracking-widest text-white border-b border-white/5 pb-2 flex items-center gap-2" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
                     <ShoppingBag size={14} className="text-emerald-400" />
@@ -474,7 +474,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
                   </h3>
 
                   {/* Items list */}
-                  <div className="space-y-3 divide-y divide-white/5 max-h-[40vh] overflow-y-auto pr-1">
+                  <div className="space-y-3 divide-y divide-white/5 max-h-[35vh] lg:max-h-[40vh] overflow-y-auto pr-1">
                     {cartItems.map((item, index) => (
                       <div key={`${item.product.id}-${item.flavour}`} className={`flex gap-3 text-xs ${index > 0 ? 'pt-3' : ''}`}>
                         <img src={item.product.image} alt={item.product.name} className="w-10 h-10 object-cover bg-black border border-white/5" />

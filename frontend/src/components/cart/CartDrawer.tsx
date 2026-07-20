@@ -54,7 +54,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, onOpenC
     >
       {/* Sliding Drawer Container */}
       <div
-        className="w-full max-w-md h-screen bg-[#090909] border-l border-white/10 text-white flex flex-col justify-between shadow-2xl relative"
+        className="w-full sm:max-w-md h-screen bg-[#090909] border-l border-white/10 text-white flex flex-col justify-between shadow-2xl relative"
         style={{
           animation: "slide-in-right 0.3s cubic-bezier(0.16, 1, 0.3, 1) both"
         }}
@@ -76,7 +76,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, onOpenC
         </div>
 
         {/* Drawer Content / Items List */}
-        <div className="flex-1 overflow-y-auto p-5 space-y-4">
+        <div className="flex-1 overflow-y-auto p-3 sm:p-5 space-y-4">
           {cartItems.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-center opacity-40 py-12">
               <ShoppingBag size={48} className="mb-4" />
@@ -90,7 +90,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, onOpenC
                 className="flex gap-3 bg-white/5 border border-white/5 p-3 relative group"
               >
                 {/* Product Image */}
-                <div className="w-16 h-16 bg-[#111] shrink-0 overflow-hidden">
+                <div className="w-14 h-14 sm:w-16 sm:h-16 bg-[#111] shrink-0 overflow-hidden">
                   <img src={item.product.image} alt={item.product.name} className="w-full h-full object-cover" />
                 </div>
 
@@ -143,7 +143,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, onOpenC
 
         {/* Drawer Footer / Coupon & Totals */}
         {cartItems.length > 0 && (
-          <div className="p-5 border-t border-white/5 bg-[#070707] space-y-4">
+          <div className="p-3 sm:p-5 border-t border-white/5 bg-[#070707] space-y-4">
             {/* Coupon Code Input */}
             {coupon ? (
               <div className="flex items-center justify-between bg-emerald-500/10 border border-emerald-500/20 px-3 py-2 text-xs">
@@ -199,7 +199,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, onOpenC
             {/* Checkout Action Button */}
             <button
               onClick={handleCheckout}
-              className="w-full flex items-center justify-center gap-2 py-3.5 bg-emerald-500 hover:bg-emerald-400 text-black font-black text-xs tracking-widest uppercase transition-colors cursor-pointer"
+              className="w-full flex items-center justify-center gap-2 py-3 sm:py-3.5 bg-emerald-500 hover:bg-emerald-400 text-black font-black text-xs tracking-widest uppercase transition-colors cursor-pointer"
               style={{ fontFamily: "'Barlow Condensed', sans-serif" }}
             >
               Proceed to Checkout

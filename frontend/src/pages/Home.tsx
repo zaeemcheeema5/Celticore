@@ -243,7 +243,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, categories }) => {
         {/* Carousel buttons */}
         <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-5 z-10">
           <button onClick={() => setCurrentSlide((p) => (p - 1 + HERO_SLIDES.length) % HERO_SLIDES.length)} className="p-1.5 text-white/30 hover:text-white/80 transition-colors cursor-pointer"><ChevronLeft size={18}/></button>
-          <div className="flex gap-2 items-center">
+          <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
             {HERO_SLIDES.map((_, i) => (
               <button key={i} onClick={() => setCurrentSlide(i)} className="transition-all duration-400 cursor-pointer" style={{ width: i === currentSlide ? 28 : 7, height: 2, background: i === currentSlide ? slide.accent : "rgba(255,255,255,0.25)" }}/>
             ))}

@@ -101,7 +101,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, accent, onOpe
       </div>
 
       {/* Content */}
-      <div className="flex flex-col flex-1 p-4">
+      <div className="flex flex-col flex-1 p-3 sm:p-4 lg:p-5">
         {/* Rating */}
         <div className="flex items-center gap-2 mb-2">
           <StarRating rating={product.rating} />
