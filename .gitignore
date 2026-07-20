@@ -15,7 +15,7 @@ backend/.env
 npm-debug.log*
 
 # Build folders
-# dist/
+
 build/
 
 # VS Code
@@ -24,3 +24,10 @@ build/
 # OS files
 .DS_Store
 Thumbs.db
+# Environment files
+.env
+backend/.env
+frontend/.env
+
+# Node
+node_modules/
