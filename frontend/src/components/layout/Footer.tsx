@@ -41,7 +41,7 @@ export const Footer: React.FC<FooterProps> = ({ onOpenNutrition, onNavigate }) =
   return (
     <footer
       id="footer-contact"
-      className="relative pt-16 pb-8 px-6 md:px-14 lg:px-20 overflow-hidden"
+      className="relative pt-10 sm:pt-16 pb-8 px-4 sm:px-6 md:px-14 lg:px-20 overflow-hidden"
       style={{
         background: '#040404',
         borderTop: '1px solid rgba(255,255,255,0.04)',
@@ -89,7 +89,7 @@ export const Footer: React.FC<FooterProps> = ({ onOpenNutrition, onNavigate }) =
           </div>
 
           {/* Links Row */}
-          <div className="flex flex-wrap gap-8 text-xs text-white/35 font-bold uppercase tracking-widest" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+          <div className="flex flex-wrap gap-x-6 gap-y-3 sm:gap-8 text-xs text-white/35 font-bold uppercase tracking-widest" style={{ fontFamily: "'DM Sans', sans-serif" }}>
             <button onClick={() => onNavigate('home')} className="hover:text-emerald-400 transition-colors cursor-pointer">Shop Home</button>
             <button onClick={onOpenNutrition} className="hover:text-emerald-400 transition-colors cursor-pointer">Free Consultation</button>
             <a href="#" className="hover:text-emerald-400 transition-colors">Privacy Policy</a>
@@ -99,7 +99,7 @@ export const Footer: React.FC<FooterProps> = ({ onOpenNutrition, onNavigate }) =
 
         {/* Right Column: Contact Message Form */}
         <div
-          className="p-6 md:p-8 rounded border border-white/5 relative bg-[#090909]"
+          className="p-5 sm:p-6 md:p-8 rounded border border-white/5 relative bg-[#090909]"
           style={{ boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}
         >
           <h3 className="text-lg font-black tracking-widest uppercase text-white mb-1" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>

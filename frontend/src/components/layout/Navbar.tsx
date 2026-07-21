@@ -38,7 +38,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   return (
     <nav
-      className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 md:px-12 lg:px-16 py-4"
+      className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 sm:px-6 md:px-12 lg:px-16 py-3 sm:py-4"
       style={{
         background: "linear-gradient(180deg, rgba(5,5,5,0.97) 0%, rgba(5,5,5,0.85) 100%)",
         backdropFilter: "blur(18px)",
@@ -46,15 +46,15 @@ export const Navbar: React.FC<NavbarProps> = ({
       }}
     >
       {/* Brand Logo */}
-      <button onClick={() => handleNavigate("home")} className="flex items-center gap-2.5 group cursor-pointer">
+      <button onClick={() => handleNavigate("home")} className="flex items-center gap-2 sm:gap-2.5 group cursor-pointer shrink-0">
         <img
           src={logoImage}
           alt="Celti Core Logo"
-          className="w-9 h-9 shrink-0 object-contain rounded-full border border-emerald-500/30"
+          className="w-8 h-8 sm:w-9 sm:h-9 shrink-0 object-contain rounded-full border border-emerald-500/30"
           style={{ filter: "drop-shadow(0 0 4px rgba(16,185,129,0.3))" }}
         />
         <span
-          className="text-[1.1rem] font-black tracking-[0.2em] uppercase"
+          className="text-[0.95rem] sm:text-[1.1rem] font-black tracking-[0.15em] sm:tracking-[0.2em] uppercase whitespace-nowrap"
           style={{
             fontFamily: "'Barlow Condensed', sans-serif",
             background: "linear-gradient(120deg, #ffffff 0%, #10B981 55%, #D4AF37 100%)",
@@ -80,11 +80,11 @@ export const Navbar: React.FC<NavbarProps> = ({
       </div>
 
       {/* Right Side Icons */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-1 sm:gap-3">
         {/* Wishlist Icon */}
         <button
           onClick={onOpenWishlist}
-          className="relative p-2 text-white/50 hover:text-white transition-colors cursor-pointer"
+          className="relative p-2.5 sm:p-2 text-white/50 hover:text-white transition-colors cursor-pointer"
           title="Wishlist"
         >
           <Heart size={19} className={wishlistItems.length > 0 ? "fill-red-500 text-red-500" : ""} />
@@ -101,7 +101,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Shopping Cart Icon */}
         <button
           onClick={onOpenCart}
-          className="relative p-2 text-white/50 hover:text-white transition-colors cursor-pointer"
+          className="relative p-2.5 sm:p-2 text-white/50 hover:text-white transition-colors cursor-pointer"
           title="Cart"
         >
           <ShoppingCart size={19} />
@@ -182,7 +182,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Mobile Menu Toggle */}
         <button
-          className="md:hidden p-2 text-white/60 hover:text-white transition-colors cursor-pointer"
+          className="md:hidden p-2.5 -mr-1 text-white/60 hover:text-white transition-colors cursor-pointer"
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
         >
           {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
@@ -192,18 +192,18 @@ export const Navbar: React.FC<NavbarProps> = ({
       {/* Mobile Drawer Navigation */}
       {mobileMenuOpen && (
         <div
-          className="fixed inset-0 top-[65px] z-40 flex flex-col items-center justify-center gap-6"
+          className="fixed inset-0 top-16 z-40 flex flex-col items-center justify-center gap-4 sm:gap-6 overflow-y-auto py-8"
           style={{
             background: "rgba(5,5,5,0.98)",
             backdropFilter: "blur(20px)",
-            height: "calc(100vh - 65px)",
+            height: "calc(100vh - 4rem)",
           }}
         >
           {["protein", "creatine", "eaa-bcaa", "vitamins", "pre-workout", "wellbeing"].map((p) => (
             <button
               key={p}
               onClick={() => handleNavigate(p)}
-              className="text-2.5xl font-black tracking-[0.12em] uppercase hover:text-emerald-400 transition-colors text-white cursor-pointer"
+              className="text-xl sm:text-2.5xl font-black tracking-[0.12em] uppercase hover:text-emerald-400 transition-colors text-white cursor-pointer text-center px-4"
               style={{ fontFamily: "'Barlow Condensed', sans-serif" }}
             >
               {p.replace('-', ' ')}

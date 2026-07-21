@@ -89,12 +89,12 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto"
+      className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 overflow-y-auto"
       style={{ background: "rgba(0,0,0,0.92)", backdropFilter: "blur(12px)" }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
-        className="relative w-full max-w-4xl rounded border border-white/10 bg-[#080808] text-white overflow-hidden shadow-2xl flex flex-col md:flex-row my-8"
+        className="relative w-full max-w-4xl sm:rounded border border-white/10 bg-[#080808] text-white overflow-hidden shadow-2xl flex flex-col md:flex-row my-0 sm:my-8 min-h-screen sm:min-h-0"
         style={{
           maxHeight: '90vh',
           boxShadow: `0 0 50px ${accent}0d`,
@@ -103,13 +103,13 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 p-2 text-white/40 hover:text-white hover:bg-white/5 transition-all z-20 cursor-pointer"
+          className="absolute top-3 right-3 sm:top-4 sm:right-4 p-2.5 text-white hover:text-white bg-black/50 hover:bg-black/70 rounded-full transition-all z-20 cursor-pointer"
         >
           <X size={18} />
         </button>
 
         {/* Product Visual Column */}
-        <div className="w-full md:w-1/2 relative bg-[#111] flex items-center justify-center min-h-[300px] md:min-h-0">
+        <div className="w-full md:w-1/2 relative bg-[#111] flex items-center justify-center min-h-[240px] sm:min-h-[300px] md:min-h-0">
           <img
             src={product.image}
             alt={product.name}
@@ -119,7 +119,7 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
         </div>
 
         {/* Product Details & Reviews Column */}
-        <div className="w-full md:w-1/2 p-6 md:p-8 flex flex-col overflow-y-auto" style={{ maxHeight: 'calc(90vh - 2px)' }}>
+        <div className="w-full md:w-1/2 p-5 sm:p-6 md:p-8 flex flex-col overflow-y-auto max-h-[calc(100vh-240px)] sm:max-h-[calc(90vh-2px)] md:max-h-[calc(90vh-2px)]">
           {/* Header */}
           <div className="mb-4">
             <span
@@ -137,7 +137,7 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
             )}
             
             <h2
-              className="text-2.5xl font-black uppercase tracking-tight text-white leading-tight mt-2"
+              className="text-xl sm:text-2.5xl font-black uppercase tracking-tight text-white leading-tight mt-2"
               style={{ fontFamily: "'Barlow Condensed', sans-serif" }}
             >
               {product.name}

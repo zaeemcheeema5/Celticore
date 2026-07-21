@@ -66,7 +66,7 @@ export const Category: React.FC<CategoryProps> = ({
     <div className="min-h-screen" style={{ background: "#050505" }}>
       {/* Category Hero Banner */}
       <div
-        className="relative pt-24 pb-14 px-6 md:px-14 lg:px-20 overflow-hidden"
+        className="relative pt-20 sm:pt-24 pb-10 sm:pb-14 px-4 sm:px-6 md:px-14 lg:px-20 overflow-hidden"
         style={{ background: "#080808", borderBottom: "1px solid rgba(255,255,255,0.05)" }}
       >
         {/* Background Overlay */}
@@ -130,11 +130,11 @@ export const Category: React.FC<CategoryProps> = ({
             </div>
 
             {/* Sort Options */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="text-[10px] text-white/30 uppercase tracking-widest" style={{ fontFamily: "'DM Sans', sans-serif" }}>
                 Sort:
               </span>
-              <div className="flex gap-1">
+              <div className="flex gap-1 flex-wrap">
                 {(["popular", "price-low", "price-high", "rating"] as const).map((s) => (
                   <button
                     key={s}
@@ -157,7 +157,7 @@ export const Category: React.FC<CategoryProps> = ({
       </div>
 
       {/* Products Grid */}
-      <div className="max-w-7xl mx-auto px-6 md:px-14 lg:px-20 py-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-14 lg:px-20 py-8 sm:py-12">
         {sortedProducts.length === 0 ? (
           <div className="py-20 text-center text-white/45 italic text-sm">
             No products found under this category.
@@ -178,7 +178,7 @@ export const Category: React.FC<CategoryProps> = ({
 
       {/* More Categories */}
       <div
-        className="px-6 md:px-14 lg:px-20 py-12"
+        className="px-4 sm:px-6 md:px-14 lg:px-20 py-10 sm:py-12"
         style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}
       >
         <div className="max-w-7xl mx-auto">

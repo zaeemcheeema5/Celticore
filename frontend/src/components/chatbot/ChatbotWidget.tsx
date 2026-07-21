@@ -78,11 +78,11 @@ export const ChatbotWidget: React.FC = () => {
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">
+    <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 flex flex-col items-end max-w-[calc(100vw-2rem)]">
       {/* Chat Window */}
       {isOpen && (
         <div
-          className="w-80 sm:w-96 h-[450px] bg-[#090909] border border-white/10 rounded-lg flex flex-col justify-between shadow-2xl mb-4 overflow-hidden"
+          className="w-[calc(100vw-2rem)] max-w-[22rem] sm:w-96 h-[70vh] max-h-[450px] bg-[#090909] border border-white/10 rounded-lg flex flex-col justify-between shadow-2xl mb-3 sm:mb-4 overflow-hidden"
           style={{
             animation: "fade-up 0.3s cubic-bezier(0.16, 1, 0.3, 1) both"
           }}
@@ -176,7 +176,7 @@ export const ChatbotWidget: React.FC = () => {
       {/* Floating Toggle Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-12 h-12 rounded-full flex items-center justify-center transition-all duration-350 cursor-pointer hover:scale-105"
+        className="w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center transition-all duration-350 cursor-pointer hover:scale-105 shrink-0"
         style={{
           background: "linear-gradient(135deg, #10B981, #059669)",
           color: "#000",

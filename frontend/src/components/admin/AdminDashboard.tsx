@@ -565,23 +565,31 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto bg-black/90 backdrop-blur-md"
+      className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 overflow-y-auto bg-black/90 backdrop-blur-md"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
-        className="relative w-full max-w-5xl rounded border border-white/10 bg-[#090909] text-white flex flex-col md:flex-row h-[85vh] overflow-hidden"
+        className="relative w-full max-w-5xl sm:rounded border border-white/10 bg-[#090909] text-white flex flex-col md:flex-row h-screen sm:h-[85vh] overflow-hidden"
         style={{ boxShadow: "0 0 50px rgba(16,185,129,0.15)" }}
       >
         {/* Sidebar Navigation */}
-        <div className="w-full md:w-56 bg-[#0c0c0c] border-r border-white/5 flex flex-col justify-between shrink-0 p-4">
-          <div className="space-y-6">
-            <div className="flex items-center gap-2 text-emerald-400">
-              <ShieldAlert size={18} />
-              <span className="text-sm font-black uppercase tracking-wider" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>Admin Control</span>
+        <div className="w-full md:w-56 bg-[#0c0c0c] border-b md:border-b-0 md:border-r border-white/5 flex flex-col justify-between shrink-0 p-3 md:p-4">
+          <div className="md:space-y-6">
+            <div className="flex items-center justify-between md:justify-start gap-2 text-emerald-400 mb-2 md:mb-0">
+              <div className="flex items-center gap-2">
+                <ShieldAlert size={18} />
+                <span className="text-sm font-black uppercase tracking-wider" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>Admin Control</span>
+              </div>
+              <button
+                onClick={onClose}
+                className="md:hidden p-1.5 text-white/40 hover:text-white rounded hover:bg-white/5 cursor-pointer"
+              >
+                <X size={18} />
+              </button>
             </div>
 
             {/* Nav Tabs */}
-            <div className="flex flex-col gap-1 text-xs">
+            <div className="flex md:flex-col gap-1 text-xs overflow-x-auto md:overflow-visible scrollbar-hide -mx-3 px-3 md:mx-0 md:px-0 pb-1 md:pb-0">
               {(
                 [
                   { id: 'stats', label: 'Dashboard Stats', icon: BarChart3 },
@@ -598,7 +606,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2.5 px-3 py-2.5 text-left rounded-sm font-semibold transition-all cursor-pointer ${
+                  className={`flex items-center gap-1.5 md:gap-2.5 px-3 py-2.5 text-left rounded-sm font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 md:shrink md:whitespace-normal ${
                     activeTab === tab.id
                       ? 'bg-emerald-500 text-black shadow-lg shadow-emerald-500/10'
                       : 'text-white/50 hover:text-white hover:bg-white/5'
@@ -613,7 +621,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
 
           <button
             onClick={onClose}
-            className="w-full py-2.5 text-center text-xs font-black uppercase border border-white/10 hover:border-white/30 text-white/50 hover:text-white transition-all cursor-pointer"
+            className="hidden md:block w-full py-2.5 text-center text-xs font-black uppercase border border-white/10 hover:border-white/30 text-white/50 hover:text-white transition-all cursor-pointer"
             style={{ fontFamily: "'Barlow Condensed', sans-serif" }}
           >
             Close Dashboard
@@ -621,9 +629,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
         </div>
 
         {/* Content Panel */}
-        <div className="flex-1 overflow-y-auto p-6 md:p-8 bg-[#070707] flex flex-col">
-          <div className="flex items-center justify-between pb-4 border-b border-white/5 mb-6">
-            <h2 className="text-xl font-black uppercase tracking-wider text-white" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 bg-[#070707] flex flex-col">
+          <div className="flex items-center justify-between pb-3 sm:pb-4 border-b border-white/5 mb-4 sm:mb-6">
+            <h2 className="text-base sm:text-xl font-black uppercase tracking-wider text-white" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
               {activeTab === 'stats' && 'Sales & Store Statistics'}
               {activeTab === 'orders' && 'Customer Order Management'}
               {activeTab === 'products' && 'Product Sourcing / Uploads'}
@@ -633,13 +641,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
               {activeTab === 'nutrition' && 'Nutrition Consulting Submissions'}
               {activeTab === 'contact' && 'Contact Box Messages'}
             </h2>
-            
-            <button
-              onClick={onClose}
-              className="p-1.5 text-white/40 hover:text-white rounded hover:bg-white/5 cursor-pointer md:hidden"
-            >
-              <X size={16} />
-            </button>
           </div>
 
           {/* TAB CONTENT: STATS */}
@@ -648,19 +649,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="p-4 bg-white/5 border border-white/5 rounded">
                   <p className="text-[10px] uppercase text-white/40 font-bold tracking-wider">Total Sales Revenue</p>
-                  <p className="text-3xl font-black text-emerald-400 mt-1" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
+                  <p className="text-2xl sm:text-3xl font-black text-emerald-400 mt-1" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
                     €{stats.totalRevenue.toFixed(2)}
                   </p>
                 </div>
                 <div className="p-4 bg-white/5 border border-white/5 rounded">
                   <p className="text-[10px] uppercase text-white/40 font-bold tracking-wider">Orders Processed</p>
-                  <p className="text-3xl font-black text-white mt-1" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
+                  <p className="text-2xl sm:text-3xl font-black text-white mt-1" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
                     {stats.totalOrders}
                   </p>
                 </div>
                 <div className="p-4 bg-white/5 border border-white/5 rounded">
                   <p className="text-[10px] uppercase text-white/40 font-bold tracking-wider">Pending Reviews</p>
-                  <p className="text-3xl font-black text-amber-500 mt-1" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
+                  <p className="text-2xl sm:text-3xl font-black text-amber-500 mt-1" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
                     {stats.pendingReviews}
                   </p>
                 </div>
@@ -1628,8 +1629,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
                 <h3 className="font-black text-xs uppercase tracking-wider text-emerald-400 flex items-center gap-1.5" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
                   <Database size={14} /> Registered Accounts Directory ({users.length})
                 </h3>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse text-xs">
+                <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+                  <table className="w-full min-w-[560px] text-left border-collapse text-xs">
                     <thead>
                       <tr className="border-b border-white/10 text-[10px] uppercase text-white/40">
                         <th className="py-2 pr-4 font-bold">Username</th>

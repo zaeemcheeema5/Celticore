@@ -173,15 +173,15 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, categories }) => {
           <div key={i} className="absolute rounded-full pointer-events-none z-[2]" style={{ left: `${(i*37+7)%100}%`, top: `${(i*61+13)%100}%`, width: [2,2,1,3][i%4], height: [2,2,1,3][i%4], background: i%2===0 ? slide.accent : "#ffffff", opacity: 0.15+(i%4)*0.08, transition: "background 1s ease-in-out", animation: `float ${4+(i%5)}s ${(i*0.35)%4}s infinite ease-in-out` }}/>
         ))}
 
-        <div className="relative z-10 w-full px-6 md:px-14 lg:px-20 pt-20">
-          <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8 items-center min-h-screen py-16">
+        <div className="relative z-10 w-full px-4 sm:px-6 md:px-14 lg:px-20 pt-16 sm:pt-20">
+          <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 items-center min-h-screen py-12 sm:py-16">
             {/* Slide Information */}
             <div key={`txt-${currentSlide}`} className="hero-text-enter">
               <div className="inline-flex items-center gap-2 px-3 py-1.5 mb-6 text-[10px] font-bold tracking-[0.35em] uppercase" style={{ border: `1px solid ${slide.accent}`, color: slide.accent, background: `${slide.accent}12`, fontFamily: "'Barlow Condensed', sans-serif" }}>
                 <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: slide.accent }}/>
                 {slide.tag}
               </div>
-              <h1 className="font-black leading-[0.9] mb-3 text-white" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: "clamp(3.5rem, 8vw, 6.5rem)", letterSpacing: "-0.02em" }}>
+              <h1 className="font-black leading-[0.9] mb-3 text-white" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: "clamp(2.75rem, 11vw, 6.5rem)", letterSpacing: "-0.02em" }}>
                 {slide.title}<br/>
                 <span style={{ color: slide.accent }}>
                   {slide.titleAccent}
@@ -190,7 +190,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, categories }) => {
               <p className="text-sm font-semibold tracking-[0.25em] uppercase mb-4" style={{ color: slide.accent, fontFamily: "'DM Sans', sans-serif", opacity: 0.85 }}>{slide.subtitle}</p>
               <p className="text-white/50 text-[0.95rem] leading-relaxed mb-8 max-w-[420px]" style={{ fontFamily: "'DM Sans', sans-serif" }}>{slide.description}</p>
               <div className="flex flex-wrap items-center gap-3">
-                <button onClick={() => onNavigate(slide.page)} className="px-8 py-3.5 font-black text-xs tracking-[0.2em] uppercase transition-all duration-300 hover:scale-105 cursor-pointer" style={{ fontFamily: "'Barlow Condensed', sans-serif", background: `linear-gradient(135deg, ${slide.accent}, ${slide.accent}bb)`, color: "#000", boxShadow: `0 0 28px ${slide.accent}40` }}>
+                <button onClick={() => onNavigate(slide.page)} className="px-6 sm:px-8 py-3 sm:py-3.5 font-black text-xs tracking-[0.2em] uppercase transition-all duration-300 hover:scale-105 cursor-pointer" style={{ fontFamily: "'Barlow Condensed', sans-serif", background: `linear-gradient(135deg, ${slide.accent}, ${slide.accent}bb)`, color: "#000", boxShadow: `0 0 28px ${slide.accent}40` }}>
                   {slide.cta}
                 </button>
                 <button
@@ -198,7 +198,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, categories }) => {
                     const el = document.getElementById('footer-contact');
                     el?.scrollIntoView({ behavior: 'smooth' });
                   }}
-                  className="px-7 py-3.5 font-black text-xs tracking-[0.2em] uppercase text-white/50 hover:text-white transition-all duration-250 cursor-pointer"
+                  className="px-5 sm:px-7 py-3 sm:py-3.5 font-black text-xs tracking-[0.2em] uppercase text-white/50 hover:text-white transition-all duration-250 cursor-pointer"
                   style={{ fontFamily: "'Barlow Condensed', sans-serif", border: "1px solid rgba(255,255,255,0.15)" }}
                   onMouseEnter={e => e.currentTarget.style.borderColor="rgba(255,255,255,0.4)"}
                   onMouseLeave={e => e.currentTarget.style.borderColor="rgba(255,255,255,0.15)"}
@@ -206,7 +206,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, categories }) => {
                   Learn More
                 </button>
               </div>
-              <div className="flex gap-8 mt-10">
+              <div className="flex gap-5 sm:gap-8 mt-8 sm:mt-10">
                 {[{ val: "50K+", label: "Athletes" }, { val: "4.9★", label: "Avg Rating" }, { val: "100%", label: "Lab-Tested" }].map(s => (
                   <div key={s.label}>
                     <div className="text-xl font-black text-white" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>{s.val}</div>
@@ -217,7 +217,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, categories }) => {
             </div>
 
             {/* Product Rendering */}
-            <div key={`img-${currentSlide}`} className="hero-visual-enter flex items-center justify-center h-80 md:h-[500px] lg:h-[560px]">
+            <div key={`img-${currentSlide}`} className="hero-visual-enter flex items-center justify-center h-64 sm:h-80 md:h-[500px] lg:h-[560px]">
               <div 
                 className="relative w-full h-full max-w-lg flex items-center justify-center"
                 style={{
@@ -241,20 +241,20 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, categories }) => {
         </div>
 
         {/* Carousel buttons */}
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-5 z-10">
-          <button onClick={() => setCurrentSlide((p) => (p - 1 + HERO_SLIDES.length) % HERO_SLIDES.length)} className="p-1.5 text-white/30 hover:text-white/80 transition-colors cursor-pointer"><ChevronLeft size={18}/></button>
+        <div className="absolute bottom-6 sm:bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-3 sm:gap-5 z-10">
+          <button onClick={() => setCurrentSlide((p) => (p - 1 + HERO_SLIDES.length) % HERO_SLIDES.length)} className="p-2 sm:p-1.5 text-white/30 hover:text-white/80 transition-colors cursor-pointer"><ChevronLeft size={18}/></button>
           <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
             {HERO_SLIDES.map((_, i) => (
               <button key={i} onClick={() => setCurrentSlide(i)} className="transition-all duration-400 cursor-pointer" style={{ width: i === currentSlide ? 28 : 7, height: 2, background: i === currentSlide ? slide.accent : "rgba(255,255,255,0.25)" }}/>
             ))}
           </div>
-          <button onClick={() => setCurrentSlide((p) => (p + 1) % HERO_SLIDES.length)} className="p-1.5 text-white/30 hover:text-white/80 transition-colors cursor-pointer"><ChevronRight size={18}/></button>
+          <button onClick={() => setCurrentSlide((p) => (p + 1) % HERO_SLIDES.length)} className="p-2 sm:p-1.5 text-white/30 hover:text-white/80 transition-colors cursor-pointer"><ChevronRight size={18}/></button>
         </div>
         <div className="absolute bottom-0 left-0 right-0 h-24 pointer-events-none" style={{ background: "linear-gradient(to bottom, transparent, #050505)" }}/>
       </section>
 
       {/* CATEGORY EXPLORATION */}
-      <section className="relative py-6 pb-28 px-6 md:px-14 lg:px-20" style={{ background: "#050505" }}>
+      <section className="relative py-6 pb-20 sm:pb-28 px-4 sm:px-6 md:px-14 lg:px-20" style={{ background: "#050505" }}>
         <div className="max-w-7xl mx-auto mb-12">
           <div className="flex items-center gap-4 mb-3">
             <div className="h-px flex-1" style={{ background: "linear-gradient(to right, transparent, rgba(16,185,129,0.5))" }}/>
@@ -335,8 +335,8 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, categories }) => {
       </section>
 
       {/* TRUST AND VALUES SECTION */}
-      <section className="py-8 px-6 md:px-14" style={{ background: "#080808", borderTop: "1px solid rgba(255,255,255,0.04)", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-        <div className="max-w-7xl mx-auto flex flex-wrap justify-center md:justify-between gap-6 md:gap-0">
+      <section className="py-8 px-4 sm:px-6 md:px-14" style={{ background: "#080808", borderTop: "1px solid rgba(255,255,255,0.04)", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+        <div className="max-w-7xl mx-auto flex flex-wrap justify-center md:justify-between gap-x-6 gap-y-5 md:gap-0">
           {[
             { icon: Shield, label: "Third-Party Lab Tested", sub: "Every batch verified" },
             { icon: Star, label: "4.9/5 Average Rating", sub: "From 12,000+ reviews" },

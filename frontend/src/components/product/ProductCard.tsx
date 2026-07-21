@@ -118,7 +118,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, accent, onOpe
             </span>
           )}
           <h3
-            className="text-lg font-black uppercase leading-tight text-white group-hover:text-emerald-400 transition-colors"
+            className="text-base sm:text-lg font-black uppercase leading-tight text-white group-hover:text-emerald-400 transition-colors break-words"
             style={{ fontFamily: "'Barlow Condensed', sans-serif" }}
           >
             {product.name}
@@ -178,10 +178,10 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, accent, onOpe
         )}
 
         {/* Price & Add to Cart */}
-        <div className="flex items-center justify-between mt-auto pt-3" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+        <div className="flex items-center justify-between gap-2 flex-wrap mt-auto pt-3" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
           <div>
             <span
-              className="text-xl font-black text-white"
+              className="text-lg sm:text-xl font-black text-white"
               style={{ fontFamily: "'Barlow Condensed', sans-serif" }}
             >
               €{product.price.toFixed(2)}
@@ -199,10 +199,10 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, accent, onOpe
           {product.stockQuantity === 0 ? (
             <button
               disabled
-              className="flex items-center gap-1.5 px-4 py-2 text-[10px] font-black tracking-widest uppercase transition-all duration-250 opacity-40 bg-white/5 border border-white/10 text-white cursor-not-allowed"
+              className="flex items-center gap-1.5 px-3 sm:px-4 py-2 text-[10px] font-black tracking-widest uppercase transition-all duration-250 opacity-40 bg-white/5 border border-white/10 text-white cursor-not-allowed"
               style={{
                 fontFamily: "'Barlow Condensed', sans-serif",
-                minWidth: 100,
+                minWidth: 88,
                 justifyContent: "center",
               }}
             >
@@ -211,12 +211,12 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, accent, onOpe
           ) : (
             <button
               onClick={handleAdd}
-              className="flex items-center gap-1.5 px-4 py-2 text-[10px] font-black tracking-widest uppercase transition-all duration-250 cursor-pointer"
+              className="flex items-center gap-1.5 px-3 sm:px-4 py-2 text-[10px] font-black tracking-widest uppercase transition-all duration-250 cursor-pointer"
               style={{
                 fontFamily: "'Barlow Condensed', sans-serif",
                 background: added ? "#10B981" : accent,
                 color: "#000",
-                minWidth: 100,
+                minWidth: 88,
                 justifyContent: "center",
               }}
             >
