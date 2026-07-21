@@ -569,11 +569,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
-        className="relative w-full max-w-5xl sm:rounded border border-white/10 bg-[#090909] text-white flex flex-col md:flex-row h-screen sm:h-[85vh] overflow-hidden"
+        className="relative w-full max-w-5xl sm:rounded-xl border border-white/10 bg-[#090909] text-white flex flex-col md:flex-row h-[100dvh] sm:h-[85vh] overflow-hidden"
         style={{ boxShadow: "0 0 50px rgba(16,185,129,0.15)" }}
       >
         {/* Sidebar Navigation */}
-        <div className="w-full md:w-56 bg-[#0c0c0c] border-b md:border-b-0 md:border-r border-white/5 flex flex-col justify-between shrink-0 p-3 md:p-4">
+        <div className="w-full md:w-56 bg-[#0c0c0c] border-b md:border-b-0 md:border-r border-white/8 flex flex-col justify-between shrink-0 p-3 md:p-4 shadow-md shadow-black/30 md:shadow-none">
           <div className="md:space-y-6">
             <div className="flex items-center justify-between md:justify-start gap-2 text-emerald-400 mb-2 md:mb-0">
               <div className="flex items-center gap-2">
@@ -606,10 +606,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-1.5 md:gap-2.5 px-3 py-2.5 text-left rounded-sm font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 md:shrink md:whitespace-normal ${
+                  className={`flex items-center gap-1.5 md:gap-2.5 px-3.5 py-2.5 text-left rounded-lg font-semibold transition-all duration-200 cursor-pointer whitespace-nowrap shrink-0 md:shrink md:whitespace-normal active:scale-[0.97] ${
                     activeTab === tab.id
-                      ? 'bg-emerald-500 text-black shadow-lg shadow-emerald-500/10'
-                      : 'text-white/50 hover:text-white hover:bg-white/5'
+                      ? 'bg-emerald-500 text-black shadow-lg shadow-emerald-500/20'
+                      : 'text-white/50 hover:text-white hover:bg-white/8'
                   }`}
                 >
                   <tab.icon size={14} />
@@ -621,7 +621,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
 
           <button
             onClick={onClose}
-            className="hidden md:block w-full py-2.5 text-center text-xs font-black uppercase border border-white/10 hover:border-white/30 text-white/50 hover:text-white transition-all cursor-pointer"
+            className="hidden md:block w-full py-2.5 text-center text-xs font-black uppercase rounded-lg border border-white/10 hover:border-white/30 hover:bg-white/5 text-white/50 hover:text-white transition-all cursor-pointer"
             style={{ fontFamily: "'Barlow Condensed', sans-serif" }}
           >
             Close Dashboard
@@ -629,8 +629,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
         </div>
 
         {/* Content Panel */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 bg-[#070707] flex flex-col">
-          <div className="flex items-center justify-between pb-3 sm:pb-4 border-b border-white/5 mb-4 sm:mb-6">
+        <div className="flex-1 overflow-y-auto overscroll-contain p-4 sm:p-6 md:p-8 bg-[#070707] flex flex-col min-h-0">
+          <div className="flex items-center justify-between pb-3 sm:pb-4 border-b border-white/8 mb-4 sm:mb-6 shrink-0">
             <h2 className="text-base sm:text-xl font-black uppercase tracking-wider text-white" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
               {activeTab === 'stats' && 'Sales & Store Statistics'}
               {activeTab === 'orders' && 'Customer Order Management'}
@@ -640,6 +640,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
               {activeTab === 'coupons' && 'Discount Coupon Generator'}
               {activeTab === 'nutrition' && 'Nutrition Consulting Submissions'}
               {activeTab === 'contact' && 'Contact Box Messages'}
+              {activeTab === 'admins' && 'Admins & Registered Users'}
             </h2>
           </div>
 
@@ -647,19 +648,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
           {activeTab === 'stats' && stats && (
             <div className="space-y-6">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="p-4 bg-white/5 border border-white/5 rounded">
+                <div className="p-4 bg-white/[0.03] border border-white/8 rounded-xl hover:border-white/15 transition-colors duration-200">
                   <p className="text-[10px] uppercase text-white/40 font-bold tracking-wider">Total Sales Revenue</p>
                   <p className="text-2xl sm:text-3xl font-black text-emerald-400 mt-1" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
                     €{stats.totalRevenue.toFixed(2)}
                   </p>
                 </div>
-                <div className="p-4 bg-white/5 border border-white/5 rounded">
+                <div className="p-4 bg-white/[0.03] border border-white/8 rounded-xl hover:border-white/15 transition-colors duration-200">
                   <p className="text-[10px] uppercase text-white/40 font-bold tracking-wider">Orders Processed</p>
                   <p className="text-2xl sm:text-3xl font-black text-white mt-1" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
                     {stats.totalOrders}
                   </p>
                 </div>
-                <div className="p-4 bg-white/5 border border-white/5 rounded">
+                <div className="p-4 bg-white/[0.03] border border-white/8 rounded-xl hover:border-white/15 transition-colors duration-200">
                   <p className="text-[10px] uppercase text-white/40 font-bold tracking-wider">Pending Reviews</p>
                   <p className="text-2xl sm:text-3xl font-black text-amber-500 mt-1" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
                     {stats.pendingReviews}
@@ -668,7 +669,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="p-4 bg-white/5 border border-white/5 rounded">
+                <div className="p-4 bg-white/[0.03] border border-white/8 rounded-xl hover:border-white/15 transition-colors duration-200">
                   <p className="text-xs font-bold text-white mb-2">Awaiting Action</p>
                   <ul className="text-xs space-y-2 text-white/60">
                     <li className="flex justify-between">
@@ -917,7 +918,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
               <div className="flex-1 overflow-y-auto space-y-3 min-h-0 pr-1">
                 <h3 className="font-bold text-xs uppercase tracking-wider text-white mb-2">Current Catalog ({products.length})</h3>
                 {products.length === 0 ? (
-                  <p className="text-xs text-white/30 italic">No products found.</p>
+                  <div className="flex flex-col items-center justify-center py-14 sm:py-20 text-center gap-2.5">
+                    <Database size={28} className="text-white/15" />
+                    <p className="text-xs text-white/30 italic">No products found.</p>
+                  </div>
                 ) : (
                   products.map((p) => {
                     const isLowStock = (p.stockQuantity ?? 0) <= (p.lowStockThreshold ?? 5);
@@ -1132,7 +1136,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
               <div className="flex-1 overflow-y-auto space-y-3 min-h-0 pr-1">
                 <h3 className="font-bold text-xs uppercase tracking-wider text-white mb-2">Category Configurations ({categories.length})</h3>
                 {categories.length === 0 ? (
-                  <p className="text-xs text-white/30 italic">No categories found in database.</p>
+                  <div className="flex flex-col items-center justify-center py-14 sm:py-20 text-center gap-2.5">
+                    <Layers size={28} className="text-white/15" />
+                    <p className="text-xs text-white/30 italic">No categories found in database.</p>
+                  </div>
                 ) : (
                   categories.map((c) => {
                     const cardImg = c.card_image || c.cardImage || c.image || "";
@@ -1177,7 +1184,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
           {activeTab === 'reviews' && (
             <div className="space-y-4 flex-1 overflow-y-auto min-h-0 pr-1">
               {reviews.length === 0 ? (
-                <p className="text-xs text-white/30 italic">No reviews logged in database.</p>
+                <div className="flex flex-col items-center justify-center py-14 sm:py-20 text-center gap-2.5">
+                    <Star size={28} className="text-white/15" />
+                    <p className="text-xs text-white/30 italic">No reviews logged in database.</p>
+                  </div>
               ) : (
                 reviews.map((rev) => (
                   <div key={rev.id} className="p-4 bg-white/5 border border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs">
@@ -1268,7 +1278,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
               <div className="flex-1 overflow-y-auto space-y-3 min-h-0 pr-1">
                 <h3 className="font-bold text-xs uppercase tracking-wider text-white mb-2">Available Coupons ({coupons.length})</h3>
                 {coupons.length === 0 ? (
-                  <p className="text-xs text-white/30 italic">No coupons created.</p>
+                  <div className="flex flex-col items-center justify-center py-14 sm:py-20 text-center gap-2.5">
+                    <Award size={28} className="text-white/15" />
+                    <p className="text-xs text-white/30 italic">No coupons created.</p>
+                  </div>
                 ) : (
                   coupons.map((c) => (
                     <div key={c.id} className="flex justify-between items-center p-3 bg-white/5 border border-white/5 text-xs">
@@ -1292,10 +1305,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
           {activeTab === 'nutrition' && (
             <div className="space-y-4 flex-1 overflow-y-auto min-h-0 pr-1">
               {nutrition.length === 0 ? (
-                <p className="text-xs text-white/30 italic">No nutrition consultations requested.</p>
+                <div className="flex flex-col items-center justify-center py-14 sm:py-20 text-center gap-2.5">
+                    <ClipboardCheck size={28} className="text-white/15" />
+                    <p className="text-xs text-white/30 italic">No nutrition consultations requested.</p>
+                  </div>
               ) : (
                 nutrition.map((req) => (
-                  <div key={req.id} className="p-4 bg-white/5 border border-white/5 rounded space-y-3 text-xs">
+                  <div key={req.id} className="p-4 bg-white/[0.03] border border-white/8 rounded-xl hover:border-white/15 transition-colors duration-200 space-y-3 text-xs">
                     <div className="flex flex-wrap justify-between items-center gap-2 pb-2 border-b border-white/5">
                       <div>
                         <span className="font-bold text-white">{req.name}</span>
@@ -1384,10 +1400,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
           {activeTab === 'orders' && (
             <div className="space-y-4 flex-1 overflow-y-auto min-h-0 pr-1">
               {orders.length === 0 ? (
-                <p className="text-xs text-white/30 italic">No orders found in database.</p>
+                <div className="flex flex-col items-center justify-center py-14 sm:py-20 text-center gap-2.5">
+                    <ShoppingBag size={28} className="text-white/15" />
+                    <p className="text-xs text-white/30 italic">No orders found in database.</p>
+                  </div>
               ) : (
                 orders.map((order) => (
-                  <div key={order.id} className="p-4 bg-white/5 border border-white/5 rounded space-y-4 text-xs">
+                  <div key={order.id} className="p-4 bg-white/[0.03] border border-white/8 rounded-xl hover:border-white/15 transition-colors duration-200 space-y-4 text-xs">
                     <div className="flex flex-wrap justify-between items-center gap-2 pb-2 border-b border-white/5">
                       <div>
                         <span className="font-bold text-white">Order ID: #{order.id}</span>
@@ -1466,10 +1485,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
           {activeTab === 'contact' && (
             <div className="space-y-4 flex-1 overflow-y-auto min-h-0 pr-1">
               {messages.length === 0 ? (
-                <p className="text-xs text-white/30 italic">No customer contact messages found.</p>
+                <div className="flex flex-col items-center justify-center py-14 sm:py-20 text-center gap-2.5">
+                    <MessageSquare size={28} className="text-white/15" />
+                    <p className="text-xs text-white/30 italic">No customer contact messages found.</p>
+                  </div>
               ) : (
                 messages.map((msg) => (
-                  <div key={msg.id} className="p-4 bg-white/5 border border-white/5 rounded space-y-2 text-xs">
+                  <div key={msg.id} className="p-4 bg-white/[0.03] border border-white/8 rounded-xl hover:border-white/15 transition-colors duration-200 space-y-2 text-xs">
                     <div className="flex justify-between items-start">
                       <div>
                         <div className="flex items-center gap-2">
@@ -1507,7 +1529,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 
                 {/* Section 1: Change Personal Credentials */}
-                <div className="p-4 bg-white/5 border border-white/5 rounded space-y-4">
+                <div className="p-4 bg-white/[0.03] border border-white/8 rounded-xl hover:border-white/15 transition-colors duration-200 space-y-4">
                   <h3 className="font-black text-xs uppercase tracking-wider text-emerald-400 flex items-center gap-1.5" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
                     <Key size={14} /> Update Credentials
                   </h3>
@@ -1559,7 +1581,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
                 </div>
 
                 {/* Section 2: Create Admin Profile (Main Admin Only) */}
-                <div className="p-4 bg-white/5 border border-white/5 rounded space-y-4">
+                <div className="p-4 bg-white/[0.03] border border-white/8 rounded-xl hover:border-white/15 transition-colors duration-200 space-y-4">
                   <h3 className="font-black text-xs uppercase tracking-wider text-emerald-400 flex items-center gap-1.5" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
                     <UserPlus size={14} /> Create Admin Profile
                   </h3>
@@ -1625,7 +1647,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
               </div>
 
               {/* Section 3: Registered Users & Admins Directory */}
-              <div className="p-4 bg-white/5 border border-white/5 rounded space-y-4">
+              <div className="p-4 bg-white/[0.03] border border-white/8 rounded-xl hover:border-white/15 transition-colors duration-200 space-y-4">
                 <h3 className="font-black text-xs uppercase tracking-wider text-emerald-400 flex items-center gap-1.5" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
                   <Database size={14} /> Registered Accounts Directory ({users.length})
                 </h3>
