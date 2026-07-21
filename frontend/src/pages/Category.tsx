@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, ChevronRight, Shield, Zap, Droplets, Sun, Leaf } from 'lucide-react';
+import { ArrowLeft, ChevronRight, Shield, Zap, Droplets, Sun, Leaf, LayoutGrid } from 'lucide-react';
 import { Category as CategoryType, Product } from '../types';
 import { ProductCard } from '../components/product/ProductCard';
 
@@ -10,6 +10,9 @@ interface CategoryProps {
   onNavigate: (page: string) => void;
   onOpenDetails: (product: Product) => void;
 }
+
+// Special pageId that renders every active product instead of a single category
+const ALL_PRODUCTS_PAGE_ID = 'products';
 
 const getCategoryIcon = (id: string) => {
   switch (id) {
@@ -30,6 +33,7 @@ export const Category: React.FC<CategoryProps> = ({
   onNavigate,
   onOpenDetails,
 }) => {
+  const isAllProducts = pageId === ALL_PRODUCTS_PAGE_ID;
   const cat = categories.find((c) => String(c.id) === String(pageId) || c.slug === pageId);
 
   const [sortBy, setSortBy] = useState<"popular" | "price-low" | "price-high" | "rating">("popular");
@@ -38,7 +42,7 @@ export const Category: React.FC<CategoryProps> = ({
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, [pageId]);
 
-  if (!cat) {
+  if (!isAllProducts && !cat) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#050505] text-white/50 text-sm">
         Category not found.
@@ -46,10 +50,12 @@ export const Category: React.FC<CategoryProps> = ({
     );
   }
 
-  const categoryProducts = products.filter((p) => 
-    (String(p.category) === String(pageId) || String(p.category) === String(cat.id)) && 
-    (p.isActive !== false)
-  );
+  const categoryProducts = isAllProducts
+    ? products.filter((p) => p.isActive !== false)
+    : products.filter((p) =>
+        (String(p.category) === String(pageId) || String(p.category) === String(cat!.id)) &&
+        (p.isActive !== false)
+      );
 
   const sortedProducts = [...categoryProducts].sort((a, b) => {
     if (sortBy === "price-low") return a.price - b.price;
@@ -58,9 +64,12 @@ export const Category: React.FC<CategoryProps> = ({
     return b.reviews - a.reviews;
   });
 
-  const Icon = getCategoryIcon(cat.id);
-  const accent = cat.accentColor || cat.accent_color || "#10B981";
-  const cardImg = cat.cardImage || cat.card_image || cat.image || "";
+  const Icon = isAllProducts ? LayoutGrid : getCategoryIcon(cat!.id);
+  const accent = isAllProducts ? "#10B981" : (cat!.accentColor || cat!.accent_color || "#10B981");
+  const cardImg = isAllProducts ? "" : (cat!.cardImage || cat!.card_image || cat!.image || "");
+  const displayName = isAllProducts ? "All Products" : cat!.name;
+  const displayTagline = isAllProducts ? "Full Catalog" : cat!.tagline;
+  const displayDescription = isAllProducts ? "Every product across every category" : cat!.description;
 
   return (
     <div className="min-h-screen" style={{ background: "#050505" }}>
@@ -113,7 +122,7 @@ export const Category: React.FC<CategoryProps> = ({
                   className="text-[10px] font-bold tracking-[0.35em] uppercase"
                   style={{ color: accent, fontFamily: "'DM Sans', sans-serif" }}
                 >
-                  {cat.tagline}
+                  {displayTagline}
                 </span>
               </div>
               
@@ -121,11 +130,11 @@ export const Category: React.FC<CategoryProps> = ({
                 className="font-black uppercase leading-none text-white"
                 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: "clamp(2.2rem, 6vw, 4rem)" }}
               >
-                {cat.name}
+                {displayName}
               </h1>
               
               <p className="text-white/40 text-sm mt-1" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                {categoryProducts.length} products — {cat.description}
+                {categoryProducts.length} products — {displayDescription}
               </p>
             </div>
 

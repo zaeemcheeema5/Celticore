@@ -46,6 +46,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
 const [shopOpen, setShopOpen] = useState(false);
+const shopCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 const [categories, setCategories] = useState<Category[]>([]);
   // ── Live Search State ─────────────────────────────────────────
   const [searchOpen, setSearchOpen] = useState(false);
@@ -129,6 +130,30 @@ const handleSelectSearchResult = (product: Product) => {
     setMobileMenuOpen(false);
   };
 
+  // ── Shop Dropdown Hover Handling ──────────────────────────────
+  // Keeps the menu open while the cursor is over the button, the
+  // invisible hover bridge, or the dropdown itself, and only closes
+  // after a short delay so crossing the gap doesn't hide it.
+  const handleShopEnter = () => {
+    if (shopCloseTimer.current) {
+      clearTimeout(shopCloseTimer.current);
+      shopCloseTimer.current = null;
+    }
+    setShopOpen(true);
+  };
+
+  const handleShopLeave = () => {
+    shopCloseTimer.current = setTimeout(() => {
+      setShopOpen(false);
+    }, 200);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (shopCloseTimer.current) clearTimeout(shopCloseTimer.current);
+    };
+  }, []);
+
   return (
     <nav
       className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 sm:px-6 md:px-12 lg:px-16 py-3 sm:py-4"
@@ -164,8 +189,8 @@ const handleSelectSearchResult = (product: Product) => {
       <div className="hidden md:flex items-center gap-9">
         <div
   className="relative"
-  onMouseEnter={() => setShopOpen(true)}
-  onMouseLeave={() => setShopOpen(false)}
+  onMouseEnter={handleShopEnter}
+  onMouseLeave={handleShopLeave}
 >
   <button className="nav-link flex items-center gap-1">
     Shop
@@ -177,10 +202,18 @@ const handleSelectSearchResult = (product: Product) => {
     />
   </button>
 
-  {shopOpen && (
-    <div
-      className="absolute left-0 top-full mt-3 w-72 rounded-2xl border border-white/10 bg-[#0b0b0b] shadow-2xl overflow-hidden"
-    >
+  {/* Invisible hover bridge — fills the gap between the button and the
+      dropdown (matches the dropdown's mt-3 offset) so the pointer never
+      leaves this wrapper's hoverable area while crossing it. */}
+  <div className="absolute left-0 top-full h-3 w-72" />
+
+  <div
+    className={`absolute left-0 top-full mt-3 w-72 rounded-2xl border border-white/10 bg-[#0b0b0b] shadow-2xl overflow-hidden transition-all duration-200 ease-out origin-top ${
+      shopOpen
+        ? "opacity-100 translate-y-0 pointer-events-auto"
+        : "opacity-0 -translate-y-2 pointer-events-none"
+    }`}
+  >
       {categories.map((category) => (
         <button
           key={category.id}
@@ -205,7 +238,7 @@ const handleSelectSearchResult = (product: Product) => {
 
       <button
         onClick={() => {
-          handleNavigate("home");
+          handleNavigate("products");
           setShopOpen(false);
         }}
         className="w-full px-5 py-3 text-left font-semibold text-emerald-400 hover:bg-emerald-500/10"
@@ -213,7 +246,6 @@ const handleSelectSearchResult = (product: Product) => {
         View All Products →
       </button>
     </div>
-  )}
 </div>
         <button onClick={onOpenNutrition} className="nav-link">Nutrition Consultation</button>
         <button onClick={() => {
@@ -455,6 +487,14 @@ const handleSelectSearchResult = (product: Product) => {
               {p.replace('-', ' ')}
             </button>
           ))}
+
+          <button
+            onClick={() => handleNavigate("products")}
+            className="text-xl sm:text-2.5xl font-black tracking-[0.12em] uppercase hover:text-emerald-400 transition-colors text-emerald-400 cursor-pointer text-center px-4"
+            style={{ fontFamily: "'Barlow Condensed', sans-serif" }}
+          >
+            View All Products
+          </button>
           
           <button
             onClick={onOpenNutrition}
