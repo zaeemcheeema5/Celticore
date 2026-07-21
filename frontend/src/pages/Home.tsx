@@ -135,7 +135,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, categories }) => {
   return (
     <div className="w-full">
       {/* HERO SECTION */}
-      <section className="relative min-h-screen flex items-center overflow-hidden" style={{ background: "#050505" }}>
+      <section className="relative min-h-screen flex items-center overflow-hidden" style={{ background: "#ffffff" }}>
         {/* Dynamic gradient background overlays with transition */}
         {HERO_SLIDES.map((s, idx) => (
           <div 
@@ -143,10 +143,10 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, categories }) => {
             className="absolute inset-0 transition-opacity duration-1000 animate-fade"
             style={{
               background: idx === 0 
-                ? "linear-gradient(135deg, #1f2937 0%, #080d0a 55%, #022c22 100%)" 
+                ? "linear-gradient(135deg,#ffffff 0%,#f7faf9 55%,#eefaf5 100%)"
                 : idx === 1 
-                ? "linear-gradient(135deg, #0f0a05 0%, #050505 55%, #451a03 100%)" 
-                : "linear-gradient(135deg, #05070a 0%, #050505 55%, #082d47 100%)",
+                ? "linear-gradient(135deg,#ffffff 0%,#fff9f2 60%,#fff3e5 100%)"
+                : "linear-gradient(135deg,#ffffff 0%,#f5fbff 60%,#edf7ff 100%)",
               opacity: currentSlide === idx ? 1 : 0,
               zIndex: 0,
             }}
@@ -156,8 +156,8 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, categories }) => {
         {/* BG image */}
         <div key={`bg-${currentSlide}`} className="absolute inset-0 transition-opacity duration-1000 z-[1]">
           <img src={slide.bgImage} alt="" className="w-full h-full object-cover opacity-[0.08]" style={{ filter: "saturate(0.4) contrast(1.1)" }}/>
-          <div className="absolute inset-0" style={{ background: "linear-gradient(to right, rgba(5,5,5,0.7) 40%, transparent 100%)" }}/>
-          <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(5,5,5,0.7) 0%, transparent 60%)" }}/>
+          <div className="absolute inset-0" style={{ background:"linear-gradient(to right, rgba(255,255,255,.92) 35%, rgba(255,255,255,.55) 70%, transparent)"  }}/>
+          <div className="absolute inset-0" style={{ background:"linear-gradient(to top, rgba(255,255,255,.85) 0%, transparent 70%)" }}/>
         </div>
 
         {/* Ambient blobs */}
@@ -181,14 +181,14 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, categories }) => {
                 <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: slide.accent }}/>
                 {slide.tag}
               </div>
-              <h1 className="font-black leading-[0.9] mb-3 text-white" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: "clamp(2.75rem, 11vw, 6.5rem)", letterSpacing: "-0.02em" }}>
+              <h1 className="font-black leading-[0.9] mb-3 text-gray-900" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: "clamp(2.75rem, 11vw, 6.5rem)", letterSpacing: "-0.02em" }}>
                 {slide.title}<br/>
                 <span style={{ color: slide.accent }}>
                   {slide.titleAccent}
                 </span>
               </h1>
               <p className="text-sm font-semibold tracking-[0.25em] uppercase mb-4" style={{ color: slide.accent, fontFamily: "'DM Sans', sans-serif", opacity: 0.85 }}>{slide.subtitle}</p>
-              <p className="text-white/50 text-[0.95rem] leading-relaxed mb-8 max-w-[420px]" style={{ fontFamily: "'DM Sans', sans-serif" }}>{slide.description}</p>
+              <p className="text-gray-600 text-[0.95rem] leading-relaxed mb-8 max-w-[420px]" style={{ fontFamily: "'DM Sans', sans-serif" }}>{slide.description}</p>
               <div className="flex flex-wrap items-center gap-3">
                 <button onClick={() => onNavigate(slide.page)} className="px-6 sm:px-8 py-3 sm:py-3.5 font-black text-xs tracking-[0.2em] uppercase transition-all duration-300 hover:scale-105 cursor-pointer" style={{ fontFamily: "'Barlow Condensed', sans-serif", background: `linear-gradient(135deg, ${slide.accent}, ${slide.accent}bb)`, color: "#000", boxShadow: `0 0 28px ${slide.accent}40` }}>
                   {slide.cta}
@@ -198,8 +198,8 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, categories }) => {
                     const el = document.getElementById('footer-contact');
                     el?.scrollIntoView({ behavior: 'smooth' });
                   }}
-                  className="px-5 sm:px-7 py-3 sm:py-3.5 font-black text-xs tracking-[0.2em] uppercase text-white/50 hover:text-white transition-all duration-250 cursor-pointer"
-                  style={{ fontFamily: "'Barlow Condensed', sans-serif", border: "1px solid rgba(255,255,255,0.15)" }}
+                  className="px-5 sm:px-7 py-3 sm:py-3.5 font-black text-xs tracking-[0.2em] uppercase text-gray-700 hover:text-white transition-all duration-250 cursor-pointer"
+                  style={{ fontFamily: "'Barlow Condensed', sans-serif", border: "1px solid rgba(0,0,0,.15)" }}
                   onMouseEnter={e => e.currentTarget.style.borderColor="rgba(255,255,255,0.4)"}
                   onMouseLeave={e => e.currentTarget.style.borderColor="rgba(255,255,255,0.15)"}
                 >
@@ -209,7 +209,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, categories }) => {
               <div className="flex gap-5 sm:gap-8 mt-8 sm:mt-10">
                 {[{ val: "50K+", label: "Athletes" }, { val: "4.9★", label: "Avg Rating" }, { val: "100%", label: "Lab-Tested" }].map(s => (
                   <div key={s.label}>
-                    <div className="text-xl font-black text-white" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>{s.val}</div>
+                    <div className="text-xl font-black text-gray-900" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>{s.val}</div>
                     <div className="text-[10px] uppercase tracking-widest text-white/35" style={{ fontFamily: "'DM Sans', sans-serif" }}>{s.label}</div>
                   </div>
                 ))}
