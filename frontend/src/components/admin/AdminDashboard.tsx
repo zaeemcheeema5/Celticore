@@ -1183,7 +1183,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
                   <div key={rev.id} className="p-4 bg-white/5 border border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs">
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
-                        <span className="font-bold text-white">{rev.user_name}</span>
+                        <span className="font-bold text-white">{rev.username}</span>
                         <span className="text-[10px] text-white/30">on Product ID: {rev.product_id}</span>
                         <span className={`px-2 py-0.5 rounded-full text-[9px] uppercase font-bold ${
                           rev.status === 'approved' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/25' :
@@ -1198,7 +1198,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
                           <Star key={star} size={10} fill={star <= rev.rating ? "#D4AF37" : "none"} stroke={star <= rev.rating ? "#D4AF37" : "white"} opacity={star <= rev.rating ? 1 : 0.2} />
                         ))}
                       </div>
-                      <p className="text-white/60 leading-relaxed max-w-xl">{rev.review}</p>
+                      <p className="text-white/60 leading-relaxed max-w-xl">{rev.comment}</p>
                     </div>
 
                     <div className="flex items-center gap-2 self-end sm:self-center">
@@ -1430,7 +1430,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
                           <span className="text-white/30">·</span>
                           <span className={`uppercase font-semibold ${
                             order.paymentStatus === 'paid' ? 'text-emerald-400' :
-                            order.paymentStatus === 'failed' ? 'text-red-400' :
+                            order.paymentStatus === 'unpaid' ? 'text-red-400' :
                             'text-amber-400'
                           }`}>{order.paymentStatus || 'pending'}</span>
                         </div>

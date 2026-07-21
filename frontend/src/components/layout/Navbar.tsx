@@ -1,11 +1,22 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ShoppingCart, Heart, User, LogOut, Settings, Menu, X, ChevronDown, Search } from 'lucide-react';
+import {
+  ShoppingCart,
+  Heart,
+  User,
+  LogOut,
+  Settings,
+  Menu,
+  X,
+  ChevronDown,
+  Search,
+  Grid3X3
+} from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
 import { productsService } from '../../api/products';
 import { Product } from '../../types';
-
+import { Category } from '../../types';
 import logoImage from '../../assets/logo.png';
 
 interface NavbarProps {
@@ -34,7 +45,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   const { wishlistItems } = useWishlist();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
-
+const [shopOpen, setShopOpen] = useState(false);
+const [categories, setCategories] = useState<Category[]>([]);
   // ── Live Search State ─────────────────────────────────────────
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -86,7 +98,18 @@ export const Navbar: React.FC<NavbarProps> = ({
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+useEffect(() => {
+  const loadCategories = async () => {
+    try {
+      const data = await productsService.getCategories();
+      setCategories(data);
+    } catch (error) {
+      console.error("Failed to load categories:", error);
+    }
+  };
 
+  loadCategories();
+}, []);
   const handleOpenSearch = () => {
     setSearchOpen(true);
     ensureProductsLoaded();
@@ -139,7 +162,59 @@ const handleSelectSearchResult = (product: Product) => {
 
       {/* Desktop Links */}
       <div className="hidden md:flex items-center gap-9">
-        <button onClick={() => handleNavigate("home")} className="nav-link">Shop</button>
+        <div
+  className="relative"
+  onMouseEnter={() => setShopOpen(true)}
+  onMouseLeave={() => setShopOpen(false)}
+>
+  <button className="nav-link flex items-center gap-1">
+    Shop
+    <ChevronDown
+      size={15}
+      className={`transition-transform ${
+        shopOpen ? "rotate-180" : ""
+      }`}
+    />
+  </button>
+
+  {shopOpen && (
+    <div
+      className="absolute left-0 top-full mt-3 w-72 rounded-2xl border border-white/10 bg-[#0b0b0b] shadow-2xl overflow-hidden"
+    >
+      {categories.map((category) => (
+        <button
+          key={category.id}
+          onClick={() => {
+            handleNavigate(category.slug);
+            setShopOpen(false);
+          }}
+          className="w-full flex items-center justify-between px-5 py-3 hover:bg-emerald-500/10 transition-all text-left"
+        >
+          <span className="text-white font-medium">
+            {category.name}
+          </span>
+
+          <ChevronDown
+            size={14}
+            className="-rotate-90 text-emerald-400"
+          />
+        </button>
+      ))}
+
+      <div className="border-t border-white/10" />
+
+      <button
+        onClick={() => {
+          handleNavigate("home");
+          setShopOpen(false);
+        }}
+        className="w-full px-5 py-3 text-left font-semibold text-emerald-400 hover:bg-emerald-500/10"
+      >
+        View All Products →
+      </button>
+    </div>
+  )}
+</div>
         <button onClick={onOpenNutrition} className="nav-link">Nutrition Consultation</button>
         <button onClick={() => {
           handleNavigate("home");

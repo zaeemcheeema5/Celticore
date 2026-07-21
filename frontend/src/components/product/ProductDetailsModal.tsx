@@ -28,7 +28,7 @@ const { user } = useAuth();
   const [quantity, setQuantity] = useState(1);
   const [selectedFlavour, setSelectedFlavour] = useState(product.flavours[0] || 'Unflavoured');
   const [added, setAdded] = useState(false);
-
+const [reviewerName, setReviewerName] = useState("");
   // Review Form state
   
   const [reviewRating, setReviewRating] = useState(5);
@@ -59,18 +59,20 @@ const { user } = useAuth();
     setTimeout(() => setAdded(false), 1800);
   };
 
-  const handleSubmitReview = async (e: React.FormEvent) => {
+ const handleSubmitReview = async (e: React.FormEvent) => {
+    console.log("SUBMIT BUTTON CLICKED");
+    alert("SUBMIT BUTTON CLICKED");
     e.preventDefault();
-    if (!reviewerName.trim() || !reviewText.trim()) {
-      toast.error("Please fill in both name and review content.");
-      return;
-    }
+  if (!reviewText.trim()) {
+    toast.error("Please write a review.");
+    return;
+}
 
     setSubmittingReview(true);
     try {
       await reviewsService.addReview({
     product_id: product.id,
-    user_id: user.id,
+    user_id: user?.id ?? 0,
     rating: reviewRating,
     comment: reviewText,
 });
@@ -259,14 +261,14 @@ const { user } = useAuth();
                 reviews.map((rev) => (
                   <div key={rev.id} className="p-3 bg-white/5 border border-white/5 rounded-sm">
                     <div className="flex justify-between items-start mb-1">
-                      <span className="text-xs font-bold text-white/80">{rev.user_name}</span>
+                      <span className="text-xs font-bold text-white/80">{rev.username}</span>
                       <div className="flex gap-0.5">
                         {[1, 2, 3, 4, 5].map(star => (
                           <Star key={star} size={9} fill={star <= rev.rating ? "#D4AF37" : "none"} stroke={star <= rev.rating ? "#D4AF37" : "white"} opacity={star <= rev.rating ? 1 : 0.2} />
                         ))}
                       </div>
                     </div>
-                    <p className="text-xs text-white/60 leading-relaxed font-light">{rev.review}</p>
+                    <p className="text-xs text-white/60 leading-relaxed font-light">{rev.comment}</p>
                   </div>
                 ))
               )}

@@ -220,7 +220,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
           {priceCeiling > 0 && (
             <div className="mb-6">
               <p className="text-[10px] font-bold tracking-widest uppercase text-white/40 mb-2">
-                Max Price: Rs. {(maxPrice ?? priceCeiling).toLocaleString()}
+                Max Price: €. {(maxPrice ?? priceCeiling).toLocaleString()}
               </p>
               <input
                 type="range"
@@ -234,29 +234,47 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
           )}
 
           {/* Rating Filter */}
-          <div className="mb-6">
-            <p className="text-[10px] font-bold tracking-widest uppercase text-white/40 mb-2">Rating</p>
-            <div className="flex flex-col gap-1.5">
-              {[4, 3, 2, 1].map((r) => (
-                <button
-                  key={r}
-                  onClick={() => setMinRating(minRating === r ? 0 : r)}
-                  className="flex items-center gap-1.5 text-xs cursor-pointer transition-colors"
-                  style={{ color: minRating === r ? ACCENT : "rgba(255,255,255,0.5)" }}
-                >
-                  {[1, 2, 3, 4, 5].map((s) => (
-                    <Star
-                      key={s}
-                      size={11}
-                      fill={s <= r ? (minRating === r ? ACCENT : "#D4AF37") : "none"}
-                      stroke={s <= r ? (minRating === r ? ACCENT : "#D4AF37") : "rgba(255,255,255,0.25)"}
-                    />
-                  ))}
-                  <span className="ml-1">& up</span>
-                </button>
-              ))}
-            </div>
-          </div>
+       <div className="mb-6">
+  <p className="text-[10px] font-bold tracking-widest uppercase text-white/40 mb-3">
+    Rating
+  </p>
+
+  <div className="flex items-center gap-1">
+    {[1, 2, 3, 4, 5].map((star) => (
+      <button
+        key={star}
+        onClick={() =>
+          setMinRating(minRating === star ? 0 : star)
+        }
+        className="transition-all duration-200 hover:scale-125"
+      >
+        <Star
+          size={22}
+          fill={star <= minRating ? "#FFD700" : "none"}
+          stroke={star <= minRating ? "#FFD700" : "#666"}
+          strokeWidth={2}
+        />
+      </button>
+    ))}
+  </div>
+
+  <div className="mt-2 flex items-center justify-between">
+    <span className="text-xs text-white/60">
+      {minRating
+        ? `${minRating} Star${minRating > 1 ? "s" : ""} & Up`
+        : "All Ratings"}
+    </span>
+
+    {minRating > 0 && (
+      <button
+        onClick={() => setMinRating(0)}
+        className="text-xs text-red-400 hover:text-red-300"
+      >
+        Clear
+      </button>
+    )}
+  </div>
+</div>
 
           {/* In Stock Filter */}
           <label className="flex items-center gap-2 cursor-pointer group">
