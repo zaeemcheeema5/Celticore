@@ -5,7 +5,7 @@ import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
 import { reviewsService } from '../../api/reviews';
 import { toast } from 'sonner';
-
+import { useAuth } from '../../context/AuthContext';
 interface ProductDetailsModalProps {
   product: Product | null;
   isOpen: boolean;
@@ -20,7 +20,7 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
   accent,
 }) => {
   if (!isOpen || !product) return null;
-
+const { user } = useAuth();
   const { addToCart } = useCart();
   const { isInWishlist, toggleWishlist } = useWishlist();
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -30,7 +30,7 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
   const [added, setAdded] = useState(false);
 
   // Review Form state
-  const [reviewerName, setReviewerName] = useState('');
+  
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewText, setReviewText] = useState('');
   const [submittingReview, setSubmittingReview] = useState(false);
@@ -69,11 +69,11 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
     setSubmittingReview(true);
     try {
       await reviewsService.addReview({
-        product_id: product.id,
-        user_name: reviewerName,
-        rating: reviewRating,
-        review: reviewText,
-      });
+    product_id: product.id,
+    user_id: user.id,
+    rating: reviewRating,
+    comment: reviewText,
+});
       toast.success("Review submitted! It will appear once approved by an moderator.");
       setReviewerName('');
       setReviewText('');
@@ -277,17 +277,7 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
               <h4 className="text-xs font-bold tracking-widest uppercase text-white/70">Write a Review</h4>
               
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[9px] uppercase text-white/40 mb-1">Your Name</label>
-                  <input
-                    type="text"
-                    required
-                    value={reviewerName}
-                    onChange={(e) => setReviewerName(e.target.value)}
-                    placeholder="John Doe"
-                    className="w-full px-3 py-2 text-xs text-white border border-white/10 focus:border-emerald-500/60 bg-black outline-none"
-                  />
-                </div>
+              
                 <div>
                   <label className="block text-[9px] uppercase text-white/40 mb-1">Rating</label>
                   <select

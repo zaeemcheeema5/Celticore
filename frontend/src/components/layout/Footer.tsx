@@ -8,9 +8,10 @@ import logoImage from '../../assets/logo.jpg';
 interface FooterProps {
   onOpenNutrition: () => void;
   onNavigate: (page: any) => void;
+  onOpenPrivacy: () => void;
 }
 
-export const Footer: React.FC<FooterProps> = ({ onOpenNutrition, onNavigate }) => {
+export const Footer: React.FC<FooterProps> = ({ onOpenNutrition, onNavigate, onOpenPrivacy }) => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [subject, setSubject] = useState('General Inquiry');
@@ -21,6 +22,14 @@ export const Footer: React.FC<FooterProps> = ({ onOpenNutrition, onNavigate }) =
     e.preventDefault();
     if (!name || !email || !message) {
       toast.error("Please fill out all required fields.");
+      return;
+    }
+
+    // Mirrors the server-side check in backend/middleware/validateContact.js
+    // so people get instant feedback instead of a round-trip 400 error.
+    const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!EMAIL_RE.test(email)) {
+      toast.error("Please enter a valid email address.");
       return;
     }
 
@@ -92,7 +101,7 @@ export const Footer: React.FC<FooterProps> = ({ onOpenNutrition, onNavigate }) =
           <div className="flex flex-wrap gap-x-6 gap-y-3 sm:gap-8 text-xs text-white/35 font-bold uppercase tracking-widest" style={{ fontFamily: "'DM Sans', sans-serif" }}>
             <button onClick={() => onNavigate('home')} className="hover:text-emerald-400 transition-colors cursor-pointer">Shop Home</button>
             <button onClick={onOpenNutrition} className="hover:text-emerald-400 transition-colors cursor-pointer">Free Consultation</button>
-            <a href="#" className="hover:text-emerald-400 transition-colors">Privacy Policy</a>
+            <button onClick={onOpenPrivacy} className="hover:text-emerald-400 transition-colors cursor-pointer">Privacy Policy</button>
             <a href="#" className="hover:text-emerald-400 transition-colors">Terms of Service</a>
           </div>
         </div>

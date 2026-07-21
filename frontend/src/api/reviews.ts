@@ -2,7 +2,13 @@ import { api } from './client';
 import { Review } from '../types';
 
 export const reviewsService = {
-  addReview: (reviewData: { product_id: string | number; user_name: string; rating: number; review: string }): Promise<Review> => 
+  addReview: (reviewData: {
+    product_id: string | number;
+    user_id: number;
+    rating: number;
+    comment: string;
+}):
+ Promise<Review> => 
     api.post('/api/reviews', reviewData),
   getAllReviews: (): Promise<Review[]> => 
     api.get('/api/reviews'),

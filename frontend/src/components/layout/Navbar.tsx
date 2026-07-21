@@ -16,6 +16,7 @@ interface NavbarProps {
   onOpenWishlist: () => void;
   onOpenAdmin: () => void;
   onOpenNutrition: () => void;
+  onSearchNavigate: (query: string) => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -26,6 +27,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenWishlist,
   onOpenAdmin,
   onOpenNutrition,
+  onSearchNavigate,
 }) => {
   const { user, isAuthenticated, isAdmin, logout } = useAuth();
   const { cartCount } = useCart();
@@ -91,13 +93,13 @@ export const Navbar: React.FC<NavbarProps> = ({
     setTimeout(() => searchInputRef.current?.focus(), 50);
   };
 
-  const handleSelectSearchResult = (product: Product) => {
-    setSearchOpen(false);
-    setSearchQuery('');
-    if (product.category) {
-      handleNavigate(product.category);
-    }
-  };
+const handleSelectSearchResult = (product: Product) => {
+  setSearchOpen(false);
+  setSearchQuery('');
+
+  // Open the Search Results page
+  onSearchNavigate(product.name);
+};
 
   const handleNavigate = (page: any) => {
     onNavigate(page);
@@ -160,14 +162,20 @@ export const Navbar: React.FC<NavbarProps> = ({
               }}
             >
               <Search size={15} className="text-emerald-400 shrink-0" />
-              <input
-                ref={searchInputRef}
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search products..."
-                className="bg-transparent outline-none text-xs sm:text-sm text-white placeholder-white/30 w-28 sm:w-48"
-              />
+             <input
+  ref={searchInputRef}
+  type="text"
+  value={searchQuery}
+  onChange={(e) => setSearchQuery(e.target.value)}
+  onKeyDown={(e) => {
+    if (e.key === "Enter" && searchQuery.trim()) {
+      onSearchNavigate(searchQuery);
+      setSearchOpen(false);
+    }
+  }}
+  placeholder="Search products..."
+  className="bg-transparent outline-none text-xs sm:text-sm text-white placeholder-white/30 w-28 sm:w-48"
+/>
               <button
                 onClick={() => {
                   setSearchOpen(false);
@@ -228,9 +236,15 @@ export const Navbar: React.FC<NavbarProps> = ({
                     </button>
                   ))}
                   {searchResults.length > MAX_DROPDOWN_RESULTS && (
-                    <div className="px-3 py-2.5 text-center text-[0.7rem] text-emerald-400 font-semibold tracking-wide">
-                      View all {searchResults.length} products →
-                    </div>
+                   <button
+  onClick={() => {
+    onSearchNavigate(searchQuery);
+    setSearchOpen(false);
+  }}
+  className="w-full px-3 py-2.5 text-center text-[0.7rem] text-emerald-400 font-semibold tracking-wide hover:bg-white/5 transition-colors cursor-pointer"
+>
+  View all {searchResults.length} products →
+</button>
                   )}
                 </>
               )}

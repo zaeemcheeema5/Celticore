@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const adminAuthMiddleware = require('../middleware/adminAuthMiddleware');
+const validateContact = require('../middleware/validateContact');
+const { requestLimiter } = require('../middleware/rateLimit');
 
 const {
     sendMessage,
@@ -52,7 +54,11 @@ const {
  *       400:
  *         description: Invalid input
  */
-router.post('/', sendMessage);
+// requestLimiter: caps repeated submissions from the same client (20 per 15
+// min) so the form can't be scripted for spam/storage abuse.
+// validateContact: rejects missing/invalid/oversized fields before they ever
+// reach the database — see middleware/validateContact.js.
+router.post('/', requestLimiter, validateContact, sendMessage);
 
 /**
  * @swagger

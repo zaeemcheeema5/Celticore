@@ -13,6 +13,7 @@ import { Footer } from "../components/layout/Footer";
 // Page Containers
 import { Home } from "../pages/Home";
 import { Category } from "../pages/Category";
+import { SearchResults } from "../pages/SearchResults";
 
 // Widgets & Modals
 import { AuthModal } from "../components/auth/AuthModal";
@@ -22,6 +23,8 @@ import { NutritionModal } from "../components/nutrition/NutritionModal";
 import { AdminDashboard } from "../components/admin/AdminDashboard";
 import { ProductDetailsModal } from "../components/product/ProductDetailsModal";
 import { CheckoutModal } from "../components/cart/CheckoutModal";
+import { CookieConsent } from "../components/common/CookieConsent";
+import { PrivacyPolicyModal } from "../components/common/PrivacyPolicyModal";
 
 function MainAppLayout() {
   const [currentPage, setCurrentPage] = useState<string>("home");
@@ -36,7 +39,9 @@ function MainAppLayout() {
   const [isWishlistOpen, setIsWishlistOpen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [isNutritionOpen, setIsNutritionOpen] = useState(false);
+  const [isPrivacyOpen, setIsPrivacyOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [searchQuery, setSearchQuery] = useState<string>("");
 
   // Load Catalog Data
   const loadCatalog = async () => {
@@ -58,6 +63,12 @@ function MainAppLayout() {
 
   const handleNavigate = (page: string) => {
     setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handleSearchNavigate = (query: string) => {
+    setSearchQuery(query);
+    setCurrentPage("search");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -104,6 +115,7 @@ function MainAppLayout() {
         }}
         onOpenAdmin={() => setIsAdminOpen(true)}
         onOpenNutrition={() => setIsNutritionOpen(true)}
+        onSearchNavigate={handleSearchNavigate}
       />
 
       {/* Core Page Render */}
@@ -112,6 +124,14 @@ function MainAppLayout() {
           <Home
             onNavigate={handleNavigate}
             categories={categories}
+          />
+        ) : currentPage === "search" ? (
+          <SearchResults
+            query={searchQuery}
+            products={products}
+            categories={categories}
+            onNavigate={handleNavigate}
+            onOpenDetails={(p) => setSelectedProduct(p)}
           />
         ) : (
           <Category
@@ -128,6 +148,15 @@ function MainAppLayout() {
       <Footer
         onOpenNutrition={() => setIsNutritionOpen(true)}
         onNavigate={handleNavigate}
+        onOpenPrivacy={() => setIsPrivacyOpen(true)}
+      />
+
+      {/* Cookie disclosure banner (essential cookies only — see CookieConsent.tsx) */}
+      <CookieConsent onOpenPrivacy={() => setIsPrivacyOpen(true)} />
+
+      <PrivacyPolicyModal
+        isOpen={isPrivacyOpen}
+        onClose={() => setIsPrivacyOpen(false)}
       />
 
       {/* Floating Chat Widget */}

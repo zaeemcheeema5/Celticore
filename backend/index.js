@@ -15,18 +15,51 @@ const webhookRoutes = require("./routes/webhookRoutes");
 const app = express();
 const helmet = require("helmet");
 
+const isProd = (process.env.NODE_ENV || "development") === "production";
+
+// Required in production so req.secure / X-Forwarded-Proto are trusted when
+// the app sits behind a reverse proxy or load balancer (Heroku, Render,
+// Nginx, Cloudflare, etc). Without this, the HTTPS redirect below can never
+// tell it's already being served over TLS and will redirect-loop.
+if (isProd) {
+    app.set("trust proxy", 1);
+}
+
 app.use(helmet({
     // Helmet's default Cross-Origin-Resource-Policy is "same-origin", which
     // blocks <img> tags on the frontend (localhost:5173) from loading files
     // served by this API (localhost:5000) — e.g. everything under /uploads.
     // Since this backend intentionally serves images to a separate frontend
     // origin, relax it to allow cross-origin embedding.
-    crossOriginResourcePolicy: { policy: "cross-origin" }
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+
+    // Force browsers to only ever talk to this origin over HTTPS for the
+    // next year, including subdomains, once we're actually running in
+    // production behind TLS. This only takes effect on responses that are
+    // already HTTPS, which is why the redirect below has to run first.
+    strictTransportSecurity: {
+        maxAge: 31536000, // 1 year, in seconds
+        includeSubDomains: true
+    }
 }));
 
 // =====================================
-// CORS (FULLY UPDATED & FIXES THE BLOCKER)
+// HTTPS ENFORCEMENT
 // =====================================
+//
+// Previously nothing in the app redirected plain HTTP requests to HTTPS —
+// the site was reachable (and usable) over unencrypted HTTP with no
+// padlock. This does NOT issue a certificate (that has to happen at the
+// hosting/CDN/load-balancer layer); it only makes sure that once a
+// certificate exists, this app never serves a request over HTTP.
+if (isProd) {
+    app.use((req, res, next) => {
+        if (req.secure || req.headers["x-forwarded-proto"] === "https") {
+            return next();
+        }
+        return res.redirect(301, `https://${req.headers.host}${req.originalUrl}`);
+    });
+}
 
 // =====================================
 // CORS

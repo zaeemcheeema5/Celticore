@@ -2,6 +2,10 @@ const db = require('../db');
 
 
 // SEND MESSAGE
+//
+// Note: by the time this runs, backend/middleware/validateContact.js has
+// already rejected missing/invalid/oversized fields and trimmed whitespace,
+// so req.body.name/email/subject/message are safe to insert as-is.
 
 exports.sendMessage = (req, res) => {
 

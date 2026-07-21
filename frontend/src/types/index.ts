@@ -46,13 +46,14 @@ export interface Category {
 }
 
 export interface Review {
-  id: number;
-  product_id: string | number;
-  user_name: string;
-  rating: number;
-  review: string;
-  status: 'pending' | 'approved' | 'rejected';
-  createdAt?: string;
+    id: number;
+    product_id: string | number;
+    user_id: number;
+    username?: string;
+    rating: number;
+    comment: string;
+    status: 'pending' | 'approved' | 'rejected';
+    created_at?: string;
 }
 
 export interface OrderItem {
