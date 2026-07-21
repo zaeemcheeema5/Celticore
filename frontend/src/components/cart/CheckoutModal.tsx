@@ -244,7 +244,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
           {/* Close Button */}
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 z-10 p-1.5 rounded-full text-white/40 hover:text-white hover:bg-white/5 transition-all cursor-pointer"
+            className="absolute top-3 right-3 sm:top-4 sm:right-4 z-10 p-2 rounded-full text-white/40 hover:text-white hover:bg-white/5 transition-all cursor-pointer"
           >
             <X size={18} />
           </button>
@@ -254,7 +254,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
               {/* Left Panel: Shipping & Payment Form */}
               <div className="flex-1 p-4 sm:p-6 lg:p-8 space-y-6 overflow-y-auto max-h-[95vh] lg:max-h-none">
                 <div>
-                  <h2 className="text-2xl font-black uppercase tracking-wider text-emerald-400" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
+                  <h2 className="text-xl sm:text-2xl font-black uppercase tracking-wider text-emerald-400" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
                     Secure Checkout
                   </h2>
                   <p className="text-xs text-white/50">All orders are securely processed. Cash on Delivery option has been removed.</p>
@@ -515,13 +515,14 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
             </>
           ) : (
             /* Step 2: Success Screen */
-            <div className="w-full p-8 md:p-12 text-center flex flex-col items-center justify-center space-y-6">
-              <div className="w-16 h-16 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center rounded-full">
-                <CheckCircle2 size={36} />
+            <div className="w-full p-6 sm:p-8 md:p-12 text-center flex flex-col items-center justify-center space-y-5 sm:space-y-6">
+              <div className="w-14 h-14 sm:w-16 sm:h-16 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center rounded-full">
+                <CheckCircle2 size={32} className="sm:hidden" />
+                <CheckCircle2 size={36} className="hidden sm:block" />
               </div>
 
               <div className="space-y-2">
-                <h2 className="text-3xl font-black uppercase tracking-wider text-white" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
+                <h2 className="text-2xl sm:text-3xl font-black uppercase tracking-wider text-white" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
                   Thank You For Your Order!
                 </h2>
                 <p className="text-sm text-white/60 max-w-md mx-auto">
@@ -590,7 +591,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
               </div>
               <button
                 onClick={() => setIsGpaySheetOpen(false)}
-                className="text-white/40 hover:text-white cursor-pointer"
+                className="text-white/40 hover:text-white cursor-pointer p-1.5 -m-1.5"
               >
                 <X size={16} />
               </button>
@@ -605,32 +606,32 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
 
             {/* GPay Details */}
             <div className="space-y-3.5 text-xs text-white/80 bg-white/5 p-4 rounded border border-white/5">
-              <div className="flex justify-between items-center">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1.5 sm:gap-0">
                 <span className="text-white/40 font-medium">Google Account *</span>
                 <input
                   type="email" required
                   value={gpayEmail}
                   onChange={(e) => setGpayEmail(e.target.value)}
                   placeholder="e.g. customer@gmail.com"
-                  className="bg-black/60 border border-white/10 px-2 py-1 rounded text-white text-right focus:border-emerald-500 outline-none w-48 font-semibold text-xs"
+                  className="bg-black/60 border border-white/10 px-2 py-1.5 sm:py-1 rounded text-white text-left sm:text-right focus:border-emerald-500 outline-none w-full sm:w-48 font-semibold text-xs"
                 />
               </div>
-              <div className="flex justify-between items-center border-t border-white/5 pt-2.5">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1.5 sm:gap-0 border-t border-white/5 pt-2.5">
                 <span className="text-white/40 font-medium">Billing & Card *</span>
                 <div className="flex items-center gap-1.5">
-                  <CreditCard size={12} className="text-emerald-400" />
+                  <CreditCard size={12} className="text-emerald-400 shrink-0" />
                   <input
                     type="text" required
                     value={gpayCard}
                     onChange={(e) => setGpayCard(e.target.value)}
                     placeholder="e.g. Visa •••• 9911 or Bank details"
-                    className="bg-black/60 border border-white/10 px-2 py-1 rounded text-white text-right focus:border-emerald-500 outline-none w-48 font-semibold text-xs"
+                    className="bg-black/60 border border-white/10 px-2 py-1.5 sm:py-1 rounded text-white text-left sm:text-right focus:border-emerald-500 outline-none w-full sm:w-48 font-semibold text-xs"
                   />
                 </div>
               </div>
-              <div className="flex justify-between items-start border-t border-white/5 pt-2.5">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-1 sm:gap-0 border-t border-white/5 pt-2.5">
                 <span className="text-white/40 font-medium">Fulfillment Address</span>
-                <span className="font-semibold text-white text-right max-w-[200px]">
+                <span className="font-semibold text-white sm:text-right sm:max-w-[200px]">
                   {name}<br />
                   <span className="text-[10px] text-white/60 font-light">
                     {address}, {city}, {postalCode}, {country}
@@ -682,7 +683,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
               </div>
               <button
                 onClick={() => setIsApplePaySheetOpen(false)}
-                className="text-white/40 hover:text-white cursor-pointer"
+                className="text-white/40 hover:text-white cursor-pointer p-1.5 -m-1.5"
               >
                 <X size={16} />
               </button>
@@ -697,32 +698,32 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
 
             {/* Apple Pay Details */}
             <div className="space-y-3.5 text-xs text-white/80 bg-white/5 p-4 rounded-xl border border-white/5">
-              <div className="flex justify-between items-center">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1.5 sm:gap-0">
                 <span className="text-white/40 font-medium">Apple ID Account *</span>
                 <input
                   type="email" required
                   value={applePayEmail}
                   onChange={(e) => setApplePayEmail(e.target.value)}
                   placeholder="e.g. account@icloud.com"
-                  className="bg-black/60 border border-white/15 px-2 py-1 rounded text-white text-right focus:border-white outline-none w-48 font-semibold text-xs"
+                  className="bg-black/60 border border-white/15 px-2 py-1.5 sm:py-1 rounded text-white text-left sm:text-right focus:border-white outline-none w-full sm:w-48 font-semibold text-xs"
                 />
               </div>
-              <div className="flex justify-between items-center border-t border-white/5 pt-2.5">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1.5 sm:gap-0 border-t border-white/5 pt-2.5">
                 <span className="text-white/40 font-medium">Billing & Card *</span>
                 <div className="flex items-center gap-1.5">
-                  <CreditCard size={12} className="text-white/60" />
+                  <CreditCard size={12} className="text-white/60 shrink-0" />
                   <input
                     type="text" required
                     value={applePayCard}
                     onChange={(e) => setApplePayCard(e.target.value)}
                     placeholder="e.g. Apple Card •••• 8888 or Bank details"
-                    className="bg-black/60 border border-white/15 px-2 py-1 rounded text-white text-right focus:border-white outline-none w-48 font-semibold text-xs"
+                    className="bg-black/60 border border-white/15 px-2 py-1.5 sm:py-1 rounded text-white text-left sm:text-right focus:border-white outline-none w-full sm:w-48 font-semibold text-xs"
                   />
                 </div>
               </div>
-              <div className="flex justify-between items-start border-t border-white/5 pt-2.5">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-1 sm:gap-0 border-t border-white/5 pt-2.5">
                 <span className="text-white/40 font-medium">Fulfillment Address</span>
-                <span className="font-semibold text-white text-right max-w-[200px]">
+                <span className="font-semibold text-white sm:text-right sm:max-w-[200px]">
                   {name}<br />
                   <span className="text-[10px] text-white/60 font-light">
                     {address}, {city}, {postalCode}, {country}
@@ -776,7 +777,7 @@ interface StripeSubFormProps {
   onSubmitSuccess: (paymentIntentId: string) => Promise<void>;
 }
 
-const CARD_BRAND_ICONS: Record<string, JSX.Element> = {
+const CARD_BRAND_ICONS: Record<string, React.JSX.Element> = {
   visa: (
     <svg viewBox="0 0 32 20" className="h-3.5 w-auto"><rect width="32" height="20" rx="3" fill="#1A1F71" /><text x="16" y="14" textAnchor="middle" fontSize="8" fontWeight="900" fontStyle="italic" fill="#fff" fontFamily="Arial, sans-serif">VISA</text></svg>
   ),

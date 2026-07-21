@@ -127,12 +127,12 @@ const handleResetPasswordSubmit = async (e: React.FormEvent) => {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto"
       style={{ background: "rgba(0,0,0,0.88)", backdropFilter: "blur(10px)" }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
-        className="modal-enter relative w-full max-w-[420px]"
+        className="modal-enter relative w-full max-w-[420px] my-6 sm:my-0"
         style={{
           background: "linear-gradient(150deg, #090e0b 0%, #080808 60%, #060b08 100%)",
           border: "1px solid rgba(16,185,129,0.25)",
@@ -143,12 +143,12 @@ const handleResetPasswordSubmit = async (e: React.FormEvent) => {
         
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 p-1.5 text-white/30 hover:text-white/80 transition-colors z-10 cursor-pointer"
+          className="absolute top-3 right-3 sm:top-4 sm:right-4 p-2 text-white/30 hover:text-white/80 transition-colors z-10 cursor-pointer"
         >
           <X size={16} />
         </button>
 
-        <div className="px-8 pt-8 pb-8">
+        <div className="px-5 sm:px-8 pt-7 sm:pt-8 pb-7 sm:pb-8">
           <div className="flex items-center gap-3 mb-7">
             <img
               src={logoImage}

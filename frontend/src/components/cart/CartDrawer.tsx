@@ -69,7 +69,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, onOpenC
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 text-white/40 hover:text-white hover:bg-white/5 transition-all cursor-pointer"
+            className="p-2 sm:p-1.5 text-white/40 hover:text-white hover:bg-white/5 transition-all cursor-pointer"
           >
             <X size={18} />
           </button>
@@ -105,17 +105,17 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, onOpenC
 
                   <div className="flex items-center justify-between mt-2">
                     {/* Quantity controls */}
-                    <div className="flex items-center gap-2 border border-white/10 bg-black/40 px-1.5 py-0.5">
+                    <div className="flex items-center gap-2 border border-white/10 bg-black/40 px-1.5 py-1 sm:py-0.5">
                       <button
                         onClick={() => updateQuantity(item.product.id, item.flavour, item.quantity - 1)}
-                        className="text-white/40 hover:text-white p-0.5 cursor-pointer"
+                        className="text-white/40 hover:text-white p-1 sm:p-0.5 cursor-pointer"
                       >
                         <Minus size={10} />
                       </button>
                       <span className="text-xs font-bold w-4 text-center">{item.quantity}</span>
                       <button
                         onClick={() => updateQuantity(item.product.id, item.flavour, item.quantity + 1)}
-                        className="text-white/40 hover:text-white p-0.5 cursor-pointer"
+                        className="text-white/40 hover:text-white p-1 sm:p-0.5 cursor-pointer"
                       >
                         <Plus size={10} />
                       </button>
@@ -131,10 +131,11 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, onOpenC
                 {/* Remove button */}
                 <button
                   onClick={() => removeFromCart(item.product.id, item.flavour)}
-                  className="absolute top-2 right-2 p-1 text-white/20 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
+                  className="absolute top-2 right-2 p-1.5 sm:p-1 text-white/30 sm:text-white/20 hover:text-red-400 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all cursor-pointer"
                   title="Remove Item"
                 >
-                  <Trash2 size={12} />
+                  <Trash2 size={13} className="sm:hidden" />
+                  <Trash2 size={12} className="hidden sm:block" />
                 </button>
               </div>
             ))

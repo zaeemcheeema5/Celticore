@@ -22,8 +22,11 @@ export interface Product {
   description: string;
   category?: string; // Links back to category id
   stock_quantity?: number;
+  stockQuantity?: number;
   low_stock_threshold?: number;
+  lowStockThreshold?: number;
   is_active?: boolean | number;
+  isActive?: boolean | number;
   wishlist_id?: number | string; // present only when returned from GET /api/wishlist/:userId
 }
 

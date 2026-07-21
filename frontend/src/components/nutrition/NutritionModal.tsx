@@ -89,13 +89,13 @@ export const NutritionModal: React.FC<NutritionModalProps> = ({ isOpen, onClose 
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4"
       style={{ background: "rgba(0,0,0,0.9)", backdropFilter: "blur(10px)" }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       {/* Modal Container */}
       <div
-        className="modal-enter relative w-full max-w-[600px] bg-[#090e0b] border border-[#10B981]/30 rounded-lg p-6 md:p-8 max-h-[90vh] overflow-y-auto"
+        className="modal-enter relative w-full max-w-[600px] bg-[#090e0b] border border-[#10B981]/30 rounded-lg p-5 sm:p-6 md:p-8 max-h-[92vh] sm:max-h-[90vh] overflow-y-auto"
         style={{
           background: "linear-gradient(150deg, #090e0b 0%, #080808 60%, #060b08 100%)",
           boxShadow: "0 0 70px rgba(16,185,129,0.12), 0 0 140px rgba(16,185,129,0.05)"
@@ -107,7 +107,7 @@ export const NutritionModal: React.FC<NutritionModalProps> = ({ isOpen, onClose 
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 p-1.5 text-white/30 hover:text-white/80 transition-colors z-10 cursor-pointer"
+          className="absolute top-3 right-3 sm:top-4 sm:right-4 p-2 text-white/30 hover:text-white/80 transition-colors z-10 cursor-pointer"
         >
           <X size={16} />
         </button>
