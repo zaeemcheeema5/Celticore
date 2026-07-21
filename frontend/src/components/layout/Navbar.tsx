@@ -162,28 +162,58 @@ const handleSelectSearchResult = (product: Product) => {
         backdropFilter: "blur(18px)",
         borderBottom: "1px solid rgba(16,185,129,0.12)",
       }}
-    >
-      {/* Brand Logo */}
-      <button onClick={() => handleNavigate("home")} className="flex items-center gap-2 sm:gap-2.5 group cursor-pointer shrink-0">
-        <img
-          src={logoImage}
-          alt="Celti Core Logo"
-          className="w-8 h-8 sm:w-9 sm:h-9 shrink-0 object-contain rounded-full border border-emerald-500/30"
-          style={{ filter: "drop-shadow(0 0 4px rgba(16,185,129,0.3))" }}
-        />
-        <span
-          className="text-[0.95rem] sm:text-[1.1rem] font-black tracking-[0.15em] sm:tracking-[0.2em] uppercase whitespace-nowrap"
-          style={{
-            fontFamily: "'Barlow Condensed', sans-serif",
-            background: "linear-gradient(120deg, #ffffff 0%, #10B981 55%, #D4AF37 100%)",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-            backgroundClip: "text",
-          }}
-        >
-          Celti Core
-        </span>
-      </button>
+    >{/* Brand Logo */}
+<button
+  onClick={() => handleNavigate("home")}
+  className="flex items-center gap-3 sm:gap-4 group cursor-pointer shrink-0"
+>
+  {/* Logo */}
+  <div
+    className="relative flex items-center justify-center shrink-0"
+    style={{
+      width: "58px",
+      height: "58px",
+    }}
+  >
+    {/* Glow */}
+    <div
+      className="absolute inset-0"
+      style={{
+        background:
+          "radial-gradient(circle, rgba(16,185,129,.22), transparent 70%)",
+        filter: "blur(8px)",
+        transform: "scale(1.15)",
+      }}
+    />
+
+    {/* Logo */}
+    <img
+      src={logoImage}
+      alt="Celti Core Logo"
+      className="relative w-full h-full object-contain transition-all duration-300 group-hover:scale-105"
+      style={{
+        filter:
+          "drop-shadow(0 0 8px rgba(16,185,129,.45)) drop-shadow(0 0 18px rgba(16,185,129,.25))",
+      }}
+    />
+  </div>
+
+  {/* Brand Name */}
+  <span
+    className="uppercase whitespace-nowrap transition-all duration-300 group-hover:text-emerald-300"
+    style={{
+      fontFamily: "'Oswald', sans-serif",
+      fontWeight: 700,
+      fontSize: "1.35rem",
+      letterSpacing: ".22em",
+      color: "#10B981",
+      textShadow:
+        "0 0 8px rgba(16,185,129,.30)",
+    }}
+  >
+    CELTI CORE
+  </span>
+</button>
 
       {/* Desktop Links */}
       <div className="hidden md:flex items-center gap-9">
@@ -262,7 +292,7 @@ const handleSelectSearchResult = (product: Product) => {
         <div className="relative" ref={searchWrapperRef}>
           {searchOpen ? (
             <div
-              className="flex items-center gap-2 px-3 py-1.5 rounded"
+              className="flex items-center gap-3 px-3 py-1.5 rounded"
               style={{
                 border: "1px solid rgba(16,185,129,0.35)",
                 background: "rgba(255,255,255,0.03)",
