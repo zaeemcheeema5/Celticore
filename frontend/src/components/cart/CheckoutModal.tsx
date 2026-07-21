@@ -327,6 +327,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
                           <option value="Germany">Germany</option>
                           <option value="France">France</option>
                           <option value="Australia">Australia</option>
+                          <option value="Ireland">Ireland</option>
                         </select>
                       </div>
                     </div>

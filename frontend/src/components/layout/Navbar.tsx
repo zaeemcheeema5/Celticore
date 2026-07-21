@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
-import { ShoppingCart, Heart, User, LogOut, Settings, Menu, X, ChevronDown } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { ShoppingCart, Heart, User, LogOut, Settings, Menu, X, ChevronDown, Search } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
+import { productsService } from '../../api/products';
+import { Product } from '../../types';
 
 import logoImage from '../../assets/logo.jpg';
 
@@ -30,6 +32,72 @@ export const Navbar: React.FC<NavbarProps> = ({
   const { wishlistItems } = useWishlist();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
+
+  // ── Live Search State ─────────────────────────────────────────
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const [searchResults, setSearchResults] = useState<Product[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const searchWrapperRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  const MAX_DROPDOWN_RESULTS = 5;
+
+  // Lazy-load the product catalog the first time the search box is opened
+  const ensureProductsLoaded = async () => {
+    if (allProducts.length > 0) return;
+    try {
+      setSearchLoading(true);
+      const prods = await productsService.getProducts();
+      setAllProducts(prods);
+    } catch (err) {
+      console.error('Failed to load products for search', err);
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) {
+      setSearchResults([]);
+      return;
+    }
+    const filtered = allProducts.filter((p) => {
+      const haystack = [p.name, p.subtitle, p.brand, p.category]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return haystack.includes(query);
+    });
+    setSearchResults(filtered);
+  }, [searchQuery, allProducts]);
+
+  // Close the dropdown when clicking outside of it
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (searchWrapperRef.current && !searchWrapperRef.current.contains(e.target as Node)) {
+        setSearchOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleOpenSearch = () => {
+    setSearchOpen(true);
+    ensureProductsLoaded();
+    setTimeout(() => searchInputRef.current?.focus(), 50);
+  };
+
+  const handleSelectSearchResult = (product: Product) => {
+    setSearchOpen(false);
+    setSearchQuery('');
+    if (product.category) {
+      handleNavigate(product.category);
+    }
+  };
 
   const handleNavigate = (page: any) => {
     onNavigate(page);
@@ -81,6 +149,95 @@ export const Navbar: React.FC<NavbarProps> = ({
 
       {/* Right Side Icons */}
       <div className="flex items-center gap-1 sm:gap-3">
+        {/* Search */}
+        <div className="relative" ref={searchWrapperRef}>
+          {searchOpen ? (
+            <div
+              className="flex items-center gap-2 px-3 py-1.5 rounded"
+              style={{
+                border: "1px solid rgba(16,185,129,0.35)",
+                background: "rgba(255,255,255,0.03)",
+              }}
+            >
+              <Search size={15} className="text-emerald-400 shrink-0" />
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search products..."
+                className="bg-transparent outline-none text-xs sm:text-sm text-white placeholder-white/30 w-28 sm:w-48"
+              />
+              <button
+                onClick={() => {
+                  setSearchOpen(false);
+                  setSearchQuery('');
+                }}
+                className="text-white/40 hover:text-white transition-colors cursor-pointer shrink-0"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={handleOpenSearch}
+              className="p-2.5 sm:p-2 text-white/50 hover:text-white transition-colors cursor-pointer"
+              title="Search"
+            >
+              <Search size={19} />
+            </button>
+          )}
+
+          {/* Live Search Dropdown */}
+          {searchOpen && searchQuery.trim() && (
+            <div
+              className="absolute right-0 mt-2 w-72 sm:w-80 max-h-96 overflow-y-auto rounded border border-white/10 bg-[#0d0d0d] shadow-xl z-50"
+            >
+              {searchLoading ? (
+                <div className="px-4 py-6 text-center text-xs text-white/40">Loading products...</div>
+              ) : searchResults.length === 0 ? (
+                <div className="px-4 py-6 text-center text-xs text-white/40">
+                  No products found for "{searchQuery}"
+                </div>
+              ) : (
+                <>
+                  {searchResults.slice(0, MAX_DROPDOWN_RESULTS).map((product) => (
+                    <button
+                      key={product.id}
+                      onClick={() => handleSelectSearchResult(product)}
+                      className="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-white/5 transition-colors cursor-pointer border-b border-white/5 last:border-b-0"
+                    >
+                      <img
+                        src={product.image}
+                        alt={product.name}
+                        className="w-10 h-10 object-cover rounded shrink-0 bg-white/5"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-semibold text-white truncate">{product.name}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-[0.7rem] text-emerald-400 font-bold">
+                            Rs. {product.price?.toLocaleString?.() ?? product.price}
+                          </span>
+                          {product.category && (
+                            <span className="text-[0.65rem] text-white/30 uppercase tracking-wide">
+                              {product.category}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                  {searchResults.length > MAX_DROPDOWN_RESULTS && (
+                    <div className="px-3 py-2.5 text-center text-[0.7rem] text-emerald-400 font-semibold tracking-wide">
+                      View all {searchResults.length} products →
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+        </div>
+
         {/* Wishlist Icon */}
         <button
           onClick={onOpenWishlist}
