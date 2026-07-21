@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { toast } from 'sonner';
 import axios from 'axios'; // Ensure axios or your custom API instance is used here
 
-import logoImage from '../../assets/logo.jpg';
+import logoImage from '../../assets/logo.png';
 
 interface AuthModalProps {
   isOpen: boolean;

@@ -3,7 +3,7 @@ import { Send, MapPin, Mail, Phone, ShieldCheck } from 'lucide-react';
 import { contactService } from '../../api/contact';
 import { toast } from 'sonner';
 
-import logoImage from '../../assets/logo.jpg';
+import logoImage from '../../assets/logo.png';
 
 interface FooterProps {
   onOpenNutrition: () => void;

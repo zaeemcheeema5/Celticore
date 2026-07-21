@@ -6,7 +6,7 @@ import { useWishlist } from '../../context/WishlistContext';
 import { productsService } from '../../api/products';
 import { Product } from '../../types';
 
-import logoImage from '../../assets/logo.jpg';
+import logoImage from '../../assets/logo.png';
 
 interface NavbarProps {
   currentPage: string;
