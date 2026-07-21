@@ -11,6 +11,7 @@ interface CategoryProps {
   onOpenDetails: (product: Product) => void;
 }
 
+// Special pageId that renders every active product instead of a single category
 const ALL_PRODUCTS_PAGE_ID = 'products';
 
 const getCategoryIcon = (id: string) => {
@@ -43,10 +44,7 @@ export const Category: React.FC<CategoryProps> = ({
 
   if (!isAllProducts && !cat) {
     return (
-      <div
-        className="min-h-screen flex items-center justify-center text-neutral-400 text-sm"
-        style={{ background: "linear-gradient(180deg, #FFFFFF 0%, #F3ECDD 100%)" }}
-      >
+      <div className="min-h-screen flex items-center justify-center bg-[#050505] text-white/50 text-sm">
         Category not found.
       </div>
     );
@@ -74,12 +72,13 @@ export const Category: React.FC<CategoryProps> = ({
   const displayDescription = isAllProducts ? "Every product across every category" : cat!.description;
 
   return (
-    <div className="min-h-screen" style={{ background: "linear-gradient(180deg, #FFFFFF 0%, #F3ECDD 100%)" }}>
+    <div className="min-h-screen" style={{ background: "#050505" }}>
       {/* Category Hero Banner */}
       <div
         className="relative pt-20 sm:pt-24 pb-10 sm:pb-14 px-4 sm:px-6 md:px-14 lg:px-20 overflow-hidden"
-        style={{ background: "#F7F2E8", borderBottom: "1px solid rgba(0,0,0,0.06)" }}
+        style={{ background: "#080808", borderBottom: "1px solid rgba(255,255,255,0.05)" }}
       >
+        {/* Background Overlay */}
         <div
           className="absolute inset-0"
           style={{
@@ -89,21 +88,22 @@ export const Category: React.FC<CategoryProps> = ({
             opacity: 0.07,
           }}
         />
-
+        
         <div
           className="absolute inset-0"
           style={{ background: `radial-gradient(ellipse at 80% 50%, ${accent}18 0%, transparent 65%)` }}
         />
-
+        
         <div
           className="absolute bottom-0 left-0 right-0 h-px"
           style={{ background: `linear-gradient(to right, transparent, ${accent}40, transparent)` }}
         />
 
         <div className="relative max-w-7xl mx-auto">
+          {/* Back button */}
           <button
             onClick={() => onNavigate("home")}
-            className="flex items-center gap-2 mb-6 text-xs font-semibold tracking-widest uppercase transition-colors hover:text-neutral-900 text-neutral-500 cursor-pointer"
+            className="flex items-center gap-2 mb-6 text-xs font-semibold tracking-widest uppercase transition-colors hover:text-white text-white/40 cursor-pointer"
             style={{ fontFamily: "'DM Sans', sans-serif" }}
           >
             <ArrowLeft size={14} /> Back to Home
@@ -125,21 +125,22 @@ export const Category: React.FC<CategoryProps> = ({
                   {displayTagline}
                 </span>
               </div>
-
+              
               <h1
-                className="font-black uppercase leading-none text-neutral-900"
+                className="font-black uppercase leading-none text-white"
                 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: "clamp(2.2rem, 6vw, 4rem)" }}
               >
                 {displayName}
               </h1>
-
-              <p className="text-neutral-500 text-sm mt-1" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+              
+              <p className="text-white/40 text-sm mt-1" style={{ fontFamily: "'DM Sans', sans-serif" }}>
                 {categoryProducts.length} products — {displayDescription}
               </p>
             </div>
 
+            {/* Sort Options */}
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-[10px] text-neutral-400 uppercase tracking-widest" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+              <span className="text-[10px] text-white/30 uppercase tracking-widest" style={{ fontFamily: "'DM Sans', sans-serif" }}>
                 Sort:
               </span>
               <div className="flex gap-1 flex-wrap">
@@ -151,8 +152,8 @@ export const Category: React.FC<CategoryProps> = ({
                     style={{
                       fontFamily: "'DM Sans', sans-serif",
                       background: sortBy === s ? accent : "transparent",
-                      color: sortBy === s ? "#000" : "rgba(0,0,0,0.45)",
-                      border: `1px solid ${sortBy === s ? accent : "rgba(0,0,0,0.12)"}`,
+                      color: sortBy === s ? "#000" : "rgba(255,255,255,0.35)",
+                      border: `1px solid ${sortBy === s ? accent : "rgba(255,255,255,0.1)"}`,
                     }}
                   >
                     {s === "popular" ? "Popular" : s === "price-low" ? "Price ↑" : s === "price-high" ? "Price ↓" : "Rating"}
@@ -167,7 +168,7 @@ export const Category: React.FC<CategoryProps> = ({
       {/* Products Grid */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-14 lg:px-20 py-8 sm:py-12">
         {sortedProducts.length === 0 ? (
-          <div className="py-20 text-center text-neutral-400 italic text-sm">
+          <div className="py-20 text-center text-white/45 italic text-sm">
             No products found under this category.
           </div>
         ) : (
@@ -187,11 +188,11 @@ export const Category: React.FC<CategoryProps> = ({
       {/* More Categories */}
       <div
         className="px-4 sm:px-6 md:px-14 lg:px-20 py-10 sm:py-12"
-        style={{ borderTop: "1px solid rgba(0,0,0,0.06)" }}
+        style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}
       >
         <div className="max-w-7xl mx-auto">
           <h2
-            className="text-2xl font-black uppercase tracking-tight text-neutral-900 mb-6"
+            className="text-2xl font-black uppercase tracking-tight text-white mb-6"
             style={{ fontFamily: "'Barlow Condensed', sans-serif" }}
           >
             More <span style={{ color: accent }}>Categories</span>

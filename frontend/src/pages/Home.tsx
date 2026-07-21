@@ -210,7 +210,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, categories }) => {
                 {[{ val: "50K+", label: "Athletes" }, { val: "4.9★", label: "Avg Rating" }, { val: "100%", label: "Lab-Tested" }].map(s => (
                   <div key={s.label}>
                     <div className="text-xl font-black text-gray-900" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>{s.val}</div>
-                    <div className="text-[10px] uppercase tracking-widest text-white/35" style={{ fontFamily: "'DM Sans', sans-serif" }}>{s.label}</div>
+                    <div className="text-[10px] uppercase tracking-widest text-gray-400" style={{ fontFamily: "'DM Sans', sans-serif" }}>{s.label}</div>
                   </div>
                 ))}
               </div>
@@ -242,29 +242,29 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, categories }) => {
 
         {/* Carousel buttons */}
         <div className="absolute bottom-6 sm:bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-3 sm:gap-5 z-10">
-          <button onClick={() => setCurrentSlide((p) => (p - 1 + HERO_SLIDES.length) % HERO_SLIDES.length)} className="p-2 sm:p-1.5 text-white/30 hover:text-white/80 transition-colors cursor-pointer"><ChevronLeft size={18}/></button>
+          <button onClick={() => setCurrentSlide((p) => (p - 1 + HERO_SLIDES.length) % HERO_SLIDES.length)} className="p-2 sm:p-1.5 text-gray-400 hover:text-gray-800 transition-colors cursor-pointer"><ChevronLeft size={18}/></button>
           <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
             {HERO_SLIDES.map((_, i) => (
-              <button key={i} onClick={() => setCurrentSlide(i)} className="transition-all duration-400 cursor-pointer" style={{ width: i === currentSlide ? 28 : 7, height: 2, background: i === currentSlide ? slide.accent : "rgba(255,255,255,0.25)" }}/>
+              <button key={i} onClick={() => setCurrentSlide(i)} className="transition-all duration-400 cursor-pointer" style={{ width: i === currentSlide ? 28 : 7, height: 2, background: i === currentSlide ? slide.accent : "rgba(0,0,0,0.15)" }}/>
             ))}
           </div>
-          <button onClick={() => setCurrentSlide((p) => (p + 1) % HERO_SLIDES.length)} className="p-2 sm:p-1.5 text-white/30 hover:text-white/80 transition-colors cursor-pointer"><ChevronRight size={18}/></button>
+          <button onClick={() => setCurrentSlide((p) => (p + 1) % HERO_SLIDES.length)} className="p-2 sm:p-1.5 text-gray-400 hover:text-gray-800 transition-colors cursor-pointer"><ChevronRight size={18}/></button>
         </div>
-        <div className="absolute bottom-0 left-0 right-0 h-24 pointer-events-none" style={{ background: "linear-gradient(to bottom, transparent, #050505)" }}/>
+        <div className="absolute bottom-0 left-0 right-0 h-24 pointer-events-none" style={{ background: "linear-gradient(to bottom, transparent, #ffffff)" }}/>
       </section>
 
       {/* CATEGORY EXPLORATION */}
-      <section className="relative py-6 pb-20 sm:pb-28 px-4 sm:px-6 md:px-14 lg:px-20" style={{ background: "#050505" }}>
+      <section className="relative py-6 pb-20 sm:pb-28 px-4 sm:px-6 md:px-14 lg:px-20" style={{ background: "#ffffff" }}>
         <div className="max-w-7xl mx-auto mb-12">
           <div className="flex items-center gap-4 mb-3">
             <div className="h-px flex-1" style={{ background: "linear-gradient(to right, transparent, rgba(16,185,129,0.5))" }}/>
             <span className="text-[10px] font-bold tracking-[0.45em] uppercase text-emerald-500" style={{ fontFamily: "'DM Sans', sans-serif" }}>Our Range</span>
             <div className="h-px flex-1" style={{ background: "linear-gradient(to left, transparent, rgba(16,185,129,0.5))" }}/>
           </div>
-          <h2 className="text-center font-black tracking-tight text-white" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: "clamp(2.4rem, 5vw, 4.5rem)", lineHeight: 0.95 }}>
+          <h2 className="text-center font-black tracking-tight text-gray-900" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: "clamp(2.4rem, 5vw, 4.5rem)", lineHeight: 0.95 }}>
             EXPLORE THE <span className="text-gold">COLLECTION</span>
           </h2>
-          <p className="text-center text-white/40 text-sm mt-3" style={{ fontFamily: "'DM Sans', sans-serif" }}>Precision-formulated. Clinically dosed. Zero compromise.</p>
+          <p className="text-center text-gray-500 text-sm mt-3" style={{ fontFamily: "'DM Sans', sans-serif" }}>Precision-formulated. Clinically dosed. Zero compromise.</p>
         </div>
 
         <div className="max-w-7xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5">
@@ -277,8 +277,8 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, categories }) => {
                 key={cat.id}
                 className="group relative overflow-hidden cursor-pointer category-card"
                 style={{
-                  background: "#0a0a0a",
-                  border: `1px solid ${hoveredCard === cat.id ? `${accent}45` : "rgba(255,255,255,0.06)"}`,
+                  background: "#fafafa",
+                  border: `1px solid ${hoveredCard === cat.id ? `${accent}45` : "rgba(0,0,0,0.08)"}`,
                   aspectRatio: "16/10",
                   boxShadow: hoveredCard === cat.id ? `0 8px 40px ${accent}18` : "none"
                 }}
@@ -288,7 +288,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, categories }) => {
               >
                 {/* Category Graphic */}
                 <img src={cardImg} alt={cat.name} className="absolute inset-0 w-full h-full object-cover opacity-[0.18] group-hover:opacity-[0.28] transition-opacity duration-500"/>
-                <div className="absolute inset-0" style={{ background: `linear-gradient(135deg, rgba(10,10,10,0.92) 0%, rgba(10,10,10,0.75) 100%)` }}/>
+                <div className="absolute inset-0" style={{ background: `linear-gradient(135deg, rgba(255,255,255,0.92) 0%, rgba(255,255,255,0.75) 100%)` }}/>
 
                 {/* Hover Ambient Radial Glow */}
                 <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" style={{ background: `radial-gradient(ellipse at 20% 80%, ${accent}12 0%, transparent 65%)` }}/>
@@ -299,7 +299,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, categories }) => {
                 </div>
 
                 {/* Large Background Ghost Icon */}
-                <div className="absolute -bottom-3 -right-3 opacity-[0.05] group-hover:opacity-[0.09] transition-opacity duration-400 pointer-events-none">
+                <div className="absolute -bottom-3 -right-3 opacity-[0.06] group-hover:opacity-[0.1] transition-opacity duration-400 pointer-events-none">
                   <Icon size={110} style={{ color: accent }}/>
                 </div>
 
@@ -315,8 +315,8 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, categories }) => {
                   </div>
                   <div>
                     <p className="text-[10px] font-bold tracking-[0.25em] uppercase mb-1" style={{ color: accent, fontFamily: "'DM Sans', sans-serif" }}>{cat.tagline}</p>
-                    <h3 className="text-2xl md:text-[1.65rem] font-black uppercase tracking-tight text-white leading-none mb-1.5" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>{cat.name}</h3>
-                    <p className="text-white/40 text-xs mb-4 leading-relaxed" style={{ fontFamily: "'DM Sans', sans-serif" }}>{cat.description}</p>
+                    <h3 className="text-2xl md:text-[1.65rem] font-black uppercase tracking-tight text-gray-900 leading-none mb-1.5" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>{cat.name}</h3>
+                    <p className="text-gray-500 text-xs mb-4 leading-relaxed" style={{ fontFamily: "'DM Sans', sans-serif" }}>{cat.description}</p>
                     <button
                       onClick={(e) => { e.stopPropagation(); onNavigate(cat.id); }}
                       className="w-full py-2 text-[10px] font-black tracking-[0.25em] uppercase transition-all duration-250 cursor-pointer"
@@ -335,7 +335,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, categories }) => {
       </section>
 
       {/* TRUST AND VALUES SECTION */}
-      <section className="py-8 px-4 sm:px-6 md:px-14" style={{ background: "#080808", borderTop: "1px solid rgba(255,255,255,0.04)", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+      <section className="py-8 px-4 sm:px-6 md:px-14" style={{ background: "#ffffff", borderTop: "1px solid rgba(0,0,0,0.06)", borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
         <div className="max-w-7xl mx-auto flex flex-wrap justify-center md:justify-between gap-x-6 gap-y-5 md:gap-0">
           {[
             { icon: Shield, label: "Third-Party Lab Tested", sub: "Every batch verified" },
@@ -348,8 +348,8 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, categories }) => {
                 <Icon size={15} style={{ color: "#10B981" }}/>
               </div>
               <div>
-                <div className="text-xs font-semibold text-white/80" style={{ fontFamily: "'DM Sans', sans-serif" }}>{label}</div>
-                <div className="text-[10px] text-white/30" style={{ fontFamily: "'DM Sans', sans-serif" }}>{sub}</div>
+                <div className="text-xs font-semibold text-gray-700" style={{ fontFamily: "'DM Sans', sans-serif" }}>{label}</div>
+                <div className="text-[10px] text-gray-400" style={{ fontFamily: "'DM Sans', sans-serif" }}>{sub}</div>
               </div>
             </div>
           ))}
