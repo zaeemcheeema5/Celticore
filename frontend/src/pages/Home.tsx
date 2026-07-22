@@ -288,7 +288,10 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, categories }) => {
               >
                 {/* Category Graphic */}
                 <img src={cardImg} alt={cat.name} className="absolute inset-0 w-full h-full object-cover opacity-[0.18] group-hover:opacity-[0.28] transition-opacity duration-500"/>
-                <div className="absolute inset-0" style={{ background: `linear-gradient(135deg, rgba(255,255,255,0.92) 0%, rgba(255,255,255,0.75) 100%)` }}/>
+                <div className="absolute inset-0" style={{ background: `
+radial-gradient(circle at top right, rgba(245,158,11,.08), transparent 30%),
+linear-gradient(135deg,#050505 0%,#0E0E0E 50%,#1A1A1A 100%)
+` }}/>
 
                 {/* Hover Ambient Radial Glow */}
                 <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" style={{ background: `radial-gradient(ellipse at 20% 80%, ${accent}12 0%, transparent 65%)` }}/>
