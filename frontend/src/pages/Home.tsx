@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Shield, Star, Leaf, Zap, Droplets, Sun } from 'lucide-react';
-import { Category } from '../types';
-
+import { Category, Product } from '../types';
+import { ProductCard } from '../components/product/ProductCard';
 import apexWheyImage from "../assets/apex_whey_protein.png";
 import thunderPreWorkoutImage from "../assets/thunder_pre_workout.png";
 import celticCreatineImage from "../assets/celtic_creatine.png";
@@ -51,6 +51,8 @@ const HERO_SLIDES = [
 interface HomeProps {
   onNavigate: (page: string) => void;
   categories: Category[];
+  products: Product[];
+  onOpenDetails: (product: Product) => void;
 }
 
 function CardEffect({ effect, color }: { effect: string; color: string }) {
@@ -121,7 +123,7 @@ const getCategoryIcon = (id: string) => {
   }
 };
 
-export const Home: React.FC<HomeProps> = ({ onNavigate, categories }) => {
+export const Home: React.FC<HomeProps> = ({ onNavigate, categories, products, onOpenDetails }) => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [hoveredCard, setHoveredCard] = useState<string | null>(null);
 
@@ -262,7 +264,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, categories }) => {
             <div className="h-px flex-1" style={{ background: "linear-gradient(to left, transparent, rgba(16,185,129,0.5))" }}/>
           </div>
           <h2 className="text-center font-black tracking-tight text-gray-900" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: "clamp(2.4rem, 5vw, 4.5rem)", lineHeight: 0.95 }}>
-            EXPLORE THE <span className="text-gold">COLLECTION</span>
+            EXPLORE THE <span className="text-gold">CATEGORIES</span>
           </h2>
           <p className="text-center text-gray-500 text-sm mt-3" style={{ fontFamily: "'DM Sans', sans-serif" }}>Precision-formulated. Clinically dosed. Zero compromise.</p>
         </div>
@@ -350,6 +352,74 @@ linear-gradient(135deg,#050505 0%,#0E0E0E 50%,#1A1A1A 100%)
         </div>
       </section>
 
+      {/* PER-CATEGORY PRODUCT SHOWCASE */}
+      <section className="relative py-6 pb-16 sm:pb-20 px-4 sm:px-6 md:px-14 lg:px-20" style={{ background: "#ffffff" }}>
+        <div className="max-w-7xl mx-auto mb-12">
+          <div className="flex items-center gap-4 mb-3">
+            <div className="h-px flex-1" style={{ background: "linear-gradient(to right, transparent, rgba(16,185,129,0.5))" }}/>
+            <span className="text-[10px] font-bold tracking-[0.45em] uppercase text-emerald-500" style={{ fontFamily: "'DM Sans', sans-serif" }}>Shop By Category</span>
+            <div className="h-px flex-1" style={{ background: "linear-gradient(to left, transparent, rgba(16,185,129,0.5))" }}/>
+          </div>
+         <h2 className="text-center font-black tracking-tight text-gray-900" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: "clamp(2.4rem, 5vw, 4.5rem)", lineHeight: 0.95 }}>
+            EXPLORE ALL <span className="text-gold">PRODUCTS</span>
+          </h2>
+          <p className="text-center text-white/50 text-sm mt-3" style={{ fontFamily: "'DM Sans', sans-serif" }}>Precision-formulated. Clinically dosed. Zero compromise.</p>
+        </div>
+
+        <div className="max-w-7xl mx-auto flex flex-col gap-14 sm:gap-16">
+          {categories.map((cat) => {
+            const accent = cat.accentColor || cat.accent_color || "#10B981";
+            const catProducts = products
+              .filter((p) => (String(p.category) === String(cat.id)) && (p.isActive !== false))
+              .sort((a, b) => b.reviews - a.reviews)
+              .slice(0, 4);
+
+            if (catProducts.length === 0) return null;
+
+            return (
+              <div key={`shelf-${cat.id}`}>
+                {/* Category Shelf Header */}
+                <div className="flex items-end justify-between gap-4 mb-5 sm:mb-6">
+                  <div>
+                    <p
+                      className="text-[10px] font-bold tracking-[0.3em] uppercase mb-1"
+                      style={{ color: accent, fontFamily: "'DM Sans', sans-serif" }}
+                    >
+                      {cat.tagline}
+                    </p>
+                    <h3
+                      className="text-xl sm:text-2xl md:text-[1.85rem] font-black uppercase tracking-tight leading-none"
+                      style={{ fontFamily: "'Barlow Condensed', sans-serif", color: "#0b0b0bff" }}
+                    >
+                      {cat.name}
+                    </h3>
+                  </div>
+
+                  <button
+                    onClick={() => onNavigate(cat.id)}
+                    className="shrink-0 flex items-center gap-1 text-[10px] sm:text-xs font-black tracking-[0.2em] uppercase transition-colors duration-200 cursor-pointer whitespace-nowrap"
+                    style={{ fontFamily: "'Barlow Condensed', sans-serif", color: accent }}
+                  >
+                    View All <ChevronRight size={13} />
+                  </button>
+                </div>
+
+                {/* Product Row */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-5">
+                  {catProducts.map((p) => (
+                    <ProductCard
+                      key={p.id}
+                      product={p}
+                      accent={accent}
+                      onOpenDetails={onOpenDetails}
+                    />
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
       {/* TRUST AND VALUES SECTION */}
       <section className="py-8 px-4 sm:px-6 md:px-14" style={{ background: "#ffffff", borderTop: "1px solid rgba(0,0,0,0.06)", borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
         <div className="max-w-7xl mx-auto flex flex-wrap justify-center md:justify-between gap-x-6 gap-y-5 md:gap-0">

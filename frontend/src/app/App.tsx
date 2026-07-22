@@ -137,10 +137,12 @@ function MainAppLayout() {
       {/* Core Page Render */}
       <main className="flex-1">
         {currentPage === "home" ? (
-          <Home
-            onNavigate={handleNavigate}
-            categories={categories}
-          />
+         <Home
+  onNavigate={handleNavigate}
+  categories={categories}
+  products={products}
+  onOpenDetails={(p) => setSelectedProduct(p)}
+/>
         ) : currentPage === "search" ? (
           <SearchResults
             query={searchQuery}
