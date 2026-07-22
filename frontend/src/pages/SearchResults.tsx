@@ -117,13 +117,40 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
           style={{ background: `radial-gradient(ellipse at 80% 50%, ${ACCENT}18 0%, transparent 65%)` }}
         />
         <div className="relative max-w-7xl mx-auto">
-          <button
-            onClick={() => onNavigate("home")}
-            className="flex items-center gap-2 mb-6 text-xs font-semibold tracking-widest uppercase transition-colors hover:text-white text-white/40 cursor-pointer"
-            style={{ fontFamily: "'DM Sans', sans-serif" }}
-          >
-            <ArrowLeft size={14} /> Back to Home
-          </button>
+        <button
+  onClick={() => onNavigate("home")}
+  className="
+    group flex items-center gap-3 mb-6 
+    px-5 py-2.5 
+    rounded-full
+    text-xs font-bold tracking-[0.2em] uppercase
+    border border-emerald-400/40
+    bg-gradient-to-r from-emerald-500/20 via-green-400/10 to-yellow-500/20
+    text-emerald-300
+    backdrop-blur-md
+    shadow-[0_0_20px_rgba(16,185,129,0.25)]
+    transition-all duration-300
+    hover:scale-105
+    hover:text-white
+    hover:border-emerald-400
+    hover:shadow-[0_0_30px_rgba(16,185,129,0.5)]
+    cursor-pointer
+  "
+  style={{ fontFamily: "'DM Sans', sans-serif" }}
+>
+  <ArrowLeft 
+    size={16} 
+    className="
+      transition-transform duration-300 
+      group-hover:-translate-x-1
+      text-yellow-400
+    " 
+  />
+
+  <span>
+    Back to Home
+  </span>
+</button>
 
           <h1
             className="font-black uppercase leading-none text-white"
