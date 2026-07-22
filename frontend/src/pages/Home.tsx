@@ -292,6 +292,9 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, categories }) => {
 radial-gradient(circle at top right, rgba(245,158,11,.08), transparent 30%),
 linear-gradient(135deg,#050505 0%,#0E0E0E 50%,#1A1A1A 100%)
 ` }}/>
+                {/* Category Graphic */}
+                <img src={cardImg} alt={cat.name} className="absolute inset-0 w-full h-full object-cover opacity-[0.18] group-hover:opacity-[0.28] group-hover:scale-105 transition-all duration-700"/>
+                <div className="absolute inset-0" style={{ background: `radial-gradient(circle at top right, rgba(251,191,36,0.10), transparent 35%), linear-gradient(135deg, rgba(0,0,0,0.95) 0%, rgba(5,5,5,0.85) 55%, rgba(10,10,10,0.8) 100%)` }}/>
 
                 {/* Hover Ambient Radial Glow */}
                 <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" style={{ background: `radial-gradient(ellipse at 20% 80%, ${accent}12 0%, transparent 65%)` }}/>
@@ -302,33 +305,43 @@ linear-gradient(135deg,#050505 0%,#0E0E0E 50%,#1A1A1A 100%)
                 </div>
 
                 {/* Large Background Ghost Icon */}
-                <div className="absolute -bottom-3 -right-3 opacity-[0.06] group-hover:opacity-[0.1] transition-opacity duration-400 pointer-events-none">
+                <div className="absolute -bottom-3 -right-3 opacity-[0.06] group-hover:opacity-[0.12] transition-opacity duration-400 pointer-events-none">
                   <Icon size={110} style={{ color: accent }}/>
                 </div>
 
                 {/* Information */}
-                <div className="absolute inset-0 flex flex-col justify-between p-5 md:p-6">
-                  <div className="flex items-start justify-between">
-                    <div className="w-9 h-9 flex items-center justify-center" style={{ background: `${accent}12`, border: `1px solid ${accent}25` }}>
-                      <Icon size={16} style={{ color: accent }}/>
-                    </div>
-                    <div className="text-[10px] font-bold tracking-[0.2em] uppercase opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center gap-1" style={{ color: accent, fontFamily: "'DM Sans', sans-serif" }}>
-                      View All <ChevronRight size={10}/>
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-bold tracking-[0.25em] uppercase mb-1" style={{ color: accent, fontFamily: "'DM Sans', sans-serif" }}>{cat.tagline}</p>
-                    <h3 className="text-2xl md:text-[1.65rem] font-black uppercase tracking-tight text-gray-900 leading-none mb-1.5" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>{cat.name}</h3>
-                    <p className="text-gray-500 text-xs mb-4 leading-relaxed" style={{ fontFamily: "'DM Sans', sans-serif" }}>{cat.description}</p>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); onNavigate(cat.id); }}
-                      className="w-full py-2 text-[10px] font-black tracking-[0.25em] uppercase transition-all duration-250 cursor-pointer"
-                      style={{ fontFamily: "'Barlow Condensed', sans-serif", background: `${accent}12`, border: `1px solid ${accent}30`, color: accent }}
-                      onMouseEnter={e => { e.currentTarget.style.background = accent; e.currentTarget.style.color = "#000"; }}
-                      onMouseLeave={e => { e.currentTarget.style.background = `${accent}12`; e.currentTarget.style.color = accent; }}
-                    >
-                      Shop {cat.name}
-                    </button>
+                               <div className="absolute inset-0 flex flex-col justify-between p-5 md:p-6">
+                                 <div className="flex items-start justify-between">
+                                   <div
+                                     className="w-9 h-9 flex items-center justify-center transition-shadow duration-400"
+                                     style={{ background: `${accent}14`, border: `1px solid ${accent}35`, boxShadow: hoveredCard === cat.id ? `0 0 18px ${accent}45` : "none" }}
+                                   >
+                                     <Icon size={16} style={{ color: accent }}/>
+                                   </div>
+                                   <div className="text-[10px] font-bold tracking-[0.2em] uppercase opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center gap-1" style={{ color: accent, fontFamily: "'DM Sans', sans-serif" }}>
+                                     View All <ChevronRight size={10}/>
+                                   </div>
+                                 </div>
+                                 <div>
+                                   <p className="text-[10px] font-bold tracking-[0.25em] uppercase mb-1" style={{ color: accent, fontFamily: "'DM Sans', sans-serif" }}>{cat.tagline}</p>
+                                   <h3
+                                     className="text-[1.75rem] md:text-[1.95rem] font-black uppercase tracking-tight leading-none mb-1.5 transition-all duration-300"
+                                     style={{
+                                       fontFamily: "'Barlow Condensed', sans-serif",
+                                       color: "#FFFFFF",
+                                       textShadow: hoveredCard === cat.id ? `0 0 22px ${accent}55` : "none",
+                                     }}
+                                   >{cat.name}</h3>
+                                   <p className="text-white/85 text-xs mb-4 leading-relaxed" style={{ fontFamily: "'DM Sans', sans-serif" }}>{cat.description}</p>
+                                   <button
+                                     onClick={(e) => { e.stopPropagation(); onNavigate(cat.id); }}
+                                     className="w-full py-2 text-[10px] font-black tracking-[0.25em] uppercase transition-all duration-250 cursor-pointer"
+                                     style={{ fontFamily: "'Barlow Condensed', sans-serif", background: `${accent}12`, border: `1px solid ${accent}30`, color: accent }}
+                                     onMouseEnter={e => { e.currentTarget.style.background = accent; e.currentTarget.style.color = "#000"; }}
+                                     onMouseLeave={e => { e.currentTarget.style.background = `${accent}12`; e.currentTarget.style.color = accent; }}
+                                   >
+                                     Shop {cat.name}
+                                   </button>
                   </div>
                 </div>
               </div>
