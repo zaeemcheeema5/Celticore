@@ -37,7 +37,6 @@ function MainAppLayout() {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [isWishlistOpen, setIsWishlistOpen] = useState(false);
-  const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [isNutritionOpen, setIsNutritionOpen] = useState(false);
   const [isPrivacyOpen, setIsPrivacyOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -72,6 +71,11 @@ function MainAppLayout() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  const handleExitAdmin = () => {
+    handleNavigate("home");
+    loadCatalog(); // Reload main app catalog when leaving admin (in case products/categories changed)
+  };
+
   // Determine current active accent color based on context
   const activeCategory = categories.find((c) => c.id === currentPage);
   const activeAccentColor = activeCategory?.accentColor || "#10B981";
@@ -94,6 +98,18 @@ function MainAppLayout() {
     );
   }
 
+  if (currentPage === "admin") {
+    return (
+      <>
+        <Toaster position="bottom-left" toastOptions={{ style: { background: '#0c0c0c', color: '#fff', border: '1px solid rgba(255,255,255,0.08)' } }} />
+        <AdminDashboard
+          onClose={handleExitAdmin}
+          onCatalogChange={loadCatalog}
+        />
+      </>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#050505] text-white flex flex-col justify-between overflow-x-hidden" style={{ fontFamily: "'DM Sans', sans-serif" }}>
       <style>{BASE_STYLES}</style>
@@ -113,7 +129,7 @@ function MainAppLayout() {
           // Or we can let them see wishlist items. Let's show a toast to prompt them, or if we have products, open the details
           setIsCartOpen(true);
         }}
-        onOpenAdmin={() => setIsAdminOpen(true)}
+        onOpenAdmin={() => handleNavigate("admin")}
         onOpenNutrition={() => setIsNutritionOpen(true)}
         onSearchNavigate={handleSearchNavigate}
       />
@@ -182,15 +198,6 @@ function MainAppLayout() {
       <NutritionModal
         isOpen={isNutritionOpen}
         onClose={() => setIsNutritionOpen(false)}
-      />
-
-      <AdminDashboard
-        isOpen={isAdminOpen}
-        onClose={() => {
-          setIsAdminOpen(false);
-          loadCatalog(); // Reload main app catalog when admin closes (in case custom products were added)
-        }}
-        onCatalogChange={loadCatalog}
       />
 
       <ProductDetailsModal

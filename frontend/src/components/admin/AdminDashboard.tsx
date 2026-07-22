@@ -14,15 +14,13 @@ import { Product, Category, Review, Coupon, ContactMessage, NutritionRequest, Da
 import { toast } from 'sonner';
 
 interface AdminDashboardProps {
-  isOpen: boolean;
   onClose: () => void;
   onCatalogChange?: () => void;
 }
 
 type TabType = 'stats' | 'orders' | 'products' | 'categories' | 'reviews' | 'coupons' | 'contact' | 'nutrition' | 'admins';
 
-export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose, onCatalogChange }) => {
-  if (!isOpen) return null;
+export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, onCatalogChange }) => {
 
   const { user } = useAuth();
   const isMainAdmin = user?.role === 'main_admin';
@@ -564,76 +562,70 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 overflow-y-auto bg-black/90 backdrop-blur-md"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-    >
-      <div
-        className="relative w-full max-w-5xl sm:rounded-xl border border-white/10 bg-[#090909] text-white flex flex-col md:flex-row h-[100dvh] sm:h-[85vh] overflow-hidden"
-        style={{ boxShadow: "0 0 50px rgba(16,185,129,0.15)" }}
-      >
-        {/* Sidebar Navigation */}
-        <div className="w-full md:w-56 bg-[#0c0c0c] border-b md:border-b-0 md:border-r border-white/8 flex flex-col justify-between shrink-0 p-3 md:p-4 shadow-md shadow-black/30 md:shadow-none">
-          <div className="md:space-y-6">
-            <div className="flex items-center justify-between md:justify-start gap-2 text-emerald-400 mb-2 md:mb-0">
-              <div className="flex items-center gap-2">
-                <ShieldAlert size={18} />
-                <span className="text-sm font-black uppercase tracking-wider" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>Admin Control</span>
-              </div>
-              <button
-                onClick={onClose}
-                className="md:hidden p-1.5 text-white/40 hover:text-white rounded hover:bg-white/5 cursor-pointer"
-              >
-                <X size={18} />
-              </button>
+    <div className="min-h-screen w-full bg-[#090909] text-white flex flex-col md:flex-row">
+      {/* Sidebar Navigation */}
+      <div className="w-full md:w-56 bg-[#0c0c0c] border-b md:border-b-0 md:border-r border-white/8 flex flex-col justify-between shrink-0 p-3 md:p-4 shadow-md shadow-black/30 md:shadow-none md:sticky md:top-0 md:h-screen md:overflow-y-auto">
+        <div className="md:space-y-6">
+          <div className="flex items-center justify-between md:justify-start gap-2 text-emerald-400 mb-2 md:mb-0">
+            <div className="flex items-center gap-2">
+              <ShieldAlert size={18} />
+              <span className="text-sm font-black uppercase tracking-wider" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>Admin Control</span>
             </div>
-
-            {/* Nav Tabs */}
-            <div className="flex md:flex-col gap-1 text-xs overflow-x-auto md:overflow-visible scrollbar-hide -mx-3 px-3 md:mx-0 md:px-0 pb-1 md:pb-0">
-              {(
-                [
-                  { id: 'stats', label: 'Dashboard Stats', icon: BarChart3 },
-                  { id: 'orders', label: 'Order Manager', icon: ShoppingBag },
-                  { id: 'products', label: 'Product Manager', icon: Database },
-                  { id: 'categories', label: 'Category Manager', icon: Layers },
-                  { id: 'reviews', label: 'Review Moderation', icon: MessageSquare },
-                  { id: 'coupons', label: 'Coupon Codes', icon: Award },
-                  { id: 'nutrition', label: 'Nutrition Requests', icon: ClipboardCheck },
-                  { id: 'contact', label: 'Customer Queries', icon: MessageSquare },
-                  { id: 'admins', label: 'Admins & Users', icon: ShieldAlert },
-                ] as const
-              ).map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-1.5 md:gap-2.5 px-3.5 py-2.5 text-left rounded-lg font-semibold transition-all duration-200 cursor-pointer whitespace-nowrap shrink-0 md:shrink md:whitespace-normal active:scale-[0.97] ${
-                    activeTab === tab.id
-                      ? 'bg-emerald-500 text-black shadow-lg shadow-emerald-500/20'
-                      : 'text-white/50 hover:text-white hover:bg-white/8'
-                  }`}
-                >
-                  <tab.icon size={14} />
-                  {tab.label}
-                </button>
-              ))}
-            </div>
+            <button
+              onClick={onClose}
+              className="md:hidden p-1.5 text-white/40 hover:text-white rounded hover:bg-white/5 cursor-pointer"
+              title="Exit to store"
+            >
+              <X size={18} />
+            </button>
           </div>
 
-          <button
-            onClick={onClose}
-            className="hidden md:block w-full py-2.5 text-center text-xs font-black uppercase rounded-lg border border-white/10 hover:border-white/30 hover:bg-white/5 text-white/50 hover:text-white transition-all cursor-pointer"
-            style={{ fontFamily: "'Barlow Condensed', sans-serif" }}
-          >
-            Close Dashboard
-          </button>
+          {/* Nav Tabs */}
+          <div className="flex md:flex-col gap-1 text-xs overflow-x-auto md:overflow-visible scrollbar-hide -mx-3 px-3 md:mx-0 md:px-0 pb-1 md:pb-0">
+            {(
+              [
+                { id: 'stats', label: 'Dashboard Stats', icon: BarChart3 },
+                { id: 'orders', label: 'Order Manager', icon: ShoppingBag },
+                { id: 'products', label: 'Product Manager', icon: Database },
+                { id: 'categories', label: 'Category Manager', icon: Layers },
+                { id: 'reviews', label: 'Review Moderation', icon: MessageSquare },
+                { id: 'coupons', label: 'Coupon Codes', icon: Award },
+                { id: 'nutrition', label: 'Nutrition Requests', icon: ClipboardCheck },
+                { id: 'contact', label: 'Customer Queries', icon: MessageSquare },
+                { id: 'admins', label: 'Admins & Users', icon: ShieldAlert },
+              ] as const
+            ).map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-1.5 md:gap-2.5 px-3.5 py-2.5 text-left rounded-lg font-semibold transition-all duration-200 cursor-pointer whitespace-nowrap shrink-0 md:shrink md:whitespace-normal active:scale-[0.97] ${
+                  activeTab === tab.id
+                    ? 'bg-emerald-500 text-black shadow-lg shadow-emerald-500/20'
+                    : 'text-white/50 hover:text-white hover:bg-white/8'
+                }`}
+              >
+                <tab.icon size={14} />
+                {tab.label}
+              </button>
+            ))}
+          </div>
         </div>
 
-        {/* Content Panel */}
-        <div className="flex-1 overflow-y-auto overscroll-contain p-4 sm:p-6 md:p-8 bg-[#070707] flex flex-col min-h-0">
-          <div className="flex items-center justify-between pb-3 sm:pb-4 border-b border-white/8 mb-4 sm:mb-6 shrink-0">
-            <h2 className="text-base sm:text-xl font-black uppercase tracking-wider text-white" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
-              {activeTab === 'stats' && 'Sales & Store Statistics'}
-              {activeTab === 'orders' && 'Customer Order Management'}
+        <button
+          onClick={onClose}
+          className="hidden md:block w-full py-2.5 text-center text-xs font-black uppercase rounded-lg border border-white/10 hover:border-white/30 hover:bg-white/5 text-white/50 hover:text-white transition-all cursor-pointer"
+          style={{ fontFamily: "'Barlow Condensed', sans-serif" }}
+        >
+          Exit to Store
+        </button>
+      </div>
+
+      {/* Content Panel */}
+      <div className="flex-1 p-4 sm:p-6 md:p-8 bg-[#070707] flex flex-col">
+        <div className="flex items-center justify-between pb-3 sm:pb-4 border-b border-white/8 mb-4 sm:mb-6 shrink-0">
+          <h2 className="text-base sm:text-xl font-black uppercase tracking-wider text-white" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
+            {activeTab === 'stats' && 'Sales & Store Statistics'}
+            {activeTab === 'orders' && 'Customer Order Management'}
               {activeTab === 'products' && 'Product Sourcing / Uploads'}
               {activeTab === 'categories' && 'Category Management Console'}
               {activeTab === 'reviews' && 'Reviews Moderation Portal'}
@@ -688,9 +680,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
 
           {/* TAB CONTENT: PRODUCTS (PRODUCT MANAGER) */}
           {activeTab === 'products' && (
-            <div className="space-y-8 flex-1 flex flex-col lg:flex-row gap-6 overflow-hidden min-h-0">
+            <div className="space-y-8 flex flex-col lg:flex-row gap-6 items-start">
               {/* Product Upload/Edit Form */}
-              <form onSubmit={handleAddProduct} className="w-full lg:w-96 flex flex-col gap-3 shrink-0 p-4 border border-white/5 bg-[#090909] text-xs overflow-y-auto">
+              <form onSubmit={handleAddProduct} className="w-full lg:w-96 flex flex-col gap-3 shrink-0 p-4 border border-white/8 rounded-xl bg-[#090909] text-xs lg:sticky lg:top-6">
                 <div className="flex justify-between items-center mb-1">
                   <h3 className="font-bold text-white uppercase tracking-wider">
                     {editingProduct ? 'Edit Product' : 'Add Custom Product'}
@@ -915,7 +907,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
               </form>
 
               {/* Product list */}
-              <div className="flex-1 overflow-y-auto space-y-3 min-h-0 pr-1">
+              <div className="flex-1 space-y-3 w-full">
                 <h3 className="font-bold text-xs uppercase tracking-wider text-white mb-2">Current Catalog ({products.length})</h3>
                 {products.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-14 sm:py-20 text-center gap-2.5">
@@ -973,9 +965,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
 
           {/* TAB CONTENT: CATEGORIES (CATEGORY MANAGER) */}
           {activeTab === 'categories' && (
-            <div className="space-y-8 flex-1 flex flex-col lg:flex-row gap-6 overflow-hidden min-h-0">
+            <div className="space-y-8 flex flex-col lg:flex-row gap-6 items-start">
               {/* Category Upload/Edit Form */}
-              <form onSubmit={handleAddCategory} className="w-full lg:w-96 flex flex-col gap-3 shrink-0 p-4 border border-white/5 bg-[#090909] text-xs overflow-y-auto">
+              <form onSubmit={handleAddCategory} className="w-full lg:w-96 flex flex-col gap-3 shrink-0 p-4 border border-white/8 rounded-xl bg-[#090909] text-xs lg:sticky lg:top-6">
                 <div className="flex justify-between items-center mb-1">
                   <h3 className="font-bold text-white uppercase tracking-wider">
                     {editingCategory ? 'Edit Category' : 'Create New Category'}
@@ -1133,7 +1125,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
               </form>
 
               {/* Category list */}
-              <div className="flex-1 overflow-y-auto space-y-3 min-h-0 pr-1">
+              <div className="flex-1 space-y-3 w-full">
                 <h3 className="font-bold text-xs uppercase tracking-wider text-white mb-2">Category Configurations ({categories.length})</h3>
                 {categories.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-14 sm:py-20 text-center gap-2.5">
@@ -1182,7 +1174,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
 
           {/* TAB CONTENT: REVIEWS */}
           {activeTab === 'reviews' && (
-            <div className="space-y-4 flex-1 overflow-y-auto min-h-0 pr-1">
+            <div className="space-y-4">
               {reviews.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-14 sm:py-20 text-center gap-2.5">
                     <Star size={28} className="text-white/15" />
@@ -1246,8 +1238,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
 
           {/* TAB CONTENT: COUPONS */}
           {activeTab === 'coupons' && (
-            <div className="space-y-6 flex-1 flex flex-col lg:flex-row gap-6 overflow-hidden min-h-0">
-              <form onSubmit={handleAddCoupon} className="w-full lg:w-72 p-4 border border-white/5 bg-[#090909] text-xs shrink-0 flex flex-col gap-3">
+            <div className="space-y-6 flex flex-col lg:flex-row gap-6 items-start">
+              <form onSubmit={handleAddCoupon} className="w-full lg:w-72 p-4 border border-white/8 rounded-xl bg-[#090909] text-xs shrink-0 flex flex-col gap-3 lg:sticky lg:top-6">
                 <h3 className="font-bold text-white uppercase tracking-wider mb-1">Create Coupon Code</h3>
                 <div>
                   <label className="block text-[9px] uppercase text-white/40 mb-1">Coupon Code</label>
@@ -1275,7 +1267,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
                 </button>
               </form>
 
-              <div className="flex-1 overflow-y-auto space-y-3 min-h-0 pr-1">
+              <div className="flex-1 space-y-3 w-full">
                 <h3 className="font-bold text-xs uppercase tracking-wider text-white mb-2">Available Coupons ({coupons.length})</h3>
                 {coupons.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-14 sm:py-20 text-center gap-2.5">
@@ -1303,7 +1295,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
 
           {/* TAB CONTENT: NUTRITION REQUESTS */}
           {activeTab === 'nutrition' && (
-            <div className="space-y-4 flex-1 overflow-y-auto min-h-0 pr-1">
+            <div className="space-y-4">
               {nutrition.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-14 sm:py-20 text-center gap-2.5">
                     <ClipboardCheck size={28} className="text-white/15" />
@@ -1398,7 +1390,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
 
           {/* TAB CONTENT: ORDERS */}
           {activeTab === 'orders' && (
-            <div className="space-y-4 flex-1 overflow-y-auto min-h-0 pr-1">
+            <div className="space-y-4">
               {orders.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-14 sm:py-20 text-center gap-2.5">
                     <ShoppingBag size={28} className="text-white/15" />
@@ -1483,7 +1475,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
 
           {/* TAB CONTENT: CONTACT BOX */}
           {activeTab === 'contact' && (
-            <div className="space-y-4 flex-1 overflow-y-auto min-h-0 pr-1">
+            <div className="space-y-4">
               {messages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-14 sm:py-20 text-center gap-2.5">
                     <MessageSquare size={28} className="text-white/15" />
@@ -1525,7 +1517,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
 
           {/* TAB CONTENT: ADMIN & CREDENTIALS */}
           {activeTab === 'admins' && (
-            <div className="space-y-6 flex-1 overflow-y-auto min-h-0 pr-1 text-xs">
+            <div className="space-y-6 text-xs">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 
                 {/* Section 1: Change Personal Credentials */}
@@ -1717,6 +1709,5 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
           )}
         </div>
       </div>
-    </div>
-  );
+    );
 };
