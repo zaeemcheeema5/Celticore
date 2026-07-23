@@ -1,13 +1,18 @@
 const express = require('express');
 const router = express.Router();
 const adminAuthMiddleware = require('../middleware/adminAuthMiddleware');
+const authMiddleware = require('../middleware/authMiddleware');
 
 const {
     addReview,
+    updateReview,
     getProductReviews,
+    getProductReviewSummary,
+    getEligibility,
+    markHelpful,
     getAllReviews,
-    approveReview,
-    rejectReview,
+    updateReviewStatus,
+    replyToReview,
     deleteReview
 } = require('../controllers/reviewController');
 
@@ -22,7 +27,7 @@ const {
  * @swagger
  * /api/reviews:
  *   post:
- *     summary: Add a new product review
+ *     summary: Submit a review for a delivered, purchased product (logged-in customer)
  *     tags: [Reviews]
  *     requestBody:
  *       required: true
@@ -30,124 +35,145 @@ const {
  *         application/json:
  *           schema:
  *             type: object
- *             required:
- *               - product_id
- *               - user_name
- *               - rating
- *               - review
+ *             required: [productId, orderId, rating, title, review]
  *             properties:
- *               product_id:
- *                 type: integer
- *                 example: 1
- *               user_name:
- *                 type: string
- *                 example: John Doe
- *               rating:
- *                 type: integer
- *                 example: 5
- *               review:
- *                 type: string
- *                 example: Excellent protein powder. Highly recommended!
+ *               productId: { type: string }
+ *               orderId: { type: integer }
+ *               rating: { type: integer, example: 5 }
+ *               title: { type: string }
+ *               review: { type: string }
+ *               images:
+ *                 type: array
+ *                 items: { type: string }
  *     responses:
- *       201:
- *         description: Review submitted successfully
- *       400:
- *         description: Invalid request
+ *       201: { description: Review submitted (Pending moderation) }
+ *       400: { description: Invalid request }
+ *       403: { description: Not eligible to review this product/order }
+ *       409: { description: Already reviewed this product for this order }
  */
-router.post('/', addReview);
+router.post('/', authMiddleware, addReview);
+
+// ── Admin listing (must be declared before the generic /:productId route) ──
 
 /**
  * @swagger
- * /api/reviews/product/{productId}:
+ * /api/reviews/admin/all:
  *   get:
- *     summary: Get reviews of a specific product
+ *     summary: Admin - list all reviews, filterable by product, rating, status
+ *     tags: [Reviews]
+ */
+router.get('/admin/all', adminAuthMiddleware, getAllReviews);
+
+/**
+ * @swagger
+ * /api/reviews/eligibility/{productId}:
+ *   get:
+ *     summary: Check which of the logged-in customer's delivered orders for this product can still be reviewed
+ *     tags: [Reviews]
+ */
+router.get('/eligibility/:productId', authMiddleware, getEligibility);
+
+/**
+ * @swagger
+ * /api/reviews/{productId}/summary:
+ *   get:
+ *     summary: Average rating, total count, and star breakdown for a product
+ *     tags: [Reviews]
+ */
+router.get('/:productId/summary', getProductReviewSummary);
+
+/**
+ * @swagger
+ * /api/reviews/{productId}:
+ *   get:
+ *     summary: Get approved reviews for a product (sortable, filterable, paginated)
  *     tags: [Reviews]
  *     parameters:
  *       - in: path
  *         name: productId
  *         required: true
- *         schema:
- *           type: integer
- *         example: 1
+ *         schema: { type: string }
+ *       - in: query
+ *         name: sort
+ *         schema: { type: string, enum: [newest, highest, lowest, helpful] }
+ *       - in: query
+ *         name: rating
+ *         schema: { type: integer }
+ *       - in: query
+ *         name: media
+ *         schema: { type: string }
+ *       - in: query
+ *         name: limit
+ *         schema: { type: integer }
+ *       - in: query
+ *         name: offset
+ *         schema: { type: integer }
  *     responses:
- *       200:
- *         description: List of product reviews
+ *       200: { description: List of approved reviews }
  */
-router.get('/product/:productId', getProductReviews);
+router.get('/:productId', getProductReviews);
 
 /**
  * @swagger
- * /api/reviews:
- *   get:
- *     summary: Get all reviews
- *     tags: [Reviews]
- *     responses:
- *       200:
- *         description: List of all reviews
- */
-router.get('/', adminAuthMiddleware, getAllReviews);
-
-/**
- * @swagger
- * /api/reviews/{id}/approve:
+ * /api/reviews/{reviewId}:
  *   put:
- *     summary: Approve a review
+ *     summary: Edit your own review (resets it to Pending for re-approval)
  *     tags: [Reviews]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *         example: 5
- *     responses:
- *       200:
- *         description: Review approved successfully
- *       404:
- *         description: Review not found
  */
-router.put('/:id/approve', adminAuthMiddleware, approveReview);
+router.put('/:reviewId', authMiddleware, updateReview);
 
 /**
  * @swagger
- * /api/reviews/{id}/reject:
- *   put:
- *     summary: Reject a review
- *     tags: [Reviews]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *         example: 5
- *     responses:
- *       200:
- *         description: Review rejected successfully
- *       404:
- *         description: Review not found
- */
-router.put('/:id/reject', adminAuthMiddleware, rejectReview);
-
-/**
- * @swagger
- * /api/reviews/{id}:
+ * /api/reviews/{reviewId}:
  *   delete:
- *     summary: Delete a review
+ *     summary: Delete a review (admin only)
  *     tags: [Reviews]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *         example: 5
- *     responses:
- *       200:
- *         description: Review deleted successfully
- *       404:
- *         description: Review not found
  */
-router.delete('/:id', adminAuthMiddleware, deleteReview);
+router.delete('/:reviewId', adminAuthMiddleware, deleteReview);
+
+/**
+ * @swagger
+ * /api/reviews/{reviewId}/status:
+ *   patch:
+ *     summary: Approve or reject a review (admin)
+ *     tags: [Reviews]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [status]
+ *             properties:
+ *               status: { type: string, enum: [pending, approved, rejected] }
+ */
+router.patch('/:reviewId/status', adminAuthMiddleware, updateReviewStatus);
+
+/**
+ * @swagger
+ * /api/reviews/{reviewId}/helpful:
+ *   post:
+ *     summary: Mark a review as helpful (logged-in customer, one vote each)
+ *     tags: [Reviews]
+ */
+router.post('/:reviewId/helpful', authMiddleware, markHelpful);
+
+/**
+ * @swagger
+ * /api/reviews/{reviewId}/reply:
+ *   post:
+ *     summary: Admin reply to a customer review
+ *     tags: [Reviews]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [reply]
+ *             properties:
+ *               reply: { type: string }
+ */
+router.post('/:reviewId/reply', adminAuthMiddleware, replyToReview);
 
 module.exports = router;

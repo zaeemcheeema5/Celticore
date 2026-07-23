@@ -12,11 +12,13 @@ const mapOrderFromBackend = (o: any): Order => ({
   phone: o.phone || '',
   items: typeof o.items === 'string' ? JSON.parse(o.items) : (o.items || []),
   total: o.total || 0,
+  discount: o.discount || 0,
   paymentMethod: o.payment_method || o.paymentMethod || 'card',
   paymentStatus: o.payment_status || o.paymentStatus || 'pending',
   deliveryMethod: o.delivery_method || o.deliveryMethod || 'standard',
   deliveryCost: o.delivery_cost || o.deliveryCost || 0,
   status: o.status || 'pending',
+  canReview: !!o.canReview,
   createdAt: o.created_at || o.createdAt,
   stripePaymentIntentId: o.stripe_payment_intent_id || o.stripePaymentIntentId || ''
 });
@@ -25,6 +27,11 @@ export const ordersService = {
   getAllOrders: async (): Promise<Order[]> => {
     const res = await api.get('/api/orders');
     const orders = Array.isArray(res) ? res : (res && Array.isArray(res.orders) ? res.orders : []);
+    return orders.map(mapOrderFromBackend);
+  },
+  getMyOrders: async (): Promise<Order[]> => {
+    const res = await api.get('/api/orders/mine');
+    const orders = Array.isArray(res) ? res : [];
     return orders.map(mapOrderFromBackend);
   },
   placeOrder: async (orderData: Omit<Order, 'id' | 'createdAt' | 'status'>): Promise<Order> => {

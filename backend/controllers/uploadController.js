@@ -99,3 +99,48 @@ exports.uploadProductImage = (req, res) =>
 // ==========================
 exports.uploadCategoryImage = (req, res) =>
     handleUpload(req, res, "categories", "Category");
+
+// ==========================
+// Upload Review Images (up to 5, multipart field "images")
+// ==========================
+exports.uploadReviewImages = async (req, res) => {
+
+    const files = req.files || [];
+
+    if (files.length === 0) {
+        return res.status(400).json({
+            success: false,
+            message: "No images uploaded."
+        });
+    }
+
+    for (const file of files) {
+        if (!isValidImageBuffer(file.buffer)) {
+            return res.status(400).json({
+                success: false,
+                message: "File content doesn't match a valid JPG, PNG, or WEBP image."
+            });
+        }
+    }
+
+    try {
+
+        const results = await Promise.all(
+            files.map(file => uploadBufferToCloudinary(file.buffer, "celticore/reviews"))
+        );
+
+        res.status(200).json({
+            success: true,
+            message: "Review images uploaded successfully.",
+            images: results.map(r => r.secure_url)
+        });
+
+    } catch (err) {
+
+        res.status(500).json({
+            success: false,
+            message: "Image upload failed: " + err.message
+        });
+
+    }
+};

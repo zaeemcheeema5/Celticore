@@ -49,7 +49,20 @@ const uploadCategory = multer({
     fileFilter,
 });
 
+// Review Image Upload — customers can attach up to 5 images to a review.
+const uploadReview = multer({
+    storage: memoryStorage,
+
+    limits: {
+        fileSize: 5 * 1024 * 1024,
+        files: 5,
+    },
+
+    fileFilter,
+});
+
 module.exports = {
     uploadProduct,
     uploadCategory,
+    uploadReview,
 };

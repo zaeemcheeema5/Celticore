@@ -1,16 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { X, Star, MessageSquare, Plus, Minus, Heart, Check } from 'lucide-react';
-import { Product, Review } from '../../types';
+import React, { useState } from 'react';
+import { X, Plus, Minus, Heart, Check } from 'lucide-react';
+import { Product } from '../../types';
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
-import { reviewsService } from '../../api/reviews';
-import { toast } from 'sonner';
-import { useAuth } from '../../context/AuthContext';
+import { ReviewsSection } from './ReviewsSection';
+
 interface ProductDetailsModalProps {
   product: Product | null;
   isOpen: boolean;
   onClose: () => void;
   accent: string;
+  onRequireAuth?: () => void;
 }
 
 export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
@@ -18,73 +18,27 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
   isOpen,
   onClose,
   accent,
+  onRequireAuth,
 }) => {
-  if (!isOpen || !product) return null;
-const { user } = useAuth();
   const { addToCart } = useCart();
   const { isInWishlist, toggleWishlist } = useWishlist();
-  const [reviews, setReviews] = useState<Review[]>([]);
-  const [loadingReviews, setLoadingReviews] = useState(false);
   const [quantity, setQuantity] = useState(1);
-  const [selectedFlavour, setSelectedFlavour] = useState(product.flavours[0] || 'Unflavoured');
+  const [selectedFlavour, setSelectedFlavour] = useState(product?.flavours[0] || 'Unflavoured');
   const [added, setAdded] = useState(false);
-const [reviewerName, setReviewerName] = useState("");
-  // Review Form state
-  
-  const [reviewRating, setReviewRating] = useState(5);
-  const [reviewText, setReviewText] = useState('');
-  const [submittingReview, setSubmittingReview] = useState(false);
 
-  // Load reviews on mount/product change
-  useEffect(() => {
-    const fetchReviews = async () => {
-      setLoadingReviews(true);
-      try {
-        const list = await reviewsService.getProductReviews(product.id);
-        setReviews(list);
-      } catch (err) {
-        console.error("Failed to load reviews", err);
-      } finally {
-        setLoadingReviews(false);
-      }
-    };
-    fetchReviews();
-    setQuantity(1);
-    setSelectedFlavour(product.flavours[0] || 'Unflavoured');
+  React.useEffect(() => {
+    if (product) {
+      setQuantity(1);
+      setSelectedFlavour(product.flavours[0] || 'Unflavoured');
+    }
   }, [product]);
+
+  if (!isOpen || !product) return null;
 
   const handleAddToCart = () => {
     addToCart(product, quantity, selectedFlavour);
     setAdded(true);
     setTimeout(() => setAdded(false), 1800);
-  };
-
- const handleSubmitReview = async (e: React.FormEvent) => {
-    console.log("SUBMIT BUTTON CLICKED");
-    alert("SUBMIT BUTTON CLICKED");
-    e.preventDefault();
-  if (!reviewText.trim()) {
-    toast.error("Please write a review.");
-    return;
-}
-
-    setSubmittingReview(true);
-    try {
-      await reviewsService.addReview({
-    product_id: product.id,
-    user_id: user?.id ?? 0,
-    rating: reviewRating,
-    comment: reviewText,
-});
-      toast.success("Review submitted! It will appear once approved by an moderator.");
-      setReviewerName('');
-      setReviewText('');
-      setReviewRating(5);
-    } catch (err: any) {
-      toast.error(err.message || "Failed to submit review.");
-    } finally {
-      setSubmittingReview(false);
-    }
   };
 
   const isWishlisted = isInWishlist(product.id);
@@ -244,84 +198,12 @@ const [reviewerName, setReviewerName] = useState("");
             </button>
           </div>
 
-          {/* Reviews List & Write Review Tab */}
-          <div className="border-t border-white/5 pt-6">
-            <h3 className="text-sm font-black tracking-widest uppercase text-white mb-4 flex items-center gap-2" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
-              <MessageSquare size={14} style={{ color: accent }} />
-              Customer Reviews ({reviews.length})
-            </h3>
-
-            {/* List */}
-            <div className="flex flex-col gap-4 mb-6 max-h-[220px] overflow-y-auto pr-1">
-              {loadingReviews ? (
-                <p className="text-xs text-white/30 italic">Loading reviews...</p>
-              ) : reviews.length === 0 ? (
-                <p className="text-xs text-white/35 italic">No approved reviews yet for this product. Be the first to write one!</p>
-              ) : (
-                reviews.map((rev) => (
-                  <div key={rev.id} className="p-3 bg-white/5 border border-white/5 rounded-sm">
-                    <div className="flex justify-between items-start mb-1">
-                      <span className="text-xs font-bold text-white/80">{rev.username}</span>
-                      <div className="flex gap-0.5">
-                        {[1, 2, 3, 4, 5].map(star => (
-                          <Star key={star} size={9} fill={star <= rev.rating ? "#D4AF37" : "none"} stroke={star <= rev.rating ? "#D4AF37" : "white"} opacity={star <= rev.rating ? 1 : 0.2} />
-                        ))}
-                      </div>
-                    </div>
-                    <p className="text-xs text-white/60 leading-relaxed font-light">{rev.comment}</p>
-                  </div>
-                ))
-              )}
-            </div>
-
-            {/* Submit Form */}
-            <form onSubmit={handleSubmitReview} className="border-t border-white/5 pt-4 flex flex-col gap-3">
-              <h4 className="text-xs font-bold tracking-widest uppercase text-white/70">Write a Review</h4>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              
-                <div>
-                  <label className="block text-[9px] uppercase text-white/40 mb-1">Rating</label>
-                  <select
-                    value={reviewRating}
-                    onChange={(e) => setReviewRating(Number(e.target.value))}
-                    className="w-full px-3 py-2 text-xs text-white border border-white/10 focus:border-emerald-500/60 bg-black outline-none"
-                  >
-                    <option value={5}>5 Stars - Excellent</option>
-                    <option value={4}>4 Stars - Good</option>
-                    <option value={3}>3 Stars - Average</option>
-                    <option value={2}>2 Stars - Poor</option>
-                    <option value={1}>1 Star - Terrible</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-[9px] uppercase text-white/40 mb-1">Review</label>
-                <textarea
-                  required
-                  rows={3}
-                  value={reviewText}
-                  onChange={(e) => setReviewText(e.target.value)}
-                  placeholder="Share your thoughts about this product..."
-                  className="w-full px-3 py-2 text-xs text-white border border-white/10 focus:border-emerald-500/60 bg-black outline-none"
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={submittingReview}
-                className="py-2.5 text-[10px] font-bold tracking-widest uppercase transition-all duration-200 cursor-pointer disabled:opacity-50"
-                style={{
-                  border: `1px solid ${accent}`,
-                  color: accent,
-                  background: `${accent}0c`,
-                }}
-              >
-                {submittingReview ? 'Submitting...' : 'Submit Review'}
-              </button>
-            </form>
-          </div>
+          {/* Reviews */}
+          <ReviewsSection
+            productId={product.id}
+            accent={accent}
+            onRequireAuth={() => onRequireAuth && onRequireAuth()}
+          />
         </div>
       </div>
     </div>

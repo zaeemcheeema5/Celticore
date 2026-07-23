@@ -14,6 +14,7 @@ import { Footer } from "../components/layout/Footer";
 import { Home } from "../pages/Home";
 import { Category } from "../pages/Category";
 import { SearchResults } from "../pages/SearchResults";
+import { MyOrders } from "../pages/MyOrders";
 
 // Widgets & Modals
 import { AuthModal } from "../components/auth/AuthModal";
@@ -151,6 +152,8 @@ function MainAppLayout() {
             onNavigate={handleNavigate}
             onOpenDetails={(p) => setSelectedProduct(p)}
           />
+        ) : currentPage === "my-orders" ? (
+          <MyOrders onNavigate={handleNavigate} />
         ) : (
           <Category
             pageId={currentPage}
@@ -207,6 +210,7 @@ function MainAppLayout() {
         isOpen={!!selectedProduct}
         onClose={() => setSelectedProduct(null)}
         accent={productModalAccent}
+        onRequireAuth={() => setIsAuthOpen(true)}
       />
     </div>
   );

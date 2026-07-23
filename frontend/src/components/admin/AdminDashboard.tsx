@@ -109,9 +109,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, onCatal
       } else if (activeTab === 'categories') {
         const cats = await productsService.getCategories();
         setCategories(cats);
-      } else if (activeTab === 'reviews') {
-        const data = await reviewsService.getAllReviews();
-        setReviews(data);
       } else if (activeTab === 'coupons') {
         const data = await couponsService.getCoupons();
         setCoupons(data);
@@ -387,9 +384,34 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, onCatal
   };
 
   // Review Actions
+  const [reviewFilters, setReviewFilters] = useState<{ productId: string; rating: string; status: string }>({
+    productId: '', rating: '', status: ''
+  });
+  const [replyDrafts, setReplyDrafts] = useState<Record<number, string>>({});
+
+  const loadReviews = async () => {
+    try {
+      const filters: any = {};
+      if (reviewFilters.productId) filters.productId = reviewFilters.productId;
+      if (reviewFilters.rating) filters.rating = Number(reviewFilters.rating);
+      if (reviewFilters.status) filters.status = reviewFilters.status;
+      const data = await reviewsService.getAllReviews(filters);
+      setReviews(data);
+    } catch (err: any) {
+      toast.error("Failed to load reviews: " + err.message);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'reviews') {
+      loadReviews();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reviewFilters, activeTab]);
+
   const handleApproveReview = async (id: number) => {
     try {
-      await reviewsService.approveReview(id);
+      await reviewsService.updateReviewStatus(id, 'approved');
       toast.success("Review approved.");
       setReviews(prev => prev.map(r => r.id === id ? { ...r, status: 'approved' } : r));
     } catch (err: any) {
@@ -399,7 +421,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, onCatal
 
   const handleRejectReview = async (id: number) => {
     try {
-      await reviewsService.rejectReview(id);
+      await reviewsService.updateReviewStatus(id, 'rejected');
       toast.success("Review rejected.");
       setReviews(prev => prev.map(r => r.id === id ? { ...r, status: 'rejected' } : r));
     } catch (err: any) {
@@ -414,6 +436,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, onCatal
       setReviews(prev => prev.filter(r => r.id !== id));
     } catch (err: any) {
       toast.error("Failed to delete review: " + err.message);
+    }
+  };
+
+  const handleReplyToReview = async (id: number) => {
+    const reply = (replyDrafts[id] || '').trim();
+    if (!reply) {
+      toast.error("Write a reply before sending.");
+      return;
+    }
+    try {
+      await reviewsService.replyToReview(id, reply);
+      toast.success("Reply posted.");
+      setReviews(prev => prev.map(r => r.id === id ? { ...r, adminReply: reply, adminReplyAt: new Date().toISOString() } : r));
+      setReplyDrafts(prev => ({ ...prev, [id]: '' }));
+    } catch (err: any) {
+      toast.error("Failed to post reply: " + err.message);
     }
   };
 
@@ -1175,37 +1213,89 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, onCatal
           {/* TAB CONTENT: REVIEWS */}
           {activeTab === 'reviews' && (
             <div className="space-y-4">
+              {/* Filters */}
+              <div className="flex flex-wrap gap-2">
+                <input
+                  type="text"
+                  placeholder="Filter by Product ID"
+                  value={reviewFilters.productId}
+                  onChange={(e) => setReviewFilters(f => ({ ...f, productId: e.target.value }))}
+                  className="px-2 py-1.5 text-[11px] text-white border border-white/10 bg-black outline-none w-40"
+                />
+                <select
+                  value={reviewFilters.rating}
+                  onChange={(e) => setReviewFilters(f => ({ ...f, rating: e.target.value }))}
+                  className="px-2 py-1.5 text-[11px] text-white border border-white/10 bg-black outline-none cursor-pointer"
+                >
+                  <option value="">All Ratings</option>
+                  {[5, 4, 3, 2, 1].map(r => <option key={r} value={r}>{r}★</option>)}
+                </select>
+                <select
+                  value={reviewFilters.status}
+                  onChange={(e) => setReviewFilters(f => ({ ...f, status: e.target.value }))}
+                  className="px-2 py-1.5 text-[11px] text-white border border-white/10 bg-black outline-none cursor-pointer"
+                >
+                  <option value="">All Statuses</option>
+                  <option value="pending">Pending</option>
+                  <option value="approved">Approved</option>
+                  <option value="rejected">Rejected</option>
+                </select>
+                {(reviewFilters.productId || reviewFilters.rating || reviewFilters.status) && (
+                  <button
+                    onClick={() => setReviewFilters({ productId: '', rating: '', status: '' })}
+                    className="px-2 py-1.5 text-[11px] text-white/40 hover:text-white cursor-pointer"
+                  >
+                    Clear Filters
+                  </button>
+                )}
+              </div>
+
               {reviews.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-14 sm:py-20 text-center gap-2.5">
                     <Star size={28} className="text-white/15" />
-                    <p className="text-xs text-white/30 italic">No reviews logged in database.</p>
+                    <p className="text-xs text-white/30 italic">No reviews match these filters.</p>
                   </div>
               ) : (
                 reviews.map((rev) => (
-                  <div key={rev.id} className="p-4 bg-white/5 border border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-white">{rev.username}</span>
-                        <span className="text-[10px] text-white/30">on Product ID: {rev.product_id}</span>
-                        <span className={`px-2 py-0.5 rounded-full text-[9px] uppercase font-bold ${
-                          rev.status === 'approved' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/25' :
-                          rev.status === 'rejected' ? 'bg-red-500/10 text-red-400 border border-red-500/25' :
-                          'bg-amber-500/10 text-amber-400 border border-amber-500/25'
-                        }`}>
-                          {rev.status}
-                        </span>
+                  <div key={rev.id} className="p-4 bg-white/5 border border-white/5 flex flex-col gap-3 text-xs">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-bold text-white">{rev.reviewerName}</span>
+                          <span className="text-[10px] text-white/30">
+                            {rev.productName ? rev.productName : `Product ID: ${rev.productId}`} · Order #{rev.orderId}
+                          </span>
+                          {rev.isVerifiedPurchase && (
+                            <span className="px-1.5 py-0.5 rounded-sm text-[8px] uppercase font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/25">
+                              Verified Purchase
+                            </span>
+                          )}
+                          <span className={`px-2 py-0.5 rounded-full text-[9px] uppercase font-bold ${
+                            rev.status === 'approved' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/25' :
+                            rev.status === 'rejected' ? 'bg-red-500/10 text-red-400 border border-red-500/25' :
+                            'bg-amber-500/10 text-amber-400 border border-amber-500/25'
+                          }`}>
+                            {rev.status}
+                          </span>
+                        </div>
+                        <div className="flex gap-0.5">
+                          {[1,2,3,4,5].map(star => (
+                            <Star key={star} size={10} fill={star <= rev.rating ? "#D4AF37" : "none"} stroke={star <= rev.rating ? "#D4AF37" : "white"} opacity={star <= rev.rating ? 1 : 0.2} />
+                          ))}
+                        </div>
+                        <p className="font-bold text-white/70">{rev.title}</p>
+                        <p className="text-white/60 leading-relaxed max-w-xl">{rev.review}</p>
+                        {rev.images && rev.images.length > 0 && (
+                          <div className="flex gap-1.5 flex-wrap pt-1">
+                            {rev.images.map((url, i) => (
+                              <img key={i} src={url} alt="" className="w-12 h-12 object-cover rounded-sm border border-white/10" />
+                            ))}
+                          </div>
+                        )}
                       </div>
-                      <div className="flex gap-0.5">
-                        {[1,2,3,4,5].map(star => (
-                          <Star key={star} size={10} fill={star <= rev.rating ? "#D4AF37" : "none"} stroke={star <= rev.rating ? "#D4AF37" : "white"} opacity={star <= rev.rating ? 1 : 0.2} />
-                        ))}
-                      </div>
-                      <p className="text-white/60 leading-relaxed max-w-xl">{rev.comment}</p>
-                    </div>
 
-                    <div className="flex items-center gap-2 self-end sm:self-center">
-                      {rev.status === 'pending' && (
-                        <>
+                      <div className="flex items-center gap-2 self-end sm:self-start">
+                        {rev.status !== 'approved' && (
                           <button
                             onClick={() => handleApproveReview(rev.id)}
                             className="p-1.5 text-emerald-400 hover:bg-emerald-500/10 rounded cursor-pointer"
@@ -1213,6 +1303,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, onCatal
                           >
                             <CheckCircle2 size={16} />
                           </button>
+                        )}
+                        {rev.status !== 'rejected' && (
                           <button
                             onClick={() => handleRejectReview(rev.id)}
                             className="p-1.5 text-red-400 hover:bg-red-500/10 rounded cursor-pointer"
@@ -1220,15 +1312,41 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, onCatal
                           >
                             <XCircle size={16} />
                           </button>
-                        </>
+                        )}
+                        <button
+                          onClick={() => handleDeleteReview(rev.id)}
+                          className="p-1.5 text-white/30 hover:text-red-400 cursor-pointer"
+                          title="Delete Review"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Admin reply */}
+                    <div className="border-t border-white/5 pt-3">
+                      {rev.adminReply ? (
+                        <div className="pl-3 border-l-2 border-emerald-500/40">
+                          <p className="text-[9px] font-bold uppercase tracking-wide text-white/40 mb-0.5">Your Reply</p>
+                          <p className="text-white/60">{rev.adminReply}</p>
+                        </div>
+                      ) : (
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            placeholder="Reply to this customer..."
+                            value={replyDrafts[rev.id] || ''}
+                            onChange={(e) => setReplyDrafts(prev => ({ ...prev, [rev.id]: e.target.value }))}
+                            className="flex-1 px-2 py-1.5 text-[11px] text-white border border-white/10 bg-black outline-none"
+                          />
+                          <button
+                            onClick={() => handleReplyToReview(rev.id)}
+                            className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 cursor-pointer"
+                          >
+                            Reply
+                          </button>
+                        </div>
                       )}
-                      <button
-                        onClick={() => handleDeleteReview(rev.id)}
-                        className="p-1.5 text-white/30 hover:text-red-400 cursor-pointer"
-                        title="Delete Review"
-                      >
-                        <Trash2 size={14} />
-                      </button>
                     </div>
                   </div>
                 ))

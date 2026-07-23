@@ -46,6 +46,11 @@ exports.placeOrder = async (req, res) => {
 
     const subtotal = total + (discount || 0);
 
+    // req.user is populated by optionalAuthMiddleware when a valid session
+    // cookie/token is present; guests simply get null here and the order
+    // is still created (email-only), exactly as before.
+    const userId = (req.user && (req.user.userId || req.user.id)) || null;
+
     // Only a real, server-verified card payment can mark an order as Paid.
     // Every other method (COD, bank transfer, gpay, applepay) starts as
     // Pending regardless of what the client claims — the client's
@@ -101,6 +106,7 @@ exports.placeOrder = async (req, res) => {
         const orderSql = `
         INSERT INTO orders
         (
+            user_id,
             customer_name,
             email,
             phone,
@@ -119,12 +125,13 @@ exports.placeOrder = async (req, res) => {
             status,
             paid_at
         )
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         `;
 
         db.run(
             orderSql,
             [
+                userId,
                 customerName,
                 customerEmail || "",
                 phone || "",
@@ -442,6 +449,142 @@ exports.updateOrderStatus = (req, res) => {
                 message: "Order status updated"
             });
 
+        }
+    );
+
+};
+
+// ==========================
+// Get My Orders (logged-in customer)
+// ==========================
+// Powers the "My Orders" page: every order placed while logged in as this
+// user (guest/email-only orders placed before an account existed, or under
+// a different account, are intentionally not included here — there's no
+// reliable link to them without a shared user_id).
+
+exports.getMyOrders = (req, res) => {
+
+    const userId = req.user.userId || req.user.id;
+
+    db.all(
+        `
+        SELECT
+            id,
+            customer_name,
+            email AS customer_email,
+            phone,
+            address,
+            city,
+            postal_code,
+            country,
+            delivery_method,
+            delivery_cost,
+            payment_method,
+            payment_status,
+            subtotal,
+            discount,
+            total,
+            tracking_number,
+            status,
+            created_at
+        FROM orders
+        WHERE user_id = ?
+        ORDER BY created_at DESC
+        `,
+        [userId],
+        (err, orders) => {
+
+            if (err) {
+                return res.status(500).json({ error: err.message });
+            }
+
+            if (orders.length === 0) {
+                return res.json([]);
+            }
+
+            const orderIds = orders.map(o => o.id);
+            const placeholders = orderIds.map(() => '?').join(',');
+
+            db.all(
+                `
+                SELECT
+                    order_id,
+                    product_id,
+                    product_name AS name,
+                    quantity,
+                    price,
+                    flavour
+                FROM order_items
+                WHERE order_id IN (${placeholders})
+                `,
+                orderIds,
+                (itemsErr, itemRows) => {
+
+                    if (itemsErr) {
+                        return res.status(500).json({ error: itemsErr.message });
+                    }
+
+                    // Pull this user's own reviews for these orders (any
+                    // status) so the UI can show "Edit Review" instead of
+                    // "Write a Review" once one exists, and reflect its
+                    // current moderation status.
+                    db.all(
+                        `
+                        SELECT
+                            id, order_id, product_id, rating, title, review,
+                            images, status, helpful_count, created_at, updated_at
+                        FROM reviews
+                        WHERE order_id IN (${placeholders}) AND user_id = ?
+                        `,
+                        [...orderIds, userId],
+                        (revErr, reviewRows) => {
+
+                            if (revErr) {
+                                return res.status(500).json({ error: revErr.message });
+                            }
+
+                            const itemsByOrder = {};
+                            itemRows.forEach(row => {
+                                if (!itemsByOrder[row.order_id]) {
+                                    itemsByOrder[row.order_id] = [];
+                                }
+                                itemsByOrder[row.order_id].push({
+                                    product_id: row.product_id,
+                                    name: row.name,
+                                    quantity: row.quantity,
+                                    price: row.price,
+                                    flavour: row.flavour || ''
+                                });
+                            });
+
+                            const reviewByOrderProduct = {};
+                            reviewRows.forEach(r => {
+                                reviewByOrderProduct[`${r.order_id}_${r.product_id}`] = {
+                                    ...r,
+                                    images: (() => {
+                                        try { return JSON.parse(r.images || '[]'); }
+                                        catch { return []; }
+                                    })()
+                                };
+                            });
+
+                            const isDelivered = (status) =>
+                                typeof status === 'string' && status.toLowerCase() === 'delivered';
+
+                            const withItems = orders.map(order => ({
+                                ...order,
+                                canReview: isDelivered(order.status),
+                                items: (itemsByOrder[order.id] || []).map(item => ({
+                                    ...item,
+                                    review: reviewByOrderProduct[`${order.id}_${item.product_id}`] || null
+                                }))
+                            }));
+
+                            res.json(withItems);
+                        }
+                    );
+                }
+            );
         }
     );
 

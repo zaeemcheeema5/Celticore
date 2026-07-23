@@ -152,6 +152,39 @@ const db = {
     execute: (sql, params) => promisePool.execute(translateSql(sql), params)
 };
 
+// ==========================
+// SAFE COLUMN MIGRATION HELPER
+// ==========================
+// `CREATE TABLE IF NOT EXISTS` only helps brand-new databases — any
+// deployment that already has an `orders` or `reviews` table from before
+// this change won't get the new columns just by re-running initSchema().
+// This adds a column only if it isn't already there, and silently no-ops
+// (rather than crashing startup) if the column already exists — so it's
+// safe to run on every boot, on both fresh and pre-existing databases.
+async function addColumnIfMissing(table, columnName, columnDef) {
+    try {
+        await promisePool.query(
+            `ALTER TABLE \`${table}\` ADD COLUMN \`${columnName}\` ${columnDef}`
+        );
+    } catch (err) {
+        // 1060 = ER_DUP_FIELD_NAME (column already exists) — expected and fine.
+        if (err && err.errno === 1060) return;
+        console.error(`Migration warning: could not add column ${table}.${columnName}:`, err.message);
+    }
+}
+
+async function addIndexIfMissing(table, indexName, indexDef) {
+    try {
+        await promisePool.query(
+            `ALTER TABLE \`${table}\` ADD ${indexDef}`
+        );
+    } catch (err) {
+        // 1061 = ER_DUP_KEYNAME, 1022/1826 = duplicate constraint/index
+        if (err && (err.errno === 1061 || err.errno === 1022 || err.errno === 1826)) return;
+        console.error(`Migration warning: could not add index ${indexName} on ${table}:`, err.message);
+    }
+}
+
 /*
 =====================================
 SCHEMA
@@ -242,6 +275,7 @@ async function initSchema() {
     await promisePool.query(`
         CREATE TABLE IF NOT EXISTS orders (
             id INT PRIMARY KEY AUTO_INCREMENT,
+            user_id INT,
             customer_name TEXT,
             email TEXT,
             phone TEXT,
@@ -266,7 +300,8 @@ async function initSchema() {
             sameday_area TEXT,
             status VARCHAR(32) DEFAULT 'Pending',
             paid_at DATETIME,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(user_id) REFERENCES users(id)
         )
     `);
 
@@ -283,19 +318,65 @@ async function initSchema() {
         )
     `);
 
+    // Full product review system: a review is always tied to the specific
+    // order + product it was purchased in (so eligibility, "one review per
+    // order/product", and the Verified Purchase badge are all enforceable
+    // directly from this row, not re-derived elsewhere).
     await promisePool.query(`
         CREATE TABLE IF NOT EXISTS reviews (
             id INT PRIMARY KEY AUTO_INCREMENT,
             product_id VARCHAR(255),
             user_id INT,
+            order_id INT,
             rating INT,
-            comment TEXT,
+            title TEXT,
+            review TEXT,
+            images TEXT,
+            is_verified_purchase INT DEFAULT 1,
             status VARCHAR(32) DEFAULT 'pending',
+            helpful_count INT DEFAULT 0,
+            admin_reply TEXT,
+            admin_reply_at DATETIME,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            UNIQUE KEY uniq_order_product_review (order_id, product_id),
             FOREIGN KEY(product_id) REFERENCES products(id),
+            FOREIGN KEY(user_id) REFERENCES users(id),
+            FOREIGN KEY(order_id) REFERENCES orders(id)
+        )
+    `);
+
+    // Tracks who has already marked a review "helpful" so the same user
+    // can't inflate helpful_count by clicking repeatedly.
+    await promisePool.query(`
+        CREATE TABLE IF NOT EXISTS review_helpful_votes (
+            id INT PRIMARY KEY AUTO_INCREMENT,
+            review_id INT,
+            user_id INT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE KEY uniq_review_user_vote (review_id, user_id),
+            FOREIGN KEY(review_id) REFERENCES reviews(id),
             FOREIGN KEY(user_id) REFERENCES users(id)
         )
     `);
+
+    // ==========================
+    // MIGRATIONS FOR PRE-EXISTING DATABASES
+    // Covers deployments where `orders`/`reviews` already existed under the
+    // old schema before this change, so CREATE TABLE IF NOT EXISTS above
+    // was a no-op for them.
+    // ==========================
+    await addColumnIfMissing('orders', 'user_id', 'INT');
+    await addColumnIfMissing('reviews', 'order_id', 'INT');
+    await addColumnIfMissing('reviews', 'title', 'TEXT');
+    await addColumnIfMissing('reviews', 'review', 'TEXT');
+    await addColumnIfMissing('reviews', 'images', 'TEXT');
+    await addColumnIfMissing('reviews', 'is_verified_purchase', 'INT DEFAULT 1');
+    await addColumnIfMissing('reviews', 'helpful_count', 'INT DEFAULT 0');
+    await addColumnIfMissing('reviews', 'admin_reply', 'TEXT');
+    await addColumnIfMissing('reviews', 'admin_reply_at', 'DATETIME');
+    await addColumnIfMissing('reviews', 'updated_at', 'DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP');
+    await addIndexIfMissing('reviews', 'uniq_order_product_review', 'UNIQUE KEY uniq_order_product_review (order_id, product_id)');
 
     await promisePool.query(`
         CREATE TABLE IF NOT EXISTS wishlist (

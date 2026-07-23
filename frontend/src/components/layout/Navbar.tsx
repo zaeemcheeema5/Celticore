@@ -9,6 +9,7 @@ import {
   X,
   ChevronDown,
   Search,
+  Package,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
@@ -470,6 +471,16 @@ export const Navbar: React.FC<NavbarProps> = ({
                       Admin Dashboard
                     </button>
                   )}
+                  <button
+                    onClick={() => {
+                      onNavigate('my-orders');
+                      setProfileDropdownOpen(false);
+                    }}
+                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-white/70 hover:text-white hover:bg-white/5 transition-all cursor-pointer"
+                  >
+                    <Package size={14} className="text-emerald-400" />
+                    My Orders
+                  </button>
                   <button
                     onClick={() => {
                       logout();
