@@ -4,7 +4,7 @@ const router = express.Router();
 
 const adminAuthMiddleware = require('../middleware/adminAuthMiddleware');
 const authMiddleware = require('../middleware/authMiddleware');
-const optionalAuthMiddleware = require('../middleware/optionalAuthMiddleware');
+const optionalAuthmiddleware = require('../middleware/optionalAuthmiddleware');
 
 const {
     placeOrder,
@@ -45,7 +45,7 @@ router.get('/mine', authMiddleware, getMyOrders);
  *     summary: Place order
  *     tags: [Orders]
  */
-router.post('/', optionalAuthMiddleware, placeOrder);
+router.post('/', optionalAuthmiddleware, placeOrder);
 
 /**
  * @swagger
