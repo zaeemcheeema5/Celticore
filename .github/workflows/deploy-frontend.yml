@@ -20,6 +20,7 @@ jobs:
 
       # --- FRONTEND BUILD STEP ---
       - name: Install dependencies & Build React App
+        working-directory: frontend
         run: |
           npm install
           npm run build
@@ -34,7 +35,7 @@ jobs:
           REMOTE_USER: ${{ secrets.SSH_USERNAME }}
           REMOTE_PORT: ${{ secrets.SSH_PORT }}
           TARGET: "/home/${{ secrets.SSH_USERNAME }}/domains/thecelticore.com/public_html/"
-          SOURCE: "dist/"
+          SOURCE: "frontend/dist/"
 
       # --- AUTOMATED BACKEND DEPLOY & SUBDOMAIN ROUTING STEP ---
       - name: Deploy Backend and Configure Routing
@@ -51,7 +52,7 @@ jobs:
             rm -f nodejs/.htaccess
             rm -rf nodejs/*
             cp -r backend/* nodejs/
-            
+
             # 2. Inject the proxy routing file into the exact subdomain directory path
             mkdir -p public_html/api
             cat << 'EOF' > public_html/api/.htaccess
@@ -60,7 +61,7 @@ jobs:
             RewriteCond %{REQUEST_FILENAME} !-d
             RewriteRule ^(.*)$ http://127.0.0.1:%{ENV:PORT}/$1 [P,L]
             EOF
-            
+
             # 3. Complete the dependencies installation and clear Passenger app cache
             cd nodejs
             npm install --production
