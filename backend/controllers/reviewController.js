@@ -16,6 +16,39 @@ function isDelivered(status) {
     return typeof status === 'string' && status.toLowerCase() === 'delivered';
 }
 
+// The product grid/cards (Home, Category, Search) display product.rating
+// and product.reviews — static columns on the products table, set manually
+// via the admin product form. They don't auto-update just because a review
+// got approved/rejected/deleted/edited, so we recompute and write them back
+// here any time the set of approved reviews for a product changes. This
+// keeps the grid's star rating in sync with the live reviews table without
+// having to touch how the product cards themselves read that data.
+function syncProductRating(productId) {
+    db.get(
+        `SELECT COUNT(*) AS total, AVG(rating) AS avgRating FROM reviews WHERE product_id = ? AND status = 'approved'`,
+        [productId],
+        (err, row) => {
+            if (err) {
+                console.error('Failed to compute product rating sync:', err.message);
+                return;
+            }
+
+            const total = row ? row.total : 0;
+            const avg = row && row.avgRating ? Number(row.avgRating) : 0;
+
+            db.run(
+                `UPDATE products SET rating = ?, reviews = ? WHERE id = ?`,
+                [Number(avg.toFixed(1)), total, productId],
+                (updateErr) => {
+                    if (updateErr) {
+                        console.error('Failed to sync product rating:', updateErr.message);
+                    }
+                }
+            );
+        }
+    );
+}
+
 function mapReviewRow(row) {
     return {
         id: row.id,
@@ -254,6 +287,13 @@ exports.updateReview = (req, res) => {
 
                     if (updateErr) {
                         return res.status(500).json({ error: updateErr.message });
+                    }
+
+                    // If this review had been approved before the edit, it's
+                    // now pending again and no longer counts toward the
+                    // product's public rating — recompute it either way.
+                    if (existing.status === 'approved') {
+                        syncProductRating(existing.product_id);
                     }
 
                     res.json({ message: 'Review updated. It will need to be re-approved before it appears on the product page.' });
@@ -550,20 +590,33 @@ exports.updateReviewStatus = (req, res) => {
         return res.status(400).json({ error: `status must be one of: ${VALID_STATUSES.join(', ')}` });
     }
 
-    db.run(
-        `UPDATE reviews SET status = ? WHERE id = ?`,
-        [status, req.params.reviewId],
-        function (err) {
+    db.get(
+        `SELECT product_id FROM reviews WHERE id = ?`,
+        [req.params.reviewId],
+        (findErr, existing) => {
 
-            if (err) {
-                return res.status(500).json({ error: err.message });
+            if (findErr) {
+                return res.status(500).json({ error: findErr.message });
             }
 
-            if (this.changes === 0) {
+            if (!existing) {
                 return res.status(404).json({ error: 'Review not found' });
             }
 
-            res.json({ message: `Review ${status}` });
+            db.run(
+                `UPDATE reviews SET status = ? WHERE id = ?`,
+                [status, req.params.reviewId],
+                function (err) {
+
+                    if (err) {
+                        return res.status(500).json({ error: err.message });
+                    }
+
+                    syncProductRating(existing.product_id);
+
+                    res.json({ message: `Review ${status}` });
+                }
+            );
         }
     );
 };
@@ -611,25 +664,42 @@ exports.replyToReview = (req, res) => {
 
 exports.deleteReview = (req, res) => {
 
-    db.run(
-        `DELETE FROM review_helpful_votes WHERE review_id = ?`,
+    db.get(
+        `SELECT product_id FROM reviews WHERE id = ?`,
         [req.params.reviewId],
-        function () {
+        (findErr, existing) => {
+
+            if (findErr) {
+                return res.status(500).json({ error: findErr.message });
+            }
+
+            if (!existing) {
+                return res.status(404).json({ error: 'Review not found' });
+            }
 
             db.run(
-                `DELETE FROM reviews WHERE id = ?`,
+                `DELETE FROM review_helpful_votes WHERE review_id = ?`,
                 [req.params.reviewId],
-                function (err) {
+                function () {
 
-                    if (err) {
-                        return res.status(500).json({ error: err.message });
-                    }
+                    db.run(
+                        `DELETE FROM reviews WHERE id = ?`,
+                        [req.params.reviewId],
+                        function (err) {
 
-                    if (this.changes === 0) {
-                        return res.status(404).json({ error: 'Review not found' });
-                    }
+                            if (err) {
+                                return res.status(500).json({ error: err.message });
+                            }
 
-                    res.json({ message: 'Review deleted' });
+                            if (this.changes === 0) {
+                                return res.status(404).json({ error: 'Review not found' });
+                            }
+
+                            syncProductRating(existing.product_id);
+
+                            res.json({ message: 'Review deleted' });
+                        }
+                    );
                 }
             );
         }

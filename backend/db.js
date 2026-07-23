@@ -378,6 +378,29 @@ async function initSchema() {
     await addColumnIfMissing('reviews', 'updated_at', 'DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP');
     await addIndexIfMissing('reviews', 'uniq_order_product_review', 'UNIQUE KEY uniq_order_product_review (order_id, product_id)');
 
+    // One-time backfill: any reviews approved before the rating-sync logic
+    // existed never pushed their number onto products.rating/reviews, so the
+    // shop grid can be showing "(0)" for a product that actually has
+    // approved 5-star reviews. This recomputes every product's rating from
+    // its currently-approved reviews so the grid catches up immediately —
+    // safe to run on every boot since it's just a recompute, not a one-off
+    // migration flag.
+    try {
+        await promisePool.query(`
+            UPDATE products p
+            LEFT JOIN (
+                SELECT product_id, COUNT(*) AS total, AVG(rating) AS avg_rating
+                FROM reviews
+                WHERE status = 'approved'
+                GROUP BY product_id
+            ) r ON r.product_id = p.id
+            SET p.rating = COALESCE(ROUND(r.avg_rating, 1), 0),
+                p.reviews = COALESCE(r.total, 0)
+        `);
+    } catch (err) {
+        console.error('Product rating backfill warning:', err.message);
+    }
+
     await promisePool.query(`
         CREATE TABLE IF NOT EXISTS wishlist (
             id INT PRIMARY KEY AUTO_INCREMENT,
