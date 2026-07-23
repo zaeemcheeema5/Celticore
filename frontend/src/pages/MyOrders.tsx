@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowLeft, Package, Star, Loader2 } from 'lucide-react';
+import { ArrowLeft, Package, Star, Loader2, CreditCard } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../context/AuthContext';
 import { ordersService } from '../api/orders';
@@ -19,6 +19,28 @@ const STATUS_STYLES: Record<string, string> = {
 
 function statusStyle(status: string) {
   return STATUS_STYLES[status?.toLowerCase()] || 'bg-amber-500/10 text-amber-400 border border-amber-500/25';
+}
+
+const PAYMENT_STATUS_STYLES: Record<string, string> = {
+  paid: 'text-emerald-400',
+  failed: 'text-red-400',
+  pending: 'text-amber-400',
+  unpaid: 'text-amber-400',
+};
+
+function paymentStatusStyle(status?: string) {
+  return PAYMENT_STATUS_STYLES[(status || '').toLowerCase()] || 'text-white/40';
+}
+
+const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  card: 'Card',
+  gpay: 'Google Pay',
+  applepay: 'Apple Pay',
+};
+
+function paymentMethodLabel(method?: string) {
+  if (!method) return 'N/A';
+  return PAYMENT_METHOD_LABELS[method.toLowerCase()] || method;
 }
 
 interface ReviewFormState {
@@ -163,6 +185,15 @@ export const MyOrders: React.FC<MyOrdersProps> = ({ onNavigate }) => {
                 </div>
                 <span className={`px-2 py-0.5 rounded-full text-[9px] uppercase font-bold ${statusStyle(order.status)}`}>
                   {order.status}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-1.5 text-[10px] text-white/40">
+                <CreditCard size={12} />
+                <span>{paymentMethodLabel(order.paymentMethod)}</span>
+                <span className="text-white/20">•</span>
+                <span className={`font-bold uppercase ${paymentStatusStyle(order.paymentStatus)}`}>
+                  {order.paymentStatus || 'unknown'}
                 </span>
               </div>
 

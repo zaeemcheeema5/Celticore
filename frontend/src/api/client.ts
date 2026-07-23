@@ -29,7 +29,11 @@ async function request(endpoint: string, options: RequestInit = {}) {
     } catch {
       errorJson = { message: errorText || 'API Error' };
     }
-    throw new Error(errorJson.message || `HTTP error ${res.status}`);
+    throw new Error(
+    errorJson.message ||
+    errorJson.error ||
+    `HTTP error ${res.status}`
+);
   }
   const contentType = res.headers.get('content-type');
   if (contentType && contentType.includes('application/json')) {
