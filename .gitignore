@@ -30,4 +30,5 @@ backend/.env
 frontend/.env
 
 # Node
-node_modules/
+node_modules/github_deploy_key
+github_deploy_key.pub
