@@ -21,6 +21,7 @@ import { AuthModal } from "../components/auth/AuthModal";
 import { CartDrawer } from "../components/cart/CartDrawer";
 import { ChatbotWidget } from "../components/chatbot/ChatbotWidget";
 import { NutritionModal } from "../components/nutrition/NutritionModal";
+import { WishlistDrawer } from "../components/wishlist/WishlistDrawer";
 import { AdminDashboard } from "../components/admin/AdminDashboard";
 import { ProductDetailsModal } from "../components/product/ProductDetailsModal";
 import { CheckoutModal } from "../components/cart/CheckoutModal";
@@ -124,12 +125,7 @@ function MainAppLayout() {
         onNavigate={handleNavigate}
         onOpenAuth={() => setIsAuthOpen(true)}
         onOpenCart={() => setIsCartOpen(true)}
-        onOpenWishlist={() => {
-          // In the layout, we can open a modal details if we want, or simple toast for now
-          // We can link it so that clicking heart icons opens the product details modal
-          // Or we can let them see wishlist items. Let's show a toast to prompt them, or if we have products, open the details
-          setIsCartOpen(true);
-        }}
+        onOpenWishlist={() => setIsWishlistOpen(true)}
         onOpenAdmin={() => handleNavigate("admin")}
         onOpenNutrition={() => setIsNutritionOpen(true)}
         onSearchNavigate={handleSearchNavigate}
@@ -194,7 +190,11 @@ function MainAppLayout() {
         onClose={() => setIsCartOpen(false)}
         onOpenCheckout={() => setIsCheckoutOpen(true)}
       />
-
+        <WishlistDrawer
+        isOpen={isWishlistOpen}
+        onClose={() => setIsWishlistOpen(false)}
+        onOpenDetails={(p) => setSelectedProduct(p)}
+      />
       <CheckoutModal
         isOpen={isCheckoutOpen}
         onClose={() => setIsCheckoutOpen(false)}
