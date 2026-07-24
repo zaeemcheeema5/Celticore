@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { X, ShieldAlert, BarChart3, Database, Award, ClipboardCheck, MessageSquare, Plus, Trash2, CheckCircle2, XCircle, Star, ShoppingBag, Layers, Edit2, Upload, Eye, UserPlus, Key } from 'lucide-react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { X, ShieldAlert, BarChart3, Database, Award, ClipboardCheck, MessageSquare, Plus, Trash2, CheckCircle2, XCircle, Star, ShoppingBag, Layers, Edit2, Upload, Eye, UserPlus, Key, Download, TrendingUp, TrendingDown } from 'lucide-react';
+import { AreaChart, Area, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { dashboardService } from '../../api/dashboard';
 import { productsService } from '../../api/products';
 import { reviewsService } from '../../api/reviews';
@@ -30,6 +31,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, onCatal
   // Data States
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [trendRange, setTrendRange] = useState<'7d' | '30d' | '90d'>('7d');
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -88,8 +90,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, onCatal
   const loadData = async () => {
     try {
       if (activeTab === 'stats') {
-        const data = await dashboardService.getStats();
+        const [data, allOrders] = await Promise.all([
+          dashboardService.getStats(),
+          ordersService.getAllOrders(),
+        ]);
         setStats(data);
+        setOrders(allOrders.sort((a, b) => b.id - a.id));
       } else if (activeTab === 'orders') {
         const data = await ordersService.getAllOrders();
         setOrders(data.sort((a, b) => b.id - a.id));
@@ -128,6 +134,131 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, onCatal
   useEffect(() => {
     loadData();
   }, [activeTab]);
+
+  // ---- Analytics derived from real order data (Stats tab) ----
+  const rangeDays = trendRange === '7d' ? 7 : trendRange === '30d' ? 30 : 90;
+
+  const dailyRevenueMap = useMemo(() => {
+    const map = new Map<string, number>();
+    orders.forEach((o) => {
+      const key = (o.createdAt || '').slice(0, 10);
+      if (!key) return;
+      map.set(key, (map.get(key) || 0) + (Number(o.total) || 0));
+    });
+    return map;
+  }, [orders]);
+
+  const buildDayRange = (daysBack: number, offsetDays: number) => {
+    const today = new Date();
+    const out: { date: string; label: string; revenue: number }[] = [];
+    for (let i = daysBack - 1; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i - offsetDays);
+      const key = d.toISOString().slice(0, 10);
+      out.push({
+        date: key,
+        label: d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }),
+        revenue: dailyRevenueMap.get(key) || 0,
+      });
+    }
+    return out;
+  };
+
+  const revenueTrend = useMemo(() => buildDayRange(rangeDays, 0), [dailyRevenueMap, rangeDays]);
+  const previousTrend = useMemo(() => buildDayRange(rangeDays, rangeDays), [dailyRevenueMap, rangeDays]);
+
+  const currentRangeRevenue = revenueTrend.reduce((s, d) => s + d.revenue, 0);
+  const previousRangeRevenue = previousTrend.reduce((s, d) => s + d.revenue, 0);
+  const revenueChangePct = previousRangeRevenue > 0
+    ? ((currentRangeRevenue - previousRangeRevenue) / previousRangeRevenue) * 100
+    : (currentRangeRevenue > 0 ? 100 : 0);
+
+  const rangeCutoff = Date.now() - rangeDays * 86400000;
+  const prevRangeCutoff = Date.now() - rangeDays * 2 * 86400000;
+  const currentRangeOrders = orders.filter((o) => new Date(o.createdAt).getTime() >= rangeCutoff);
+  const previousRangeOrders = orders.filter((o) => {
+    const t = new Date(o.createdAt).getTime();
+    return t >= prevRangeCutoff && t < rangeCutoff;
+  });
+  const ordersChangePct = previousRangeOrders.length > 0
+    ? ((currentRangeOrders.length - previousRangeOrders.length) / previousRangeOrders.length) * 100
+    : (currentRangeOrders.length > 0 ? 100 : 0);
+
+  const avgOrderValue = currentRangeOrders.length > 0 ? currentRangeRevenue / currentRangeOrders.length : 0;
+  const prevAvgOrderValue = previousRangeOrders.length > 0 ? previousRangeRevenue / previousRangeOrders.length : 0;
+  const aovChangePct = prevAvgOrderValue > 0
+    ? ((avgOrderValue - prevAvgOrderValue) / prevAvgOrderValue) * 100
+    : (avgOrderValue > 0 ? 100 : 0);
+
+  const peakDay = revenueTrend.reduce(
+    (max, d) => (d.revenue > max.revenue ? d : max),
+    revenueTrend[0] || { label: '', revenue: 0, date: '' }
+  );
+
+  const STATUS_COLORS: Record<string, string> = {
+    pending: '#F59E0B',
+    processing: '#3B82F6',
+    shipped: '#A78BFA',
+    delivered: '#10B981',
+    cancelled: '#EF4444',
+  };
+
+  const statusBreakdown = useMemo(() => {
+    const source = currentRangeOrders.length > 0 ? currentRangeOrders : orders;
+    const counts: Record<string, number> = {};
+    source.forEach((o) => {
+      counts[o.status] = (counts[o.status] || 0) + 1;
+    });
+    const total = source.length || 1;
+    return Object.entries(counts)
+      .map(([status, count]) => ({ status, count, pct: (count / total) * 100 }))
+      .sort((a, b) => b.count - a.count);
+  }, [currentRangeOrders, orders]);
+
+  const topStatus = statusBreakdown[0];
+
+  const handleExportCSV = () => {
+    if (orders.length === 0) {
+      toast.error('No orders to export yet');
+      return;
+    }
+    const header = ['Order ID', 'Date', 'Customer', 'Email', 'Status', 'Payment Status', 'Total (€)'];
+    const rows = orders.map((o) => [
+      o.id,
+      o.createdAt,
+      o.customerName,
+      o.customerEmail,
+      o.status,
+      o.paymentStatus,
+      Number(o.total || 0).toFixed(2),
+    ]);
+    const csv = [header, ...rows]
+      .map((r) => r.map((v) => `"${String(v ?? '').replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `celticore-orders-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success('Orders exported to CSV');
+  };
+
+  function RevenueTooltip({ active, payload, label }: any) {
+    if (!active || !payload || !payload.length) return null;
+    return (
+      <div className="px-3 py-2 rounded-lg border border-emerald-500/30 bg-[#0a0a0a] shadow-xl">
+        <p className="text-[10px] text-white/40 uppercase tracking-wider mb-0.5">{label}</p>
+        <p className="text-sm font-black text-emerald-400" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
+          €{Number(payload[0].value).toFixed(2)}
+        </p>
+      </div>
+    );
+  }
+
 
   // Product Actions
   const handleProductImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -677,7 +808,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, onCatal
           {/* TAB CONTENT: STATS */}
           {activeTab === 'stats' && stats && (
             <div className="space-y-6">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {/* Action Bar */}
+              <div className="flex items-center justify-end">
+                <button
+                  onClick={handleExportCSV}
+                  className="flex items-center gap-1.5 px-3.5 py-2 text-[10px] sm:text-xs font-black uppercase tracking-widest rounded-lg bg-emerald-500 text-black hover:bg-emerald-400 transition-colors cursor-pointer"
+                  style={{ fontFamily: "'Barlow Condensed', sans-serif" }}
+                >
+                  <Download size={13} /> Export Orders CSV
+                </button>
+              </div>
+
+              {/* Stat Cards with period-over-period deltas */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="p-4 bg-white/[0.03] border border-white/8 rounded-xl hover:border-white/15 transition-colors duration-200">
                   <p className="text-[10px] uppercase text-white/40 font-bold tracking-wider">Total Sales Revenue</p>
                   <p className="text-2xl sm:text-3xl font-black text-emerald-400 mt-1" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
@@ -685,16 +828,157 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, onCatal
                   </p>
                 </div>
                 <div className="p-4 bg-white/[0.03] border border-white/8 rounded-xl hover:border-white/15 transition-colors duration-200">
-                  <p className="text-[10px] uppercase text-white/40 font-bold tracking-wider">Orders Processed</p>
-                  <p className="text-2xl sm:text-3xl font-black text-white mt-1" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
-                    {stats.totalOrders}
-                  </p>
+                  <p className="text-[10px] uppercase text-white/40 font-bold tracking-wider">Revenue ({trendRange})</p>
+                  <div className="flex items-end justify-between mt-1">
+                    <p className="text-2xl sm:text-3xl font-black text-white" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
+                      €{currentRangeRevenue.toFixed(2)}
+                    </p>
+                    <span className={`flex items-center gap-0.5 text-[10px] font-bold mb-1 ${revenueChangePct >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {revenueChangePct >= 0 ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
+                      {Math.abs(revenueChangePct).toFixed(1)}%
+                    </span>
+                  </div>
                 </div>
                 <div className="p-4 bg-white/[0.03] border border-white/8 rounded-xl hover:border-white/15 transition-colors duration-200">
-                  <p className="text-[10px] uppercase text-white/40 font-bold tracking-wider">Pending Reviews</p>
-                  <p className="text-2xl sm:text-3xl font-black text-amber-500 mt-1" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
-                    {stats.pendingReviews}
+                  <p className="text-[10px] uppercase text-white/40 font-bold tracking-wider">Orders ({trendRange})</p>
+                  <div className="flex items-end justify-between mt-1">
+                    <p className="text-2xl sm:text-3xl font-black text-white" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
+                      {currentRangeOrders.length}
+                    </p>
+                    <span className={`flex items-center gap-0.5 text-[10px] font-bold mb-1 ${ordersChangePct >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {ordersChangePct >= 0 ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
+                      {Math.abs(ordersChangePct).toFixed(1)}%
+                    </span>
+                  </div>
+                </div>
+                <div className="p-4 bg-white/[0.03] border border-white/8 rounded-xl hover:border-white/15 transition-colors duration-200">
+                  <p className="text-[10px] uppercase text-white/40 font-bold tracking-wider">Avg Order Value</p>
+                  <div className="flex items-end justify-between mt-1">
+                    <p className="text-2xl sm:text-3xl font-black text-white" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
+                      €{avgOrderValue.toFixed(2)}
+                    </p>
+                    <span className={`flex items-center gap-0.5 text-[10px] font-bold mb-1 ${aovChangePct >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {aovChangePct >= 0 ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
+                      {Math.abs(aovChangePct).toFixed(1)}%
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Revenue Trend + Order Status Breakdown */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                {/* Revenue Trend Chart */}
+                <div className="lg:col-span-2 p-4 sm:p-5 bg-white/[0.03] border border-white/8 rounded-xl">
+                  <div className="flex items-start justify-between mb-1 gap-2 flex-wrap">
+                    <div>
+                      <p className="text-sm font-bold text-white">Revenue Trend</p>
+                      <p className="text-[10px] text-white/40 mt-0.5">Daily revenue from real customer orders.</p>
+                    </div>
+                    <div className="flex items-center gap-1 bg-black/40 border border-white/8 rounded-lg p-0.5">
+                      {(['7d', '30d', '90d'] as const).map((r) => (
+                        <button
+                          key={r}
+                          onClick={() => setTrendRange(r)}
+                          className={`px-2.5 py-1 text-[10px] font-bold uppercase rounded-md transition-colors cursor-pointer ${
+                            trendRange === r ? 'bg-emerald-500 text-black' : 'text-white/40 hover:text-white'
+                          }`}
+                        >
+                          {r === '7d' ? '1W' : r === '30d' ? '1M' : '3M'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="relative mt-4" style={{ height: 220 }}>
+                    {peakDay.revenue > 0 && (
+                      <div className="absolute top-0 right-0 z-10 px-3 py-1.5 rounded-lg bg-black/70 border border-emerald-500/20 text-right">
+                        <p className="text-[9px] uppercase text-white/40 tracking-wider">Peak Day</p>
+                        <p className="text-xs font-black text-emerald-400">€{peakDay.revenue.toFixed(2)} <span className="text-white/30 font-normal">· {peakDay.label}</span></p>
+                      </div>
+                    )}
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={revenueTrend} margin={{ top: 8, right: 0, left: 0, bottom: 0 }}>
+                        <defs>
+                          <linearGradient id="celtiRevenueGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#10B981" stopOpacity={0.35} />
+                            <stop offset="100%" stopColor="#10B981" stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                        <XAxis
+                          dataKey="label"
+                          tick={{ fontSize: 10, fill: 'rgba(255,255,255,0.35)' }}
+                          axisLine={false}
+                          tickLine={false}
+                          interval={trendRange === '7d' ? 0 : Math.ceil(rangeDays / 6)}
+                        />
+                        <YAxis hide />
+                        <Tooltip content={<RevenueTooltip />} />
+                        <Area type="monotone" dataKey="revenue" stroke="#10B981" strokeWidth={2} fill="url(#celtiRevenueGradient)" />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                {/* Order Status Breakdown Donut */}
+                <div className="p-4 sm:p-5 bg-white/[0.03] border border-white/8 rounded-xl flex flex-col">
+                  <p className="text-sm font-bold text-white">Order Status Breakdown</p>
+                  <p className="text-[10px] text-white/40 mt-0.5 mb-2">
+                    {currentRangeOrders.length > 0 ? `Orders in the last ${trendRange === '7d' ? '7 days' : trendRange === '30d' ? '30 days' : '90 days'}.` : 'All orders (none in range).'}
                   </p>
+
+                  <div className="relative flex-1 min-h-[160px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={statusBreakdown}
+                          dataKey="count"
+                          nameKey="status"
+                          innerRadius="62%"
+                          outerRadius="85%"
+                          paddingAngle={statusBreakdown.length > 1 ? 3 : 0}
+                          stroke="none"
+                        >
+                          {statusBreakdown.map((entry, i) => (
+                            <Cell key={i} fill={STATUS_COLORS[entry.status] || '#6B7280'} />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          content={({ active, payload }: any) =>
+                            active && payload && payload.length ? (
+                              <div className="px-3 py-2 rounded-lg border border-white/10 bg-[#0a0a0a] shadow-xl">
+                                <p className="text-xs font-bold text-white capitalize">{payload[0].payload.status}</p>
+                                <p className="text-[10px] text-white/50">{payload[0].payload.count} orders · {payload[0].payload.pct.toFixed(1)}%</p>
+                              </div>
+                            ) : null
+                          }
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    {topStatus && (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                        <p className="text-xl font-black text-white" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
+                          {topStatus.pct.toFixed(0)}%
+                        </p>
+                        <p className="text-[9px] uppercase text-white/40 tracking-wider capitalize">{topStatus.status}</p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="mt-3 space-y-1.5">
+                    {statusBreakdown.map((entry, i) => (
+                      <div key={i} className="flex items-center justify-between text-[11px]">
+                        <span className="flex items-center gap-1.5 text-white/60 capitalize">
+                          <span className="w-2 h-2 rounded-full shrink-0" style={{ background: STATUS_COLORS[entry.status] || '#6B7280' }} />
+                          {entry.status}
+                        </span>
+                        <span className="font-semibold text-white/80">{entry.pct.toFixed(1)}%</span>
+                      </div>
+                    ))}
+                    {statusBreakdown.length === 0 && (
+                      <p className="text-[11px] text-white/30">No orders yet.</p>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -709,6 +993,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, onCatal
                     <li className="flex justify-between">
                       <span>Unread Customer Queries</span>
                       <span className="font-semibold text-emerald-400">{stats.unreadMessages}</span>
+                    </li>
+                    <li className="flex justify-between">
+                      <span>Pending Reviews</span>
+                      <span className="font-semibold text-emerald-400">{stats.pendingReviews}</span>
                     </li>
                   </ul>
                 </div>

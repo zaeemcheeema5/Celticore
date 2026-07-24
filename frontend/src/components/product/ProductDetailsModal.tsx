@@ -50,7 +50,7 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
-        className="relative w-full max-w-4xl sm:rounded border border-white/10 bg-[#080808] text-white overflow-hidden shadow-2xl flex flex-col md:flex-row my-0 sm:my-8 min-h-screen sm:min-h-0"
+        className="relative w-full max-w-4xl sm:rounded-2xl border border-white/10 bg-[#080808] text-white overflow-hidden shadow-2xl flex flex-col md:flex-row my-0 sm:my-8 min-h-screen sm:min-h-0"
         style={{
           maxHeight: '90vh',
           boxShadow: `0 0 50px ${accent}0d`,
@@ -65,7 +65,7 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
         </button>
 
         {/* Product Visual Column */}
-        <div className="w-full md:w-1/2 relative bg-[#111] flex items-center justify-center min-h-[240px] sm:min-h-[300px] md:min-h-0">
+        <div className="w-full md:w-1/2 relative bg-[#111] flex items-center justify-center min-h-[240px] sm:min-h-[300px] md:min-h-0 md:rounded-tl-2xl md:rounded-bl-2xl overflow-hidden">
           <img
             src={product.image}
             alt={product.name}
@@ -79,14 +79,15 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
           {/* Header */}
           <div className="mb-4">
             <span
-              className="px-2 py-0.5 text-[8px] font-bold tracking-widest uppercase border border-emerald-500/30 text-emerald-400 bg-emerald-500/5 mr-2"
+              className="px-3 py-1 text-[10px] font-semibold tracking-wide rounded-full mr-2"
+              style={{ background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.7)", fontFamily: "'DM Sans', sans-serif" }}
             >
               {product.category || 'Supplement'}
             </span>
             {product.badge && (
               <span
-                className="px-2 py-0.5 text-[8px] font-bold tracking-widest uppercase text-black"
-                style={{ background: accent }}
+                className="px-3 py-1 text-[10px] font-semibold tracking-wide rounded-full text-black"
+                style={{ background: accent, fontFamily: "'DM Sans', sans-serif" }}
               >
                 {product.badge}
               </span>
@@ -117,7 +118,7 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
                     <button
                       key={f}
                       onClick={() => setSelectedFlavour(f)}
-                      className="px-3 py-1 text-xs font-semibold uppercase transition-all duration-200 border cursor-pointer"
+                      className="px-3.5 py-1.5 text-xs font-semibold uppercase transition-all duration-200 border rounded-full cursor-pointer"
                       style={{
                         borderColor: selectedFlavour === f ? accent : "rgba(255,255,255,0.12)",
                         color: selectedFlavour === f ? accent : "rgba(255,255,255,0.45)",
@@ -138,7 +139,7 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
                 {product.stockQuantity === 0 ? (
                   <span className="text-xs text-red-500 font-bold mt-1.5 block">Unavailable</span>
                 ) : (
-                  <div className="flex items-center gap-3 mt-1.5 border border-white/10 bg-black/40 px-2 py-1">
+                  <div className="flex items-center gap-3 mt-1.5 border border-white/10 bg-black/40 px-2 py-1 rounded-full">
                     <button onClick={() => setQuantity(q => Math.max(1, q - 1))} className="text-white/40 hover:text-white p-1 cursor-pointer"><Minus size={12} /></button>
                     <span className="text-xs font-bold w-6 text-center">{quantity}</span>
                     <button onClick={() => setQuantity(q => Math.min(product.stockQuantity ?? 999, q + 1))} className="text-white/40 hover:text-white p-1 cursor-pointer"><Plus size={12} /></button>
@@ -175,7 +176,7 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
             {product.stockQuantity === 0 ? (
               <button
                 disabled
-                className="flex-1 py-3 text-xs font-black tracking-widest uppercase transition-all duration-250 opacity-40 bg-white/5 border border-white/10 text-white cursor-not-allowed flex items-center justify-center"
+                className="flex-1 py-3 text-xs font-black tracking-widest uppercase transition-all duration-250 opacity-40 bg-white/5 border border-white/10 text-white cursor-not-allowed flex items-center justify-center rounded-full"
                 style={{ fontFamily: "'Barlow Condensed', sans-serif" }}
               >
                 Out Of Stock
@@ -183,7 +184,7 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
             ) : (
               <button
                 onClick={handleAddToCart}
-                className="flex-1 py-3 text-xs font-black tracking-widest uppercase transition-all duration-250 cursor-pointer flex items-center justify-center gap-1.5"
+                className="flex-1 py-3 text-xs font-black tracking-widest uppercase transition-all duration-250 cursor-pointer flex items-center justify-center gap-1.5 rounded-full"
                 style={{ background: added ? "#10B981" : accent, color: "#000", fontFamily: "'Barlow Condensed', sans-serif" }}
               >
                 {added ? <><Check size={14} /> Added to Cart</> : <><Plus size={14} /> Add to Cart</>}
@@ -191,7 +192,7 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
             )}
             <button
               onClick={() => toggleWishlist(product)}
-              className="p-3 border border-white/15 hover:border-white/40 bg-transparent text-white/60 hover:text-white transition-all cursor-pointer"
+              className="p-3 border border-white/15 hover:border-white/40 bg-transparent text-white/60 hover:text-white transition-all cursor-pointer rounded-full"
               title="Add to Wishlist"
             >
               <Heart size={16} className={isWishlisted ? "fill-red-500 text-red-500" : ""} />
