@@ -99,7 +99,9 @@ exports.createPaymentIntent = async (req, res) => {
             amount,
             currency: (currency || process.env.STORE_CURRENCY || "gbp").toLowerCase(),
             receipt_email: receipt_email || undefined,
-            payment_method_types: ["card"],
+           automatic_payment_methods: {
+  enabled: true,
+},
             metadata: {
                 subtotal: subtotal.toFixed(2),
                 discount: discount.toFixed(2),
@@ -211,7 +213,7 @@ exports.createCheckoutSession = (req, res) => {
                                 const session =
                                     await stripe.checkout.sessions.create({
 
-                                        payment_method_types: ["card"],
+                                    
 
                                         mode: "payment",
 

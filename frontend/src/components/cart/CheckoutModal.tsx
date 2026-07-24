@@ -3,7 +3,12 @@ import { X, CreditCard, Lock, ArrowRight, CheckCircle2, ShoppingBag, ShieldCheck
 import { useCart } from '../../context/CartContext';
 import { api } from '../../api/client';
 import { loadStripe } from '@stripe/stripe-js';
-import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import {
+  Elements,
+  PaymentElement,
+  useStripe,
+  useElements
+} from "@stripe/react-stripe-js";
 import { toast } from 'sonner';
 // @ts-ignore
 import confetti from 'canvas-confetti';
@@ -28,7 +33,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
   const [step, setStep] = useState<'form' | 'success'>('form');
   const [placedOrder, setPlacedOrder] = useState<any>(null);
   const [loading, setLoading] = useState(false);
-
+   const [clientSecret, setClientSecret] = useState("");
   // Form shipping/billing inputs
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -55,6 +60,31 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
   const [cardCvc, setCardCvc] = useState('');
   const [cardType, setCardType] = useState<'unknown' | 'visa' | 'mastercard' | 'amex' | 'discover'>('unknown');
 
+
+  useEffect(() => {
+  if (!stripeKey) return;
+
+  const createIntent = async () => {
+    try {
+      const response = await api.post("/api/payment/create-intent", {
+        items: cartItems.map(item => ({
+          id: item.product.id,
+          quantity: item.quantity
+        })),
+        couponCode: coupon?.code
+      });
+
+      setClientSecret(response.clientSecret);
+    } catch (err) {
+      console.error(err);
+      toast.error("Unable to initialize payment.");
+    }
+  };
+
+  if (cartItems.length > 0) {
+    createIntent();
+  }
+}, [cartItems, coupon]);
   // Auto-detect card brand
   useEffect(() => {
     const cleanNumber = cardNumber.replace(/\s+/g, '');
@@ -379,22 +409,33 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
                   <div className="space-y-3">
                     <h3 className="font-bold uppercase tracking-wider border-b border-white/5 pb-1 text-[10px] text-white/40">4. Card details</h3>
                     <div className="space-y-3 p-4 bg-white/5 border border-white/5 rounded-sm">
-                      {stripePromise ? (
+                      {stripePromise && clientSecret ? (
                         /* Real Stripe Integration Wrapper */
-                        <Elements stripe={stripePromise}>
-                          <StripePaymentSubForm
-                            email={email}
-                            name={name}
-                            address={address}
-                            city={city}
-                            postalCode={postalCode}
-                            country={country}
-                            total={total}
-                            items={cartItems.map(item => ({ id: item.product.id, quantity: item.quantity }))}
-                            couponCode={coupon?.code}
-                            onSubmitSuccess={(intentId) => handleOrderSubmission('card', intentId)}
-                          />
-                        </Elements>
+                 <Elements
+  stripe={stripePromise}
+  options={{
+    clientSecret,
+    appearance: {
+      theme: "night",
+    },
+  }}
+>
+  <StripePaymentSubForm
+    email={email}
+    name={name}
+    address={address}
+    city={city}
+    postalCode={postalCode}
+    country={country}
+    total={total}
+    items={cartItems.map(item => ({
+      id: item.product.id,
+      quantity: item.quantity,
+    }))}
+    couponCode={coupon?.code}
+    onSubmitSuccess={(intentId) => handleOrderSubmission("card", intentId)}
+  />
+</Elements>
                       ) : (
                         /* Mock Card Form Wrapper */
                         <div className="space-y-3">
@@ -840,27 +881,15 @@ const StripePaymentSubForm: React.FC<StripeSubFormProps> = ({
         receipt_email: email
       });
 
-      // 2. Confirm card payment with Stripe
-      const cardElement = elements.getElement(CardElement);
-      if (!cardElement) {
-        throw new Error('Card Input Form element not found.');
-      }
+      
 
-      const result = await stripe.confirmCardPayment(clientSecret, {
-        payment_method: {
-          card: cardElement,
-          billing_details: {
-            name,
-            email,
-            address: {
-              line1: address,
-              city,
-              postal_code: postalCode,
-              country: country === 'United Kingdom' ? 'GB' : 'US'
-            }
-          }
-        }
-      });
+    const result = await stripe.confirmPayment({
+  elements,
+  confirmParams: {
+    receipt_email: email,
+  },
+  redirect: "if_required",
+});
 
       if (result.error) {
         toast.error(result.error.message || 'Payment confirmation failed.');
@@ -915,34 +944,7 @@ const StripePaymentSubForm: React.FC<StripeSubFormProps> = ({
             : 'none',
         }}
       >
-        <CardElement
-          onChange={(e) => {
-            setCardBrand(e.brand || 'unknown');
-            setCardComplete(e.complete);
-            setCardError(e.error ? e.error.message : null);
-          }}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
-          options={{
-            hidePostalCode: true, // postal code is already collected in the shipping section above
-            style: {
-              base: {
-                color: '#ffffff',
-                fontFamily: '"DM Sans", sans-serif',
-                fontSmoothing: 'antialiased',
-                fontSize: '14px',
-                letterSpacing: '0.02em',
-                '::placeholder': {
-                  color: 'rgba(255,255,255,0.28)',
-                },
-              },
-              invalid: {
-                color: '#ef4444',
-                iconColor: '#ef4444',
-              },
-            },
-          }}
-        />
+ <PaymentElement />
         {cardComplete && !cardError && (
           <CheckCircle2 size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-emerald-400" />
         )}
