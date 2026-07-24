@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { X, ShieldAlert, BarChart3, Database, Award, ClipboardCheck, MessageSquare, Plus, Trash2, CheckCircle2, XCircle, Star, ShoppingBag, Layers, Edit2, Upload, Eye, UserPlus, Key, Download, TrendingUp, TrendingDown } from 'lucide-react';
+import { X, ShieldAlert, BarChart3, Database, Award, ClipboardCheck, MessageSquare, Plus, Trash2, CheckCircle2, XCircle, Star, ShoppingBag, Layers, Edit2, Upload, Eye, UserPlus, Key, Download, TrendingUp, TrendingDown, Search, Copy, Check, MapPin, Mail, CreditCard, Package, Filter } from 'lucide-react';
 import { AreaChart, Area, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { dashboardService } from '../../api/dashboard';
 import { productsService } from '../../api/products';
@@ -86,16 +86,30 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, onCatal
   const [createEmail, setCreateEmail] = useState('');
   const [createPassword, setCreatePassword] = useState('');
 
+  // Order Manager UI States
+  const [orderSearch, setOrderSearch] = useState('');
+  const [orderStatusFilter, setOrderStatusFilter] = useState('');
+  const [copiedTxId, setCopiedTxId] = useState<string | null>(null);
+
   // Load Admin Data depending on active tab
   const loadData = async () => {
     try {
       if (activeTab === 'stats') {
-        const [data, allOrders] = await Promise.all([
-          dashboardService.getStats(),
-          ordersService.getAllOrders(),
-        ]);
-        setStats(data);
-        setOrders(allOrders.sort((a, b) => b.id - a.id));
+        try {
+          const data = await dashboardService.getStats();
+          setStats(data);
+        } catch (statsErr: any) {
+          console.error("Failed to load dashboard stats", statsErr);
+          toast.error("Failed to load stats: " + statsErr.message);
+        }
+        try {
+          const allOrders = await ordersService.getAllOrders();
+          setOrders(allOrders.sort((a, b) => b.id - a.id));
+        } catch (ordersErr: any) {
+          console.error("Failed to load orders for analytics", ordersErr);
+          toast.error("Revenue trend & order breakdown unavailable: " + ordersErr.message);
+          setOrders([]);
+        }
       } else if (activeTab === 'orders') {
         const data = await ordersService.getAllOrders();
         setOrders(data.sort((a, b) => b.id - a.id));
@@ -728,6 +742,53 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, onCatal
     } catch (err: any) {
       toast.error("Failed to update credentials: " + (err.message || err.error || err));
     }
+  };
+
+  // ---- Order Manager derived data ----
+  const orderStatusCounts = useMemo(() => {
+    const counts: Record<string, number> = { pending: 0, processing: 0, shipped: 0, delivered: 0, cancelled: 0 };
+    orders.forEach((o) => {
+      counts[o.status] = (counts[o.status] || 0) + 1;
+    });
+    return counts;
+  }, [orders]);
+
+  const ordersTotalRevenue = useMemo(
+    () => orders.reduce((s, o) => s + (Number(o.total) || 0), 0),
+    [orders]
+  );
+
+  const unpaidOrdersCount = useMemo(
+    () => orders.filter((o) => o.paymentStatus !== 'paid').length,
+    [orders]
+  );
+
+  const filteredOrders = useMemo(() => {
+    return orders.filter((o) => {
+      if (orderStatusFilter && o.status !== orderStatusFilter) return false;
+      if (orderSearch.trim()) {
+        const q = orderSearch.trim().toLowerCase();
+        const haystack = `${o.id} ${o.customerName || ''} ${o.customerEmail || ''}`.toLowerCase();
+        if (!haystack.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [orders, orderSearch, orderStatusFilter]);
+
+  const handleCopyTxId = (txId: string) => {
+    navigator.clipboard.writeText(txId).then(() => {
+      setCopiedTxId(txId);
+      toast.success('Transaction ID copied');
+      window.setTimeout(() => setCopiedTxId((prev) => (prev === txId ? null : prev)), 1800);
+    }).catch(() => {
+      toast.error('Could not copy transaction ID');
+    });
+  };
+
+  const paymentMethodLabel = (method?: string) => {
+    if (method === 'gpay') return 'Google Pay';
+    if (method === 'applepay') return 'Apple Pay';
+    return 'Credit Card';
   };
 
   return (
@@ -1796,85 +1857,198 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, onCatal
 
           {/* TAB CONTENT: ORDERS */}
           {activeTab === 'orders' && (
-            <div className="space-y-4">
+            <div className="space-y-5">
+              {/* Order Summary Cards */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="p-4 bg-white/[0.03] border border-white/8 rounded-xl hover:border-white/15 transition-colors duration-200">
+                  <p className="text-[10px] uppercase text-white/40 font-bold tracking-wider">Total Orders</p>
+                  <p className="text-2xl sm:text-3xl font-black text-white mt-1" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
+                    {orders.length}
+                  </p>
+                </div>
+                <div className="p-4 bg-white/[0.03] border border-white/8 rounded-xl hover:border-white/15 transition-colors duration-200">
+                  <p className="text-[10px] uppercase text-white/40 font-bold tracking-wider">Total Revenue</p>
+                  <p className="text-2xl sm:text-3xl font-black text-emerald-400 mt-1" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
+                    €{ordersTotalRevenue.toFixed(2)}
+                  </p>
+                </div>
+                <div className="p-4 bg-white/[0.03] border border-white/8 rounded-xl hover:border-white/15 transition-colors duration-200">
+                  <p className="text-[10px] uppercase text-white/40 font-bold tracking-wider">Needs Action</p>
+                  <p className="text-2xl sm:text-3xl font-black text-amber-400 mt-1" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
+                    {orderStatusCounts.pending + orderStatusCounts.processing}
+                  </p>
+                </div>
+                <div className="p-4 bg-white/[0.03] border border-white/8 rounded-xl hover:border-white/15 transition-colors duration-200">
+                  <p className="text-[10px] uppercase text-white/40 font-bold tracking-wider">Unpaid Orders</p>
+                  <p className="text-2xl sm:text-3xl font-black text-red-400 mt-1" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
+                    {unpaidOrdersCount}
+                  </p>
+                </div>
+              </div>
+
+              {/* Search + Status Filter Bar */}
+              <div className="flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between p-3 bg-white/[0.03] border border-white/8 rounded-xl">
+                <div className="relative flex-1 sm:max-w-xs">
+                  <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
+                  <input
+                    type="text"
+                    value={orderSearch}
+                    onChange={(e) => setOrderSearch(e.target.value)}
+                    placeholder="Search order #, customer, email..."
+                    className="w-full pl-8 pr-3 py-2 text-xs text-white bg-black border border-white/10 focus:border-emerald-500 outline-none rounded-lg"
+                  />
+                </div>
+                <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide">
+                  <Filter size={12} className="text-white/30 shrink-0" />
+                  {(['', 'pending', 'processing', 'shipped', 'delivered', 'cancelled'] as const).map((s) => (
+                    <button
+                      key={s || 'all'}
+                      onClick={() => setOrderStatusFilter(s)}
+                      className={`px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wide rounded-lg whitespace-nowrap transition-colors cursor-pointer border ${
+                        orderStatusFilter === s
+                          ? 'bg-emerald-500 text-black border-emerald-500'
+                          : 'text-white/50 border-white/10 hover:text-white hover:border-white/25'
+                      }`}
+                    >
+                      {s === '' ? 'All' : s}
+                      {s !== '' && (
+                        <span className="ml-1 opacity-70">({orderStatusCounts[s] || 0})</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Orders List */}
               {orders.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-14 sm:py-20 text-center gap-2.5">
-                    <ShoppingBag size={28} className="text-white/15" />
-                    <p className="text-xs text-white/30 italic">No orders found in database.</p>
-                  </div>
+                  <ShoppingBag size={28} className="text-white/15" />
+                  <p className="text-xs text-white/30 italic">No orders found in database.</p>
+                </div>
+              ) : filteredOrders.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-14 sm:py-20 text-center gap-2.5">
+                  <Search size={28} className="text-white/15" />
+                  <p className="text-xs text-white/30 italic">No orders match your search or filter.</p>
+                  <button
+                    onClick={() => { setOrderSearch(''); setOrderStatusFilter(''); }}
+                    className="text-[10px] uppercase font-bold text-emerald-400 hover:text-emerald-300 cursor-pointer mt-1"
+                  >
+                    Clear search & filters
+                  </button>
+                </div>
               ) : (
-                orders.map((order) => (
-                  <div key={order.id} className="p-4 bg-white/[0.03] border border-white/8 rounded-xl hover:border-white/15 transition-colors duration-200 space-y-4 text-xs">
-                    <div className="flex flex-wrap justify-between items-center gap-2 pb-2 border-b border-white/5">
-                      <div>
-                        <span className="font-bold text-white">Order ID: #{order.id}</span>
-                        <span className="text-white/40 ml-2">({new Date(order.createdAt).toLocaleDateString()})</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className={`px-2 py-0.5 rounded-full text-[9px] uppercase font-bold ${
-                          order.status === 'delivered' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/25' :
-                          order.status === 'cancelled' ? 'bg-red-500/10 text-red-400 border border-red-500/25' :
-                          'bg-amber-500/10 text-amber-400 border border-amber-500/25'
-                        }`}>
-                          {order.status}
-                        </span>
-                        <select
-                          value={order.status}
-                          onChange={(e) => handleUpdateOrderStatus(order.id, e.target.value as any)}
-                          className="bg-black border border-white/10 px-2 py-1 text-xs text-white outline-none rounded-sm"
-                        >
-                          <option value="pending">Pending</option>
-                          <option value="processing">Processing</option>
-                          <option value="shipped">Shipped</option>
-                          <option value="delivered">Delivered</option>
-                          <option value="cancelled">Cancelled</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* Customer Details */}
-                      <div className="space-y-1">
-                        <p className="text-[9px] uppercase text-white/40 font-bold">Customer & Shipping Details</p>
-                        <p className="text-white font-semibold">{order.customerName}</p>
-                        <p className="text-white/60">{order.customerEmail}</p>
-                        <p className="text-white/60">{order.address}, {order.city}, {order.postalCode}, {order.country}</p>
-                        <div className="flex items-center gap-2 pt-1 text-[10px]">
-                          <span className="text-white/40">Payment:</span>
-                          <span className="text-emerald-400 uppercase font-semibold">
-                            {order.paymentMethod === 'gpay' ? 'Google Pay' : order.paymentMethod === 'applepay' ? 'Apple Pay' : 'Credit Card'}
-                          </span>
-                          <span className="text-white/30">·</span>
-                          <span className={`uppercase font-semibold ${
-                            order.paymentStatus === 'paid' ? 'text-emerald-400' :
-                            order.paymentStatus === 'unpaid' ? 'text-red-400' :
-                            'text-amber-400'
-                          }`}>{order.paymentStatus || 'pending'}</span>
+                <div className="space-y-3">
+                  {filteredOrders.map((order) => {
+                    const dotColor = STATUS_COLORS[order.status] || '#6B7280';
+                    return (
+                      <div
+                        key={order.id}
+                        className="p-4 sm:p-5 bg-white/[0.03] border border-white/8 rounded-xl hover:border-white/15 transition-colors duration-200 space-y-4 text-xs"
+                      >
+                        {/* Header row */}
+                        <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-white/5">
+                          <div className="flex items-center gap-2.5">
+                            <span
+                              className="w-2 h-2 rounded-full shrink-0"
+                              style={{ background: dotColor, boxShadow: `0 0 8px ${dotColor}` }}
+                            />
+                            <span className="font-black text-white text-sm" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
+                              Order #{order.id}
+                            </span>
+                            <span className="text-white/30">·</span>
+                            <span className="text-white/40">{new Date(order.createdAt).toLocaleDateString()}</span>
+                            <span
+                              className="px-2 py-0.5 rounded-full text-[9px] uppercase font-bold border"
+                              style={{ color: dotColor, borderColor: `${dotColor}40`, background: `${dotColor}1A` }}
+                            >
+                              {order.status}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="text-base sm:text-lg font-black text-emerald-400" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
+                              €{order.total.toFixed(2)}
+                            </span>
+                            <select
+                              value={order.status}
+                              onChange={(e) => handleUpdateOrderStatus(order.id, e.target.value as any)}
+                              className="bg-black border border-white/10 hover:border-white/25 px-2.5 py-1.5 text-[11px] font-semibold text-white outline-none rounded-lg cursor-pointer"
+                            >
+                              <option value="pending">Pending</option>
+                              <option value="processing">Processing</option>
+                              <option value="shipped">Shipped</option>
+                              <option value="delivered">Delivered</option>
+                              <option value="cancelled">Cancelled</option>
+                            </select>
+                          </div>
                         </div>
-                        {order.stripePaymentIntentId && (
-                          <p className="text-[8px] text-white/30 truncate mt-1">Stripe TxID: {order.stripePaymentIntentId}</p>
-                        )}
-                      </div>
 
-                      {/* Items List */}
-                      <div className="space-y-1.5 border-t md:border-t-0 md:border-l border-white/5 pt-3 md:pt-0 md:pl-4">
-                        <p className="text-[9px] uppercase text-white/40 font-bold mb-1">Items Ordered</p>
-                        <div className="space-y-1 max-h-32 overflow-y-auto pr-1">
-                          {order.items.map((item, idx) => (
-                            <div key={idx} className="flex justify-between text-white/70">
-                              <span>{item.name} ({item.flavour}) x{item.quantity}</span>
-                              <span className="font-semibold text-white">€{(item.price * item.quantity).toFixed(2)}</span>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {/* Customer Details */}
+                          <div className="space-y-2.5">
+                            <p className="text-[9px] uppercase text-white/40 font-bold tracking-wider">Customer & Shipping</p>
+                            <div className="space-y-1.5">
+                              <p className="text-white font-semibold">{order.customerName}</p>
+                              <div className="flex items-center gap-1.5 text-white/50">
+                                <Mail size={11} className="shrink-0" />
+                                <span className="truncate">{order.customerEmail}</span>
+                              </div>
+                              <div className="flex items-start gap-1.5 text-white/50">
+                                <MapPin size={11} className="shrink-0 mt-0.5" />
+                                <span>{order.address}, {order.city}, {order.postalCode}, {order.country}</span>
+                              </div>
                             </div>
-                          ))}
-                        </div>
-                        <div className="flex justify-between border-t border-white/5 pt-1.5 mt-2 font-bold text-white text-xs">
-                          <span>Grand Total</span>
-                          <span className="text-emerald-400">€{order.total.toFixed(2)}</span>
+
+                            <div className="flex items-center gap-2 pt-2 mt-2 border-t border-white/5">
+                              <CreditCard size={12} className="text-white/40" />
+                              <span className="text-emerald-400 uppercase font-semibold text-[10px]">
+                                {paymentMethodLabel(order.paymentMethod)}
+                              </span>
+                              <span className="text-white/20">·</span>
+                              <span className={`uppercase font-bold text-[10px] px-1.5 py-0.5 rounded-full ${
+                                order.paymentStatus === 'paid' ? 'text-emerald-400 bg-emerald-500/10' :
+                                order.paymentStatus === 'unpaid' ? 'text-red-400 bg-red-500/10' :
+                                'text-amber-400 bg-amber-500/10'
+                              }`}>{order.paymentStatus || 'pending'}</span>
+                            </div>
+                            {order.stripePaymentIntentId && (
+                              <button
+                                onClick={() => handleCopyTxId(order.stripePaymentIntentId!)}
+                                className="flex items-center gap-1.5 text-[9px] text-white/30 hover:text-white/60 transition-colors cursor-pointer group"
+                                title="Copy Stripe Transaction ID"
+                              >
+                                {copiedTxId === order.stripePaymentIntentId ? (
+                                  <Check size={10} className="text-emerald-400" />
+                                ) : (
+                                  <Copy size={10} className="group-hover:text-emerald-400" />
+                                )}
+                                <span className="truncate max-w-[220px]">Tx: {order.stripePaymentIntentId}</span>
+                              </button>
+                            )}
+                          </div>
+
+                          {/* Items List */}
+                          <div className="space-y-1.5 border-t md:border-t-0 md:border-l border-white/5 pt-3 md:pt-0 md:pl-4">
+                            <p className="text-[9px] uppercase text-white/40 font-bold tracking-wider flex items-center gap-1.5 mb-1">
+                              <Package size={11} /> Items Ordered ({order.items.length})
+                            </p>
+                            <div className="space-y-1.5 max-h-32 overflow-y-auto pr-1">
+                              {order.items.map((item, idx) => (
+                                <div key={idx} className="flex justify-between items-center text-white/70 bg-black/20 px-2.5 py-1.5 rounded-lg">
+                                  <span className="truncate pr-2">{item.name} <span className="text-white/30">({item.flavour})</span> <span className="text-white/40">x{item.quantity}</span></span>
+                                  <span className="font-semibold text-white shrink-0">€{(item.price * item.quantity).toFixed(2)}</span>
+                                </div>
+                              ))}
+                            </div>
+                            <div className="flex justify-between border-t border-white/5 pt-2 mt-2 font-bold text-white text-xs">
+                              <span>Grand Total</span>
+                              <span className="text-emerald-400">€{order.total.toFixed(2)}</span>
+                            </div>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </div>
-                ))
+                    );
+                  })}
+                </div>
               )}
             </div>
           )}
