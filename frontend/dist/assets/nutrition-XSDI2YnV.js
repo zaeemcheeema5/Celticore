@@ -1,1 +1,0 @@
-import{b as i}from"./index-B0F3Q5v5.js";const u={submitRequest:t=>i.post("/api/nutrition",t),getAllRequests:()=>i.get("/api/nutrition"),getRequest:t=>i.get(`/api/nutrition/${t}`),updateStatus:(t,e)=>i.put(`/api/nutrition/${t}/status`,{status:e}),addNotes:(t,e)=>i.put(`/api/nutrition/${t}/notes`,{admin_notes:e})};export{u as n};
