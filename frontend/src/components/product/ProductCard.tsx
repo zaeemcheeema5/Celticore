@@ -85,6 +85,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, accent, onOpe
         <img
           src={product.image}
           alt={product.name}
+          loading="lazy"
+          decoding="async"
           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
         />
         <div

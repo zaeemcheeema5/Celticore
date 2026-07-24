@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { Toaster } from "sonner";
 import { AuthProvider } from "../context/AuthContext";
 import { CartProvider } from "../context/CartContext";
@@ -6,27 +6,35 @@ import { WishlistProvider } from "../context/WishlistContext";
 import { productsService } from "../api/products";
 import { Product, Category as CategoryType } from "../types";
 
-// Layout & Common Components
+// Layout & Common Components — kept eager since they're needed for the
+// very first paint (Navbar/Footer are always visible on every page).
 import { Navbar } from "../components/layout/Navbar";
 import { Footer } from "../components/layout/Footer";
-
-// Page Containers
-import { Home } from "../pages/Home";
-import { Category } from "../pages/Category";
-import { SearchResults } from "../pages/SearchResults";
-import { MyOrders } from "../pages/MyOrders";
-
-// Widgets & Modals
-import { AuthModal } from "../components/auth/AuthModal";
-import { CartDrawer } from "../components/cart/CartDrawer";
-import { ChatbotWidget } from "../components/chatbot/ChatbotWidget";
-import { NutritionModal } from "../components/nutrition/NutritionModal";
-import { WishlistDrawer } from "../components/wishlist/WishlistDrawer";
-import { AdminDashboard } from "../components/admin/AdminDashboard";
-import { ProductDetailsModal } from "../components/product/ProductDetailsModal";
-import { CheckoutModal } from "../components/cart/CheckoutModal";
 import { CookieConsent } from "../components/common/CookieConsent";
-import { PrivacyPolicyModal } from "../components/common/PrivacyPolicyModal";
+
+// Home is kept eager (it's the landing page most visitors hit first,
+// so code-splitting it would only add a second network round trip to
+// the critical path instead of saving anything).
+import { Home } from "../pages/Home";
+
+// Everything below is only needed once a user navigates away from Home
+// or opens a modal/drawer, so it's code-split with React.lazy. This
+// shrinks the initial JS payload — the main lever for mobile
+// performance/TBT — without changing any component's behavior; they
+// just load on demand instead of all upfront.
+const Category = lazy(() => import("../pages/Category").then((m) => ({ default: m.Category })));
+const SearchResults = lazy(() => import("../pages/SearchResults").then((m) => ({ default: m.SearchResults })));
+const MyOrders = lazy(() => import("../pages/MyOrders").then((m) => ({ default: m.MyOrders })));
+
+const AuthModal = lazy(() => import("../components/auth/AuthModal").then((m) => ({ default: m.AuthModal })));
+const CartDrawer = lazy(() => import("../components/cart/CartDrawer").then((m) => ({ default: m.CartDrawer })));
+const ChatbotWidget = lazy(() => import("../components/chatbot/ChatbotWidget").then((m) => ({ default: m.ChatbotWidget })));
+const NutritionModal = lazy(() => import("../components/nutrition/NutritionModal").then((m) => ({ default: m.NutritionModal })));
+const WishlistDrawer = lazy(() => import("../components/wishlist/WishlistDrawer").then((m) => ({ default: m.WishlistDrawer })));
+const AdminDashboard = lazy(() => import("../components/admin/AdminDashboard").then((m) => ({ default: m.AdminDashboard })));
+const ProductDetailsModal = lazy(() => import("../components/product/ProductDetailsModal").then((m) => ({ default: m.ProductDetailsModal })));
+const CheckoutModal = lazy(() => import("../components/cart/CheckoutModal").then((m) => ({ default: m.CheckoutModal })));
+const PrivacyPolicyModal = lazy(() => import("../components/common/PrivacyPolicyModal").then((m) => ({ default: m.PrivacyPolicyModal })));
 
 function MainAppLayout() {
   const [currentPage, setCurrentPage] = useState<string>("home");
@@ -104,10 +112,12 @@ function MainAppLayout() {
     return (
       <>
         <Toaster position="bottom-left" toastOptions={{ style: { background: '#0c0c0c', color: '#fff', border: '1px solid rgba(255,255,255,0.08)' } }} />
-        <AdminDashboard
-          onClose={handleExitAdmin}
-          onCatalogChange={loadCatalog}
-        />
+        <Suspense fallback={null}>
+          <AdminDashboard
+            onClose={handleExitAdmin}
+            onCatalogChange={loadCatalog}
+          />
+        </Suspense>
       </>
     );
   }
@@ -140,24 +150,28 @@ function MainAppLayout() {
   products={products}
   onOpenDetails={(p) => setSelectedProduct(p)}
 />
-        ) : currentPage === "search" ? (
-          <SearchResults
-            query={searchQuery}
-            products={products}
-            categories={categories}
-            onNavigate={handleNavigate}
-            onOpenDetails={(p) => setSelectedProduct(p)}
-          />
-        ) : currentPage === "my-orders" ? (
-          <MyOrders onNavigate={handleNavigate} />
         ) : (
-          <Category
-            pageId={currentPage}
-            categories={categories}
-            products={products}
-            onNavigate={handleNavigate}
-            onOpenDetails={(p) => setSelectedProduct(p)}
-          />
+          <Suspense fallback={null}>
+            {currentPage === "search" ? (
+              <SearchResults
+                query={searchQuery}
+                products={products}
+                categories={categories}
+                onNavigate={handleNavigate}
+                onOpenDetails={(p) => setSelectedProduct(p)}
+              />
+            ) : currentPage === "my-orders" ? (
+              <MyOrders onNavigate={handleNavigate} />
+            ) : (
+              <Category
+                pageId={currentPage}
+                categories={categories}
+                products={products}
+                onNavigate={handleNavigate}
+                onOpenDetails={(p) => setSelectedProduct(p)}
+              />
+            )}
+          </Suspense>
         )}
       </main>
 
@@ -171,47 +185,63 @@ function MainAppLayout() {
       {/* Cookie disclosure banner (essential cookies only — see CookieConsent.tsx) */}
       <CookieConsent onOpenPrivacy={() => setIsPrivacyOpen(true)} />
 
-      <PrivacyPolicyModal
-        isOpen={isPrivacyOpen}
-        onClose={() => setIsPrivacyOpen(false)}
-      />
+      <Suspense fallback={null}>
+        <PrivacyPolicyModal
+          isOpen={isPrivacyOpen}
+          onClose={() => setIsPrivacyOpen(false)}
+        />
+      </Suspense>
 
       {/* Floating Chat Widget */}
-      <ChatbotWidget />
+      <Suspense fallback={null}>
+        <ChatbotWidget />
+      </Suspense>
 
       {/* Modals & Slide-out Drawers */}
-      <AuthModal
-        isOpen={isAuthOpen}
-        onClose={() => setIsAuthOpen(false)}
-      />
+      <Suspense fallback={null}>
+        <AuthModal
+          isOpen={isAuthOpen}
+          onClose={() => setIsAuthOpen(false)}
+        />
+      </Suspense>
 
-      <CartDrawer
-        isOpen={isCartOpen}
-        onClose={() => setIsCartOpen(false)}
-        onOpenCheckout={() => setIsCheckoutOpen(true)}
-      />
+      <Suspense fallback={null}>
+        <CartDrawer
+          isOpen={isCartOpen}
+          onClose={() => setIsCartOpen(false)}
+          onOpenCheckout={() => setIsCheckoutOpen(true)}
+        />
+      </Suspense>
+      <Suspense fallback={null}>
         <WishlistDrawer
-        isOpen={isWishlistOpen}
-        onClose={() => setIsWishlistOpen(false)}
-        onOpenDetails={(p) => setSelectedProduct(p)}
-      />
-      <CheckoutModal
-        isOpen={isCheckoutOpen}
-        onClose={() => setIsCheckoutOpen(false)}
-      />
+          isOpen={isWishlistOpen}
+          onClose={() => setIsWishlistOpen(false)}
+          onOpenDetails={(p) => setSelectedProduct(p)}
+        />
+      </Suspense>
+      <Suspense fallback={null}>
+        <CheckoutModal
+          isOpen={isCheckoutOpen}
+          onClose={() => setIsCheckoutOpen(false)}
+        />
+      </Suspense>
 
-      <NutritionModal
-        isOpen={isNutritionOpen}
-        onClose={() => setIsNutritionOpen(false)}
-      />
+      <Suspense fallback={null}>
+        <NutritionModal
+          isOpen={isNutritionOpen}
+          onClose={() => setIsNutritionOpen(false)}
+        />
+      </Suspense>
 
-      <ProductDetailsModal
-        product={selectedProduct}
-        isOpen={!!selectedProduct}
-        onClose={() => setSelectedProduct(null)}
-        accent={productModalAccent}
-        onRequireAuth={() => setIsAuthOpen(true)}
-      />
+      <Suspense fallback={null}>
+        <ProductDetailsModal
+          product={selectedProduct}
+          isOpen={!!selectedProduct}
+          onClose={() => setSelectedProduct(null)}
+          accent={productModalAccent}
+          onRequireAuth={() => setIsAuthOpen(true)}
+        />
+      </Suspense>
     </div>
   );
 }
@@ -230,8 +260,6 @@ export default function App() {
 
 // ── CUSTOM SHARED BASE ANIMATION KEYFRAMES ─────────────────────────────────────────
 const BASE_STYLES = `
-  @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=DM+Sans:wght@300;400;500;600&display=swap');
-  
   @keyframes float {
     0%, 100% { transform: translateY(0px) scale(1); opacity: 0.5; }
     50% { transform: translateY(-18px) scale(1.15); opacity: 0.9; }

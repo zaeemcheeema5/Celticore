@@ -8,10 +8,32 @@
       <title>Premium Fitness Supplement Homepage</title>
       <meta name="description" content="Explore a premium fitness supplement brand with an engaging homepage featuring dynamic product displays, easy navigation, and a vibrant, high-energy design." />
       <meta name="robots" content="noindex, nofollow" />
+
+      <!-- PERFORMANCE: connect early to the origins we know we'll need.
+           preconnect does the DNS + TLS handshake ahead of time so the
+           requests that follow don't pay that latency. -->
+      <link rel="preconnect" href="https://fonts.googleapis.com" />
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+      <link rel="preconnect" href="https://api.thecelticore.com" crossorigin />
+
+      <!-- PERFORMANCE: the two font families used across the whole site were
+           previously loaded via a CSS @import inside a <style> tag that React
+           injects at runtime. That meant the browser couldn't even discover
+           the font stylesheet until the JS bundle downloaded, parsed and
+           executed. Declaring it directly in the HTML lets the browser's
+           preload scanner fetch it immediately, in parallel with the JS,
+           which measurably improves First/Largest Contentful Paint. -->
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=DM+Sans:wght@300;400;500;600&display=swap"
+      />
+
       <style>html, body { height: 100%; margin: 0; } #root { height: 100%; }</style>
       
-      <script type="module" crossorigin src="/assets/index-l78ynl9J.js"></script>
-      <link rel="stylesheet" crossorigin href="/assets/index-DVh6v3Qb.css">
+      <script type="module" crossorigin src="/assets/index-B0F3Q5v5.js"></script>
+      <link rel="modulepreload" crossorigin href="/assets/vendor-misc-DyeZHYEN.js">
+      <link rel="modulepreload" crossorigin href="/assets/vendor-react-fFNuWCX2.js">
+      <link rel="stylesheet" crossorigin href="/assets/index-DtCQLJx8.css">
     </head>
 
     <body>

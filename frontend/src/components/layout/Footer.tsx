@@ -3,7 +3,7 @@ import { Send, MapPin, Mail, Phone, ShieldCheck } from 'lucide-react';
 import { contactService } from '../../api/contact';
 import { toast } from 'sonner';
 
-import logoImage from '../../assets/logo.png';
+import logoImage from '../../assets/logo.webp';
 
 interface FooterProps {
   onOpenNutrition: () => void;
@@ -66,6 +66,8 @@ export const Footer: React.FC<FooterProps> = ({ onOpenNutrition, onNavigate, onO
               <img
                 src={logoImage}
                 alt="Celti Core Logo"
+                loading="lazy"
+                decoding="async"
                 className="w-8 h-8 sm:w-9 sm:h-9 shrink-0 object-contain rounded-full border border-emerald-500/30"
                 style={{ filter: "drop-shadow(0 0 4px rgba(16,185,129,0.3))" }}
               />

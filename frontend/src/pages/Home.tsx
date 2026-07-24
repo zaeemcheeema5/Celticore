@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Shield, Star, Leaf, Zap, Droplets, Sun } from 'lucide-react';
 import { Category, Product } from '../types';
 import { ProductCard } from '../components/product/ProductCard';
-import apexWheyImage from "../assets/apex_whey_protein.png";
-import thunderPreWorkoutImage from "../assets/thunder_pre_workout.png";
-import celticCreatineImage from "../assets/celtic_creatine.png";
+import apexWheyImage from "../assets/apex_whey_protein.webp";
+import thunderPreWorkoutImage from "../assets/thunder_pre_workout.webp";
+import celticCreatineImage from "../assets/celtic_creatine.webp";
 
 const HERO_SLIDES = [
   {
@@ -232,6 +232,8 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, categories, products, on
                 <img 
                   src={slide.bgImage} 
                   alt={slide.titleAccent} 
+                  fetchPriority="high"
+                  decoding="async"
                   className="w-full h-full object-contain relative z-10" 
                   style={{ 
                     filter: "saturate(1.15) contrast(1.05)",
@@ -289,13 +291,13 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, categories, products, on
                 onClick={() => onNavigate(cat.id)}
               >
                 {/* Category Graphic */}
-                <img src={cardImg} alt={cat.name} className="absolute inset-0 w-full h-full object-cover opacity-[0.18] group-hover:opacity-[0.28] transition-opacity duration-500"/>
+                <img src={cardImg} alt={cat.name} loading="lazy" decoding="async" className="absolute inset-0 w-full h-full object-cover opacity-[0.18] group-hover:opacity-[0.28] transition-opacity duration-500"/>
                 <div className="absolute inset-0" style={{ background: `
 radial-gradient(circle at top right, rgba(245,158,11,.08), transparent 30%),
 linear-gradient(135deg,#050505 0%,#0E0E0E 50%,#1A1A1A 100%)
 ` }}/>
                 {/* Category Graphic */}
-                <img src={cardImg} alt={cat.name} className="absolute inset-0 w-full h-full object-cover opacity-[0.18] group-hover:opacity-[0.28] group-hover:scale-105 transition-all duration-700"/>
+                <img src={cardImg} alt={cat.name} loading="lazy" decoding="async" className="absolute inset-0 w-full h-full object-cover opacity-[0.18] group-hover:opacity-[0.28] group-hover:scale-105 transition-all duration-700"/>
                 <div className="absolute inset-0" style={{ background: `radial-gradient(circle at top right, rgba(251,191,36,0.10), transparent 35%), linear-gradient(135deg, rgba(0,0,0,0.95) 0%, rgba(5,5,5,0.85) 55%, rgba(10,10,10,0.8) 100%)` }}/>
 
                 {/* Hover Ambient Radial Glow */}

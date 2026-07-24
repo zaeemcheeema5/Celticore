@@ -17,7 +17,7 @@ import { useWishlist } from '../../context/WishlistContext';
 import { productsService } from '../../api/products';
 import { Product } from '../../types';
 import { Category } from '../../types';
-import logoImage from '../../assets/logo.png';
+import logoImage from '../../assets/logo.webp';
 
 interface NavbarProps {
   currentPage: string;
@@ -194,7 +194,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       >
         {/* Brand Logo — scales down through the breakpoints instead of
             staying a fixed 58px, so it no longer crowds the icons on
-            narrow phones. Same logo.png asset at every size. */}
+            narrow phones. Same logo.webp asset at every size. */}
         <button
           onClick={() => handleNavigate('home')}
           className="flex items-center gap-2 sm:gap-3 md:gap-4 group cursor-pointer shrink-0 min-w-0"
