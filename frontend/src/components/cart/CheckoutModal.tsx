@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { X, CreditCard, Lock, ArrowRight, CheckCircle2, ShoppingBag, ShieldCheck } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, CreditCard, Lock, ArrowRight, CheckCircle2, ShoppingBag, ShieldCheck, AlertCircle, Loader2 } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 import { api } from '../../api/client';
 import { loadStripe } from '@stripe/stripe-js';
@@ -24,16 +24,25 @@ interface CheckoutModalProps {
 
 type PaymentMethodType = 'card' | 'gpay' | 'applepay';
 
-export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose }) => {
-  if (!isOpen) return null;
+interface ShippingErrors {
+  name?: string;
+  email?: string;
+  address?: string;
+  city?: string;
+  postalCode?: string;
+}
 
+export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose }) => {
   const { cartItems, subtotal, discount, total, coupon, placeOrder } = useCart();
 
   // Checkout flow step: 'form' | 'success'
   const [step, setStep] = useState<'form' | 'success'>('form');
   const [placedOrder, setPlacedOrder] = useState<any>(null);
   const [loading, setLoading] = useState(false);
-   const [clientSecret, setClientSecret] = useState("");
+  const [clientSecret, setClientSecret] = useState("");
+  const [intentLoading, setIntentLoading] = useState(false);
+  const [intentError, setIntentError] = useState<string | null>(null);
+
   // Form shipping/billing inputs
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -41,6 +50,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
   const [city, setCity] = useState('');
   const [postalCode, setPostalCode] = useState('');
   const [country, setCountry] = useState('United Kingdom');
+
+  // Inline validation
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [errors, setErrors] = useState<ShippingErrors>({});
 
   // GPay Sheet simulation states
   const [isGpaySheetOpen, setIsGpaySheetOpen] = useState(false);
@@ -54,130 +67,91 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
   const [applePayEmail, setApplePayEmail] = useState('');
   const [applePayCard, setApplePayCard] = useState('');
 
-  // Interactive Mock Credit Card details
-  const [cardNumber, setCardNumber] = useState('');
-  const [cardExpiry, setCardExpiry] = useState('');
-  const [cardCvc, setCardCvc] = useState('');
-  const [cardType, setCardType] = useState<'unknown' | 'visa' | 'mastercard' | 'amex' | 'discover'>('unknown');
+  const firstFieldRef = useRef<HTMLInputElement>(null);
 
-
+  // Focus the first field when the modal opens, and let Escape close it
   useEffect(() => {
-  if (!stripeKey) return;
-
-  const createIntent = async () => {
-    try {
-      const response = await api.post("/api/payment/create-intent", {
-        items: cartItems.map(item => ({
-          id: item.product.id,
-          quantity: item.quantity
-        })),
-        couponCode: coupon?.code
-      });
-
-      setClientSecret(response.clientSecret);
-    } catch (err) {
-      console.error(err);
-      toast.error("Unable to initialize payment.");
+    if (isOpen && step === 'form') {
+      firstFieldRef.current?.focus();
     }
-  };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    if (isOpen) window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isOpen, step, onClose]);
 
-  if (cartItems.length > 0) {
+  // Create (or refresh) the PaymentIntent whenever the cart or coupon changes.
+  // Guards against races: if the effect re-runs before a previous request
+  // resolves, the stale response is discarded instead of overwriting a
+  // newer clientSecret.
+  useEffect(() => {
+    if (!stripeKey || cartItems.length === 0) return;
+    let cancelled = false;
+
+    const createIntent = async () => {
+      setIntentLoading(true);
+      setIntentError(null);
+      try {
+        const response = await api.post("/api/payment/create-intent", {
+          items: cartItems.map(item => ({
+            id: item.product.id,
+            quantity: item.quantity
+          })),
+          couponCode: coupon?.code
+        });
+        if (!cancelled) setClientSecret(response.clientSecret);
+      } catch (err) {
+        console.error(err);
+        if (!cancelled) setIntentError("We couldn't set up secure payment. Please try again.");
+      } finally {
+        if (!cancelled) setIntentLoading(false);
+      }
+    };
+
     createIntent();
-  }
-}, [cartItems, coupon]);
-  // Auto-detect card brand
-  useEffect(() => {
-    const cleanNumber = cardNumber.replace(/\s+/g, '');
-    if (cleanNumber.startsWith('4')) {
-      setCardType('visa');
-    } else if (/^(5[1-5]|2[2-7])/.test(cleanNumber)) {
-      setCardType('mastercard');
-    } else if (/^3[47]/.test(cleanNumber)) {
-      setCardType('amex');
-    } else if (/^6(?:011|5)/.test(cleanNumber)) {
-      setCardType('discover');
-    } else {
-      setCardType('unknown');
-    }
-  }, [cardNumber]);
+    return () => { cancelled = true; };
+  }, [cartItems, coupon]);
 
-  // Card number input formatter (groups of 4 digits)
-  const handleCardNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let value = e.target.value.replace(/\D/g, '');
-    let formatted = '';
-    for (let i = 0; i < value.length; i++) {
-      if (i > 0 && i % 4 === 0) formatted += ' ';
-      formatted += value[i];
+  if (!isOpen) return null;
+
+  // Field-level validation, run on blur and on submit so errors show inline
+  // instead of only as a toast the user might miss.
+  const validateField = (field: keyof ShippingErrors, value: string): string | undefined => {
+    if (field === 'email') {
+      if (!value.trim()) return 'Email is required.';
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(value)) return 'Enter a valid email address.';
+      return undefined;
     }
-    setCardNumber(formatted.slice(0, 19));
+    const labels: Record<string, string> = {
+      name: 'Full name', address: 'Address', city: 'City', postalCode: 'Postal code'
+    };
+    if (!value.trim()) return `${labels[field]} is required.`;
+    return undefined;
   };
 
-  // Expiry date formatter (MM/YY)
-  const handleExpiryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let value = e.target.value.replace(/\D/g, '');
-    if (value.length > 2) {
-      value = value.slice(0, 2) + '/' + value.slice(2, 4);
-    }
-    setCardExpiry(value.slice(0, 5));
+  const handleBlur = (field: keyof ShippingErrors, value: string) => {
+    setTouched(prev => ({ ...prev, [field]: true }));
+    setErrors(prev => ({ ...prev, [field]: validateField(field, value) }));
   };
 
-  // CVC formatter
-  const handleCvcChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.replace(/\D/g, '');
-    setCardCvc(value.slice(0, 4));
-  };
-
-  // Helper validation for the shipping details
   const validateShippingDetails = (): boolean => {
-    if (!name.trim() || !email.trim() || !address.trim() || !city.trim() || !postalCode.trim()) {
-      toast.error('Please enter all shipping details (Name, Email, Address, City, Postal Code) first.');
+    const fields: [keyof ShippingErrors, string][] = [
+      ['name', name], ['email', email], ['address', address], ['city', city], ['postalCode', postalCode]
+    ];
+    const nextErrors: ShippingErrors = {};
+    fields.forEach(([field, value]) => {
+      const err = validateField(field, value);
+      if (err) nextErrors[field] = err;
+    });
+    setErrors(nextErrors);
+    setTouched({ name: true, email: true, address: true, city: true, postalCode: true });
+
+    if (Object.keys(nextErrors).length > 0) {
+      toast.error('Please fix the highlighted fields before continuing.');
       return false;
     }
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      toast.error('Please enter a valid email address.');
-      return false;
-    }
-    return true;
-  };
-
-  const validateCardDetails = (): boolean => {
-    const cleanNumber = cardNumber.replace(/\s+/g, '');
-    const cleanExpiry = cardExpiry.replace(/\s+/g, '');
-    const cleanCvc = cardCvc.replace(/\s+/g, '');
-
-    if (cleanNumber.length < 13 || cleanNumber.length > 19) {
-      toast.error('Please enter a valid credit card number.');
-      return false;
-    }
-    
-    if (cleanExpiry.length !== 5 || !cleanExpiry.includes('/')) {
-      toast.error('Please enter a valid expiry date (MM/YY).');
-      return false;
-    }
-
-    const [monthStr, yearStr] = cleanExpiry.split('/');
-    const month = parseInt(monthStr, 10);
-    const year = parseInt('20' + yearStr, 10);
-    const now = new Date();
-    const currentMonth = now.getMonth() + 1;
-    const currentYear = now.getFullYear();
-
-    if (month < 1 || month > 12) {
-      toast.error('Expiry month must be between 01 and 12.');
-      return false;
-    }
-
-    if (year < currentYear || (year === currentYear && month < currentMonth)) {
-      toast.error('The card is expired.');
-      return false;
-    }
-
-    if (cleanCvc.length < 3) {
-      toast.error('Please enter a valid CVC.');
-      return false;
-    }
-
     return true;
   };
 
@@ -198,7 +172,6 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
       });
       setPlacedOrder(order);
       setStep('success');
-      // Trigger Confetti!
       confetti({
         particleCount: 150,
         spread: 80,
@@ -212,26 +185,20 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
     }
   };
 
-  const handleCheckoutSubmit = async (e: React.FormEvent) => {
+  // The outer <form> exists to group and validate shipping fields (and to
+  // support Enter-to-advance between them). Actual card payment is
+  // submitted separately by StripePaymentSubForm's own button, since it
+  // needs the Stripe `elements` context to confirm payment — this handler
+  // just prevents an accidental native submit/page reload.
+  const handleCheckoutSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!validateShippingDetails()) return;
-
-    // Process Credit Card Payment (if Stripe key is not configured, run mock validation)
-    if (!stripePromise) {
-      if (validateCardDetails()) {
-        await handleOrderSubmission('card');
-      }
-    }
   };
 
-  // Trigger Google Pay Checkout
   const handleGpayClick = () => {
     if (!validateShippingDetails()) return;
     setIsGpaySheetOpen(true);
   };
 
-  // Confirm Google Pay Transaction
   const handleGpaySheetConfirm = () => {
     setGpayLoading(true);
     setTimeout(async () => {
@@ -242,13 +209,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
     }, 1500);
   };
 
-  // Trigger Apple Pay Checkout
   const handleApplePayClick = () => {
     if (!validateShippingDetails()) return;
     setIsApplePaySheetOpen(true);
   };
 
-  // Confirm Apple Pay Transaction
   const handleApplePaySheetConfirm = () => {
     setApplePayLoading(true);
     setTimeout(async () => {
@@ -259,6 +224,13 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
     }, 1500);
   };
 
+  const fieldClass = (field: keyof ShippingErrors) =>
+    `w-full px-3 py-2 bg-black border outline-none text-white transition-colors ${
+      touched[field] && errors[field]
+        ? 'border-red-500/70 focus:border-red-500'
+        : 'border-white/10 focus:border-emerald-500/60'
+    }`;
+
   return (
     <>
       <div
@@ -266,20 +238,32 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
         onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
       >
         <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Checkout"
           className="relative w-full max-w-6xl rounded border border-white/10 bg-[#090909] text-white flex flex-col lg:flex-row shadow-2xl overflow-hidden animate-fade-up max-h-[95vh]"
-          style={{
-            boxShadow: "0 0 60px rgba(16,185,129,0.12)",
-          }}
+          style={{ boxShadow: "0 0 60px rgba(16,185,129,0.12)" }}
         >
-          {/* Close Button */}
           <button
             onClick={onClose}
+            aria-label="Close checkout"
             className="absolute top-3 right-3 sm:top-4 sm:right-4 z-10 p-2 rounded-full text-white/40 hover:text-white hover:bg-white/5 transition-all cursor-pointer"
           >
             <X size={18} />
           </button>
 
-          {step === 'form' ? (
+          {cartItems.length === 0 && step === 'form' ? (
+            <div className="w-full p-10 text-center space-y-3">
+              <ShoppingBag size={28} className="mx-auto text-white/30" />
+              <p className="text-sm text-white/60">Your cart is empty — add something before checking out.</p>
+              <button
+                onClick={onClose}
+                className="px-6 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-black font-black uppercase tracking-widest text-xs cursor-pointer"
+              >
+                Continue Shopping
+              </button>
+            </div>
+          ) : step === 'form' ? (
             <>
               {/* Left Panel: Shipping & Payment Form */}
               <div className="flex-1 p-4 sm:p-6 lg:p-8 space-y-6 overflow-y-auto max-h-[95vh] lg:max-h-none">
@@ -290,27 +274,38 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
                   <p className="text-xs text-white/50">All orders are securely processed. Cash on Delivery option has been removed.</p>
                 </div>
 
-                {/* Shipping Details form must be filled first to unlock Express Checkout */}
-                <form onSubmit={handleCheckoutSubmit} className="space-y-5 text-xs">
+                <form onSubmit={handleCheckoutSubmit} noValidate className="space-y-5 text-xs">
                   {/* Section 1: Customer Contact */}
                   <div className="space-y-3">
                     <h3 className="font-bold uppercase tracking-wider border-b border-white/5 pb-1 text-[10px] text-white/40">1. Customer Information</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-[9px] uppercase text-white/50 mb-1">Full Name *</label>
+                        <label htmlFor="chk-name" className="block text-[9px] uppercase text-white/50 mb-1">Full Name *</label>
                         <input
-                          type="text" required placeholder="e.g. John Doe"
+                          id="chk-name" ref={firstFieldRef} type="text" required placeholder="e.g. John Doe"
+                          autoComplete="name"
                           value={name} onChange={e => setName(e.target.value)}
-                          className="w-full px-3 py-2 bg-black border border-white/10 focus:border-emerald-500/60 outline-none text-white transition-colors"
+                          onBlur={() => handleBlur('name', name)}
+                          aria-invalid={!!(touched.name && errors.name)}
+                          className={fieldClass('name')}
                         />
+                        {touched.name && errors.name && (
+                          <p className="mt-1 flex items-center gap-1 text-[10px] text-red-400"><AlertCircle size={10} />{errors.name}</p>
+                        )}
                       </div>
                       <div>
-                        <label className="block text-[9px] uppercase text-white/50 mb-1">Email Address *</label>
+                        <label htmlFor="chk-email" className="block text-[9px] uppercase text-white/50 mb-1">Email Address *</label>
                         <input
-                          type="email" required placeholder="e.g. john@example.com"
+                          id="chk-email" type="email" required placeholder="e.g. john@example.com"
+                          autoComplete="email"
                           value={email} onChange={e => setEmail(e.target.value)}
-                          className="w-full px-3 py-2 bg-black border border-white/10 focus:border-emerald-500/60 outline-none text-white transition-colors"
+                          onBlur={() => handleBlur('email', email)}
+                          aria-invalid={!!(touched.email && errors.email)}
+                          className={fieldClass('email')}
                         />
+                        {touched.email && errors.email && (
+                          <p className="mt-1 flex items-center gap-1 text-[10px] text-red-400"><AlertCircle size={10} />{errors.email}</p>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -320,34 +315,53 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
                     <h3 className="font-bold uppercase tracking-wider border-b border-white/5 pb-1 text-[10px] text-white/40">2. Shipping Address</h3>
                     <div className="space-y-3">
                       <div>
-                        <label className="block text-[9px] uppercase text-white/50 mb-1">Address *</label>
+                        <label htmlFor="chk-address" className="block text-[9px] uppercase text-white/50 mb-1">Address *</label>
                         <input
-                          type="text" required placeholder="Street address, apartment, suite"
+                          id="chk-address" type="text" required placeholder="Street address, apartment, suite"
+                          autoComplete="street-address"
                           value={address} onChange={e => setAddress(e.target.value)}
-                          className="w-full px-3 py-2 bg-black border border-white/10 focus:border-emerald-500/60 outline-none text-white transition-colors"
+                          onBlur={() => handleBlur('address', address)}
+                          aria-invalid={!!(touched.address && errors.address)}
+                          className={fieldClass('address')}
                         />
+                        {touched.address && errors.address && (
+                          <p className="mt-1 flex items-center gap-1 text-[10px] text-red-400"><AlertCircle size={10} />{errors.address}</p>
+                        )}
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
-                          <label className="block text-[9px] uppercase text-white/50 mb-1">City *</label>
+                          <label htmlFor="chk-city" className="block text-[9px] uppercase text-white/50 mb-1">City *</label>
                           <input
-                            type="text" required placeholder="e.g. London"
+                            id="chk-city" type="text" required placeholder="e.g. London"
+                            autoComplete="address-level2"
                             value={city} onChange={e => setCity(e.target.value)}
-                            className="w-full px-3 py-2 bg-black border border-white/10 focus:border-emerald-500/60 outline-none text-white transition-colors"
+                            onBlur={() => handleBlur('city', city)}
+                            aria-invalid={!!(touched.city && errors.city)}
+                            className={fieldClass('city')}
                           />
+                          {touched.city && errors.city && (
+                            <p className="mt-1 flex items-center gap-1 text-[10px] text-red-400"><AlertCircle size={10} />{errors.city}</p>
+                          )}
                         </div>
                         <div>
-                          <label className="block text-[9px] uppercase text-white/50 mb-1">Postal Code *</label>
+                          <label htmlFor="chk-postal" className="block text-[9px] uppercase text-white/50 mb-1">Postal Code *</label>
                           <input
-                            type="text" required placeholder="e.g. EC1A 1BB"
+                            id="chk-postal" type="text" required placeholder="e.g. EC1A 1BB"
+                            autoComplete="postal-code"
                             value={postalCode} onChange={e => setPostalCode(e.target.value)}
-                            className="w-full px-3 py-2 bg-black border border-white/10 focus:border-emerald-500/60 outline-none text-white transition-colors"
+                            onBlur={() => handleBlur('postalCode', postalCode)}
+                            aria-invalid={!!(touched.postalCode && errors.postalCode)}
+                            className={fieldClass('postalCode')}
                           />
+                          {touched.postalCode && errors.postalCode && (
+                            <p className="mt-1 flex items-center gap-1 text-[10px] text-red-400"><AlertCircle size={10} />{errors.postalCode}</p>
+                          )}
                         </div>
                       </div>
                       <div>
-                        <label className="block text-[9px] uppercase text-white/50 mb-1">Country / Region</label>
+                        <label htmlFor="chk-country" className="block text-[9px] uppercase text-white/50 mb-1">Country / Region</label>
                         <select
+                          id="chk-country" autoComplete="country-name"
                           value={country} onChange={e => setCountry(e.target.value)}
                           className="w-full px-3 py-2 bg-black border border-white/10 focus:border-emerald-500/60 outline-none text-white cursor-pointer"
                         >
@@ -363,19 +377,17 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
                     </div>
                   </div>
 
-                  {/* Google Pay / Apple Pay Express Buttons */}
+                  {/* Express Checkout */}
                   <div className="space-y-3">
                     <h3 className="font-bold uppercase tracking-wider border-b border-white/5 pb-1 text-[10px] text-white/40">3. Express Checkout</h3>
-                    <p className="text-[10px] text-white/45 italic leading-tight mb-2">Note: Please fill in your shipping details above first to unlock Express Checkout.</p>
+                    <p className="text-[10px] text-white/45 italic leading-tight mb-2">Fill in your shipping details above first — Express Checkout will validate them automatically when clicked.</p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {/* Google Pay */}
                       <button
                         type="button"
                         onClick={handleGpayClick}
                         className="w-full flex items-center justify-center gap-1.5 py-3.5 bg-white text-black font-black uppercase text-xs tracking-wider rounded border border-white/15 hover:bg-white/90 transition-all cursor-pointer shadow-md"
                         style={{ fontFamily: "'Barlow Condensed', sans-serif" }}
                       >
-                        {/* Google logo G */}
                         <svg className="h-4 w-auto inline-block align-middle" viewBox="0 0 24 24" fill="currentColor">
                           <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
                           <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
@@ -385,20 +397,17 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
                         <span>Pay with GPay</span>
                       </button>
 
-                      {/* Apple Pay */}
                       <button
                         type="button"
                         onClick={handleApplePayClick}
                         className="w-full flex items-center justify-center gap-1.5 py-3.5 bg-[#111] text-white font-black uppercase text-xs tracking-wider rounded border border-white/10 hover:bg-[#1f1f1f] transition-all cursor-pointer shadow-md"
                         style={{ fontFamily: "'Barlow Condensed', sans-serif" }}
                       >
-                        <span className="text-sm font-semibold tracking-tighter lowercase pr-0.5"></span>
                         <span>Pay with Apple Pay</span>
                       </button>
                     </div>
                   </div>
 
-                  {/* Divider */}
                   <div className="relative flex py-2 items-center">
                     <div className="flex-grow border-t border-white/5"></div>
                     <span className="flex-shrink mx-4 text-[9px] text-white/30 uppercase tracking-widest font-black">Or checkout using card details</span>
@@ -409,113 +418,74 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
                   <div className="space-y-3">
                     <h3 className="font-bold uppercase tracking-wider border-b border-white/5 pb-1 text-[10px] text-white/40">4. Card details</h3>
                     <div className="space-y-3 p-4 bg-white/5 border border-white/5 rounded-sm">
-                      {stripePromise && clientSecret ? (
-                        /* Real Stripe Integration Wrapper */
-                 <Elements
-  stripe={stripePromise}
-  options={{
-    clientSecret,
-    appearance: {
-      theme: "night",
-    },
-  }}
->
-  <StripePaymentSubForm
-    email={email}
-    name={name}
-    address={address}
-    city={city}
-    postalCode={postalCode}
-    country={country}
-    total={total}
-    items={cartItems.map(item => ({
-      id: item.product.id,
-      quantity: item.quantity,
-    }))}
-    couponCode={coupon?.code}
-    onSubmitSuccess={(intentId) => handleOrderSubmission("card", intentId)}
-  />
-</Elements>
+                      {stripePromise ? (
+                        intentError ? (
+                          <div className="text-center py-6 space-y-3">
+                            <AlertCircle size={20} className="mx-auto text-red-400" />
+                            <p className="text-[11px] text-red-400">{intentError}</p>
+                            <button
+                              type="button"
+                              onClick={() => { setClientSecret(''); setIntentError(null); /* effect re-fires on next cart/coupon change; force retry */ setIntentLoading(true); (async () => {
+                                try {
+                                  const response = await api.post("/api/payment/create-intent", {
+                                    items: cartItems.map(item => ({ id: item.product.id, quantity: item.quantity })),
+                                    couponCode: coupon?.code
+                                  });
+                                  setClientSecret(response.clientSecret);
+                                } catch {
+                                  setIntentError("Still unable to reach the payment service. Please try again shortly.");
+                                } finally {
+                                  setIntentLoading(false);
+                                }
+                              })(); }}
+                              className="px-4 py-2 border border-white/15 hover:bg-white/5 text-white text-[10px] uppercase font-bold tracking-wider cursor-pointer rounded"
+                            >
+                              Retry
+                            </button>
+                          </div>
+                        ) : intentLoading || !clientSecret ? (
+                          <div className="flex items-center justify-center gap-2 py-8 text-white/40 text-[11px]">
+                            <Loader2 size={14} className="animate-spin" />
+                            Preparing secure payment form…
+                          </div>
+                        ) : (
+                          <Elements
+                            stripe={stripePromise}
+                            options={{ clientSecret, appearance: { theme: "night" } }}
+                          >
+                            <StripePaymentSubForm
+                              email={email}
+                              name={name}
+                              address={address}
+                              city={city}
+                              postalCode={postalCode}
+                              country={country}
+                              total={total}
+                              validateShipping={validateShippingDetails}
+                              onSubmitSuccess={(intentId) => handleOrderSubmission("card", intentId)}
+                            />
+                          </Elements>
+                        )
                       ) : (
-                        /* Mock Card Form Wrapper */
-                        <div className="space-y-3">
-                          <div className="flex justify-between items-center text-[10px] text-white/40">
-                            <span className="flex items-center gap-1"><Lock size={10} className="text-emerald-400" /> SECURE CARD PAYMENT PROTOCOL</span>
-                            <span className="px-1.5 py-0.5 bg-emerald-500/15 text-emerald-400 rounded-sm font-bold">SECURE CHANNEL</span>
-                          </div>
-                          
-                          <div>
-                            <label className="block text-[9px] uppercase text-white/50 mb-1">Card Number</label>
-                            <div className="relative">
-                              <input
-                                type="text" required placeholder="4242 4242 4242 4242"
-                                value={cardNumber} onChange={handleCardNumberChange}
-                                className="w-full pl-3 pr-10 py-2.5 bg-black border border-white/10 focus:border-emerald-500/60 outline-none text-white tracking-widest"
-                              />
-                              {cardType !== 'unknown' && (
-                                <span className="absolute right-3 top-2.5 text-[9px] font-black uppercase text-emerald-400 tracking-wider">
-                                  {cardType}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <div>
-                              <label className="block text-[9px] uppercase text-white/50 mb-1">Expiry Date</label>
-                              <input
-                                type="text" required placeholder="MM/YY"
-                                value={cardExpiry} onChange={handleExpiryChange}
-                                className="w-full px-3 py-2.5 bg-black border border-white/10 focus:border-emerald-500/60 outline-none text-white tracking-widest text-center"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-[9px] uppercase text-white/50 mb-1">CVC / CVV</label>
-                              <input
-                                type="password" required placeholder="•••"
-                                value={cardCvc} onChange={handleCvcChange}
-                                className="w-full px-3 py-2.5 bg-black border border-white/10 focus:border-emerald-500/60 outline-none text-white tracking-widest text-center"
-                              />
-                            </div>
-                          </div>
-                          <p className="text-[9px] text-white/30 italic mt-1 leading-normal">
-                            Test card: Use number 4242 4242... future expiry (e.g. 12/28) and any CVC.
-                          </p>
+                        /* No Stripe publishable key configured for this environment */
+                        <div className="flex items-center gap-2 py-6 justify-center text-center text-[11px] text-white/40">
+                          <AlertCircle size={14} className="text-white/30 shrink-0" />
+                          Card payments aren't configured for this environment. Use Google Pay or Apple Pay above, or contact support.
                         </div>
                       )}
                     </div>
                   </div>
-
-                  {/* Standard Card Submit Button (StripeElements wrapper renders its own button) */}
-                  {!stripePromise && (
-                    <button
-                      type="submit"
-                      disabled={loading}
-                      className="w-full py-3.5 mt-2 bg-emerald-500 hover:bg-emerald-400 text-black font-black uppercase tracking-widest text-xs flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-                      style={{ fontFamily: "'Barlow Condensed', sans-serif" }}
-                    >
-                      {loading ? (
-                        <>Processing Order...</>
-                      ) : (
-                        <>
-                          Pay & Place Order (€{total.toFixed(2)})
-                          <ArrowRight size={14} />
-                        </>
-                      )}
-                    </button>
-                  )}
                 </form>
               </div>
 
-              {/* Right Panel: Order Summary */}
-              <div className="w-full lg:w-96 xl:w-[420px] bg-[#0c0c0c] border-t lg:border-t-0 lg:border-l border-white/5 p-4 sm:p-6 md:p-8 flex flex-col overflow-y-auto">
+              {/* Right Panel: Order Summary (sticky on desktop) */}
+              <div className="w-full lg:w-96 xl:w-[420px] bg-[#0c0c0c] border-t lg:border-t-0 lg:border-l border-white/5 p-4 sm:p-6 md:p-8 flex flex-col overflow-y-auto lg:sticky lg:top-0 lg:self-start lg:max-h-[95vh]">
                 <div className="space-y-4">
                   <h3 className="text-sm font-black uppercase tracking-widest text-white border-b border-white/5 pb-2 flex items-center gap-2" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
                     <ShoppingBag size={14} className="text-emerald-400" />
                     Order Summary
                   </h3>
 
-                  {/* Items list */}
                   <div className="space-y-3 divide-y divide-white/5 max-h-[35vh] lg:max-h-[40vh] overflow-y-auto pr-1">
                     {cartItems.map((item, index) => (
                       <div key={`${item.product.id}-${item.flavour}`} className={`flex gap-3 text-xs ${index > 0 ? 'pt-3' : ''}`}>
@@ -531,7 +501,6 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
                   </div>
                 </div>
 
-                {/* Price Calculations */}
                 <div className="border-t border-white/5 pt-4 mt-6 space-y-2 text-xs text-white/50">
                   <div className="flex justify-between">
                     <span>Subtotal</span>
@@ -539,7 +508,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
                   </div>
                   {discount > 0 && (
                     <div className="flex justify-between text-emerald-400">
-                      <span>Discount</span>
+                      <span>Discount{coupon?.code ? ` (${coupon.code})` : ''}</span>
                       <span>-€{discount.toFixed(2)}</span>
                     </div>
                   )}
@@ -619,10 +588,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
             className="w-full sm:max-w-md bg-[#121212] border border-white/10 rounded-t-xl sm:rounded-lg text-white shadow-2xl p-6 space-y-5"
             style={{ animation: "slide-up 0.3s cubic-bezier(0.16, 1, 0.3, 1) both" }}
           >
-            {/* GPay Header */}
             <div className="flex justify-between items-center border-b border-white/5 pb-3">
               <div className="flex items-center gap-1.5">
-                {/* Google multi color G logo */}
                 <svg className="h-4.5 w-auto" viewBox="0 0 24 24">
                   <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
                   <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
@@ -631,27 +598,22 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
                 </svg>
                 <span className="font-bold text-sm text-white/90">Google Pay</span>
               </div>
-              <button
-                onClick={() => setIsGpaySheetOpen(false)}
-                className="text-white/40 hover:text-white cursor-pointer p-1.5 -m-1.5"
-              >
+              <button onClick={() => setIsGpaySheetOpen(false)} aria-label="Close Google Pay" className="text-white/40 hover:text-white cursor-pointer p-1.5 -m-1.5">
                 <X size={16} />
               </button>
             </div>
 
-            {/* GPay Merchant / Total Info */}
             <div className="text-center py-2 space-y-1">
               <p className="text-xs text-white/50 uppercase tracking-widest font-bold">Pay Merchant</p>
               <h4 className="text-lg font-black uppercase text-emerald-400" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>Phase Fit Supplements</h4>
               <p className="text-2xl font-black text-white">€{total.toFixed(2)}</p>
             </div>
 
-            {/* GPay Details */}
             <div className="space-y-3.5 text-xs text-white/80 bg-white/5 p-4 rounded border border-white/5">
               <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1.5 sm:gap-0">
                 <span className="text-white/40 font-medium">Google Account *</span>
                 <input
-                  type="email" required
+                  type="email" required autoComplete="email"
                   value={gpayEmail}
                   onChange={(e) => setGpayEmail(e.target.value)}
                   placeholder="e.g. customer@gmail.com"
@@ -675,14 +637,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
                 <span className="text-white/40 font-medium">Fulfillment Address</span>
                 <span className="font-semibold text-white sm:text-right sm:max-w-[200px]">
                   {name}<br />
-                  <span className="text-[10px] text-white/60 font-light">
-                    {address}, {city}, {postalCode}, {country}
-                  </span>
+                  <span className="text-[10px] text-white/60 font-light">{address}, {city}, {postalCode}, {country}</span>
                 </span>
               </div>
             </div>
 
-            {/* GPay CTA */}
             <div className="flex gap-3 pt-2">
               <button
                 type="button"
@@ -699,11 +658,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
                 className="flex-1 py-3 bg-emerald-500 hover:bg-emerald-400 text-black font-black text-xs uppercase cursor-pointer rounded flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
                 style={{ fontFamily: "'Barlow Condensed', sans-serif" }}
               >
-                {gpayLoading ? (
-                  <>Authorising...</>
-                ) : (
-                  <>Confirm & Pay</>
-                )}
+                {gpayLoading ? <><Loader2 size={12} className="animate-spin" /> Authorising...</> : <>Confirm & Pay</>}
               </button>
             </div>
           </div>
@@ -717,33 +672,26 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
             className="w-full sm:max-w-md bg-[#151517] border border-white/10 rounded-t-2xl sm:rounded-2xl text-white shadow-2xl p-6 space-y-5"
             style={{ animation: "slide-up 0.3s cubic-bezier(0.16, 1, 0.3, 1) both" }}
           >
-            {/* Apple Pay Header */}
             <div className="flex justify-between items-center border-b border-white/5 pb-3">
               <div className="flex items-center gap-1">
-                <span className="text-lg font-semibold tracking-tighter lowercase pr-0.5"></span>
                 <span className="font-bold text-sm tracking-wider text-white">Apple Pay</span>
               </div>
-              <button
-                onClick={() => setIsApplePaySheetOpen(false)}
-                className="text-white/40 hover:text-white cursor-pointer p-1.5 -m-1.5"
-              >
+              <button onClick={() => setIsApplePaySheetOpen(false)} aria-label="Close Apple Pay" className="text-white/40 hover:text-white cursor-pointer p-1.5 -m-1.5">
                 <X size={16} />
               </button>
             </div>
 
-            {/* Apple Pay Merchant / Total Info */}
             <div className="text-center py-1 space-y-1">
               <p className="text-[10px] text-white/40 uppercase tracking-widest font-black">Pay Merchant</p>
               <h4 className="text-md font-bold uppercase text-white">Phase Fit Supplements</h4>
               <p className="text-2xl font-black text-white">€{total.toFixed(2)}</p>
             </div>
 
-            {/* Apple Pay Details */}
             <div className="space-y-3.5 text-xs text-white/80 bg-white/5 p-4 rounded-xl border border-white/5">
               <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1.5 sm:gap-0">
                 <span className="text-white/40 font-medium">Apple ID Account *</span>
                 <input
-                  type="email" required
+                  type="email" required autoComplete="email"
                   value={applePayEmail}
                   onChange={(e) => setApplePayEmail(e.target.value)}
                   placeholder="e.g. account@icloud.com"
@@ -767,14 +715,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
                 <span className="text-white/40 font-medium">Fulfillment Address</span>
                 <span className="font-semibold text-white sm:text-right sm:max-w-[200px]">
                   {name}<br />
-                  <span className="text-[10px] text-white/60 font-light">
-                    {address}, {city}, {postalCode}, {country}
-                  </span>
+                  <span className="text-[10px] text-white/60 font-light">{address}, {city}, {postalCode}, {country}</span>
                 </span>
               </div>
             </div>
 
-            {/* Apple Pay CTA */}
             <div className="flex gap-3 pt-2">
               <button
                 type="button"
@@ -791,11 +736,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
                 className="flex-1 py-3.5 bg-white hover:bg-white/90 text-black font-black text-xs uppercase cursor-pointer rounded-full flex items-center justify-center gap-2 transition-all disabled:opacity-40"
                 style={{ fontFamily: "'Barlow Condensed', sans-serif" }}
               >
-                {applePayLoading ? (
-                  <>Processing...</>
-                ) : (
-                  <>Confirm & Pay</>
-                )}
+                {applePayLoading ? <><Loader2 size={12} className="animate-spin" /> Processing...</> : <>Confirm & Pay</>}
               </button>
             </div>
           </div>
@@ -814,28 +755,9 @@ interface StripeSubFormProps {
   postalCode: string;
   country: string;
   total: number;
-  items: { id: string; quantity: number }[];
-  couponCode?: string;
+  validateShipping: () => boolean;
   onSubmitSuccess: (paymentIntentId: string) => Promise<void>;
 }
-
-const CARD_BRAND_ICONS: Record<string, React.JSX.Element> = {
-  visa: (
-    <svg viewBox="0 0 32 20" className="h-3.5 w-auto"><rect width="32" height="20" rx="3" fill="#1A1F71" /><text x="16" y="14" textAnchor="middle" fontSize="8" fontWeight="900" fontStyle="italic" fill="#fff" fontFamily="Arial, sans-serif">VISA</text></svg>
-  ),
-  mastercard: (
-    <svg viewBox="0 0 32 20" className="h-3.5 w-auto"><rect width="32" height="20" rx="3" fill="#0a0a0a" /><circle cx="13" cy="10" r="6" fill="#EB001B" /><circle cx="19" cy="10" r="6" fill="#F79E1B" fillOpacity="0.9" /></svg>
-  ),
-  amex: (
-    <svg viewBox="0 0 32 20" className="h-3.5 w-auto"><rect width="32" height="20" rx="3" fill="#2E77BC" /><text x="16" y="14" textAnchor="middle" fontSize="7" fontWeight="800" fill="#fff" fontFamily="Arial, sans-serif">AMEX</text></svg>
-  ),
-  discover: (
-    <svg viewBox="0 0 32 20" className="h-3.5 w-auto"><rect width="32" height="20" rx="3" fill="#111" /><text x="16" y="14" textAnchor="middle" fontSize="6" fontWeight="800" fill="#FF6000" fontFamily="Arial, sans-serif">DISC</text></svg>
-  ),
-  unknown: (
-    <svg viewBox="0 0 32 20" className="h-3.5 w-auto opacity-30"><rect width="32" height="20" rx="3" fill="none" stroke="#ffffff40" /></svg>
-  ),
-};
 
 const StripePaymentSubForm: React.FC<StripeSubFormProps> = ({
   email,
@@ -845,57 +767,41 @@ const StripePaymentSubForm: React.FC<StripeSubFormProps> = ({
   postalCode,
   country,
   total,
-  items,
-  couponCode,
+  validateShipping,
   onSubmitSuccess
 }) => {
   const stripe = useStripe();
   const elements = useElements();
   const [loading, setLoading] = useState(false);
-  const [focused, setFocused] = useState(false);
-  const [cardBrand, setCardBrand] = useState('unknown');
-  const [cardComplete, setCardComplete] = useState(false);
+  // Populated only from Stripe's own confirmPayment error response —
+  // there's no more client-side card-complete tracking to maintain.
   const [cardError, setCardError] = useState<string | null>(null);
 
   const handleSubmit = async () => {
-
     if (!stripe || !elements) {
-      toast.error('Stripe has not loaded yet.');
+      toast.error('Payment form is still loading — please wait a moment.');
       return;
     }
-
-    if (!name.trim() || !email.trim() || !address.trim() || !city.trim() || !postalCode.trim()) {
-      toast.error('Please fill in all customer and shipping address details first.');
-      return;
-    }
+    if (!validateShipping()) return;
 
     setLoading(true);
-
     try {
-      // 1. Create PaymentIntent on server. The server recalculates the
-      // charge from real product prices + coupon — it does not trust a
-      // client-supplied amount, so we send the cart contents, not a total.
-      const { clientSecret } = await api.post('/api/payment/create-intent', {
-        items,
-        couponCode,
-        receipt_email: email
+      // Confirms the SAME PaymentIntent that Elements was initialized
+      // with in CheckoutModal — no second /create-intent call here.
+      // Stripe reads the client secret from the Elements instance itself.
+      const result = await stripe.confirmPayment({
+        elements,
+        confirmParams: { receipt_email: email },
+        redirect: "if_required",
       });
 
-      
-
-    const result = await stripe.confirmPayment({
-  elements,
-  confirmParams: {
-    receipt_email: email,
-  },
-  redirect: "if_required",
-});
-
       if (result.error) {
+        setCardError(result.error.message || 'Payment confirmation failed.');
         toast.error(result.error.message || 'Payment confirmation failed.');
       } else if (result.paymentIntent && result.paymentIntent.status === 'succeeded') {
-        // 3. Confirm order placement
         await onSubmitSuccess(result.paymentIntent.id);
+      } else if (result.paymentIntent) {
+        toast.error(`Payment status: ${result.paymentIntent.status}. Please try again or use a different method.`);
       }
     } catch (err: any) {
       console.error('Stripe Payment error:', err);
@@ -906,63 +812,41 @@ const StripePaymentSubForm: React.FC<StripeSubFormProps> = ({
   };
 
   return (
-    // This renders inside CheckoutModal's own <form onSubmit={handleCheckoutSubmit}>
-    // (the shipping/customer-info form further up the tree). A <form> was
-    // nested inside that outer <form> here before — invalid HTML, and the
-    // likely cause of "clicking Pay & Place Order reloads the page back to
-    // Home": nested forms make the browser's native submit-button-owner
-    // resolution unreliable, so the click could fall through to a real
-    // native form submission (a full page GET/reload) instead of being
-    // handled by this component's own JS. Using a plain <div> here plus a
-    // type="button" + onClick below means there is no second <form> at
-    // all, so there's no native submission path left to fall through to.
+    // Plain <div>, not a nested <form> — the outer shipping/customer-info
+    // form further up the tree already owns a <form>. Nesting a second
+    // <form> here is invalid HTML and made the browser's native
+    // submit-button-owner resolution unreliable, which was the likely
+    // cause of "clicking Pay & Place Order reloads the page." A div plus
+    // an explicit type="button" onClick removes that failure path entirely.
     <div className="space-y-4">
       <div className="flex justify-between items-center text-[10px] text-white/40">
         <span className="flex items-center gap-1"><Lock size={10} className="text-emerald-400" /> SECURE CARD PAYMENT PROTOCOL</span>
-        <div className="flex items-center gap-1.5">
-          {['visa', 'mastercard', 'amex', 'discover'].map((brand) => (
-            <span
-              key={brand}
-              className="transition-opacity duration-200"
-              style={{ opacity: cardBrand === 'unknown' || cardBrand === brand ? 1 : 0.25 }}
-            >
-              {CARD_BRAND_ICONS[brand]}
-            </span>
-          ))}
-        </div>
+        <span className="text-white/30">Cards & wallets via Stripe</span>
       </div>
 
-      {/* Card input — glows emerald on focus, red on validation error */}
       <div
         className="relative p-4 bg-gradient-to-b from-white/[0.04] to-transparent border rounded-lg transition-all duration-200"
         style={{
-          borderColor: cardError ? 'rgba(239,68,68,0.6)' : focused ? 'rgba(16,185,129,0.7)' : 'rgba(255,255,255,0.1)',
-          boxShadow: cardError
-            ? '0 0 0 3px rgba(239,68,68,0.08)'
-            : focused
-            ? '0 0 0 3px rgba(16,185,129,0.10)'
-            : 'none',
+          borderColor: cardError ? 'rgba(239,68,68,0.6)' : 'rgba(255,255,255,0.1)',
         }}
       >
- <PaymentElement />
-        {cardComplete && !cardError && (
-          <CheckCircle2 size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-emerald-400" />
-        )}
+        <PaymentElement />
       </div>
 
       {cardError && (
-        <p className="text-[10px] text-red-400 flex items-center gap-1 -mt-2">{cardError}</p>
+        <p className="text-[10px] text-red-400 flex items-center gap-1 -mt-2"><AlertCircle size={10} />{cardError}</p>
       )}
 
       <button
         type="button"
         onClick={handleSubmit}
-        disabled={loading || !stripe || !cardComplete}
+        disabled={loading || !stripe || !elements}
+        aria-disabled={loading || !stripe || !elements}
         className="w-full py-3.5 bg-emerald-500 hover:bg-emerald-400 text-black font-black uppercase tracking-widest text-xs flex items-center justify-center gap-2 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed transition-all rounded-sm"
         style={{ fontFamily: "'Barlow Condensed', sans-serif" }}
       >
         {loading ? (
-          <>Authorising Payment...</>
+          <><Loader2 size={14} className="animate-spin" /> Authorising Payment...</>
         ) : (
           <>
             Pay & Place Order (€{total.toFixed(2)})

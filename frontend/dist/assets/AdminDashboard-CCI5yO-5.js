@@ -1,4 +1,4 @@
-import{c as Ke,k as ia,m as ve,r as $,R as P,f as lr,u as E_,j as h,X as N_,A as Os,b as jh,n as Ph,M as C_,p as k_,C as M_,d as $_,t as X,o as _s,q as Qe,s as aa,v as As}from"./index-Bo4NqpXM.js";import{r as Dn}from"./reviews-36gYZWvq.js";import{C as Th,n as Ss}from"./nutrition-BSo-JRlr.js";import{S as Eh}from"./shopping-bag-De9ijsou.js";import{M as js}from"./message-square-DPP1tjTc.js";import{P as ce,C as I_}from"./index-Dp66P5cR.js";import{T as Ir}from"./trash-2-utv9eDqn.js";import{C as R_}from"./credit-card-Chfzfknp.js";/**
+import{c as Ke,k as ia,m as ve,r as $,R as P,f as lr,u as E_,j as h,X as N_,A as Os,b as jh,n as Ph,M as C_,p as k_,C as M_,d as $_,t as X,o as _s,q as Qe,s as aa,v as As}from"./index-DOiQ2cHL.js";import{r as Dn}from"./reviews-eq52roC7.js";import{C as Th,n as Ss}from"./nutrition-trfkRlLg.js";import{S as Eh}from"./shopping-bag-NQNTf8nE.js";import{M as js}from"./message-square-CH5LFCLe.js";import{P as ce,C as I_}from"./index-Ba5lZQRV.js";import{T as Ir}from"./trash-2-BkxYOnqC.js";import{C as R_}from"./credit-card-BgDOqJSP.js";/**
  * @license lucide-react v0.487.0 - ISC
  *
  * This source code is licensed under the ISC license.
