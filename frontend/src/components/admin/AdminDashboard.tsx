@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { X, ShieldAlert, BarChart3, Database, Award, ClipboardCheck, MessageSquare, Plus, Trash2, CheckCircle2, XCircle, Star, ShoppingBag, Layers, Edit2, Upload, Eye, UserPlus, Key, Download, TrendingUp, TrendingDown, Search, Copy, Check, MapPin, Mail, CreditCard, Package, Filter, Phone, Activity, Utensils, AlertTriangle, Send, Cake, Scale } from 'lucide-react';
+import { X, ShieldAlert, BarChart3, Database, Award, ClipboardCheck, MessageSquare, Plus, Trash2, CheckCircle2, XCircle, Star, ShoppingBag, Layers, Edit2, Upload, Eye, UserPlus, Key, Download, TrendingUp, TrendingDown, Search, Copy, Check, MapPin, Mail, CreditCard, Package, Filter, Phone, Activity, Utensils, AlertTriangle, Send, Cake, Scale, ChevronDown, ExternalLink } from 'lucide-react';
 import { AreaChart, Area, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { dashboardService } from '../../api/dashboard';
 import { productsService } from '../../api/products';
@@ -839,7 +839,35 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, onCatal
       `Activity Level: ${req.activity_level || 'N/A'}\n\n` +
       (req.admin_notes ? `Our recommendation:\n${req.admin_notes}\n\n` : '') +
       `Best regards,\nCeltiCore Nutrition Team`;
-    return `mailto:${req.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    return { subject, body, to: req.email };
+  };
+
+  const buildGmailComposeUrl = (req: NutritionRequest) => {
+    const { subject, body, to } = buildNutritionMailto(req);
+    return `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(to)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  };
+
+  const buildOutlookComposeUrl = (req: NutritionRequest) => {
+    const { subject, body, to } = buildNutritionMailto(req);
+    return `https://outlook.office.com/mail/deeplink/compose?to=${encodeURIComponent(to)}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  };
+
+  const buildMailtoUrl = (req: NutritionRequest) => {
+    const { subject, body, to } = buildNutritionMailto(req);
+    return `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  };
+
+  const [emailMenuOpenId, setEmailMenuOpenId] = useState<number | null>(null);
+  const [copiedEmail, setCopiedEmail] = useState<string | null>(null);
+
+  const handleCopyEmail = (email: string) => {
+    navigator.clipboard.writeText(email).then(() => {
+      setCopiedEmail(email);
+      toast.success('Email address copied');
+      window.setTimeout(() => setCopiedEmail((prev) => (prev === email ? null : prev)), 1800);
+    }).catch(() => {
+      toast.error('Could not copy email address');
+    });
   };
 
   return (
@@ -1930,13 +1958,73 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, onCatal
                           </div>
 
                           <div className="flex items-center gap-2 shrink-0">
-                            <a
-                              href={buildNutritionMailto(req)}
-                              className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide rounded-lg bg-emerald-500 text-black hover:bg-emerald-400 transition-colors cursor-pointer"
-                              title={`Email ${req.name}`}
-                            >
-                              <Send size={12} /> Reply via Email
-                            </a>
+                            <div className="relative">
+                              <div className="flex items-stretch rounded-lg overflow-hidden">
+                                <a
+                                  href={buildGmailComposeUrl(req)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide bg-emerald-500 text-black hover:bg-emerald-400 transition-colors cursor-pointer"
+                                  title={`Compose email to ${req.name} in Gmail`}
+                                >
+                                  <Send size={12} /> Reply via Email
+                                </a>
+                                <button
+                                  type="button"
+                                  onClick={() => setEmailMenuOpenId((prev) => (prev === req.id ? null : req.id))}
+                                  className="flex items-center px-1.5 bg-emerald-500 text-black hover:bg-emerald-400 transition-colors cursor-pointer border-l border-black/15"
+                                  title="More email options"
+                                >
+                                  <ChevronDown size={13} className={`transition-transform ${emailMenuOpenId === req.id ? 'rotate-180' : ''}`} />
+                                </button>
+                              </div>
+
+                              {emailMenuOpenId === req.id && (
+                                <>
+                                  <div className="fixed inset-0 z-10" onClick={() => setEmailMenuOpenId(null)} />
+                                  <div className="absolute right-0 mt-1.5 w-56 bg-[#0c0c0c] border border-white/10 rounded-lg shadow-xl z-20 overflow-hidden py-1">
+                                    <a
+                                      href={buildGmailComposeUrl(req)}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      onClick={() => setEmailMenuOpenId(null)}
+                                      className="flex items-center gap-2 px-3 py-2 text-[11px] text-white/80 hover:bg-white/5 hover:text-white cursor-pointer"
+                                    >
+                                      <ExternalLink size={12} className="text-emerald-400 shrink-0" /> Open in Gmail
+                                    </a>
+                                    <a
+                                      href={buildOutlookComposeUrl(req)}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      onClick={() => setEmailMenuOpenId(null)}
+                                      className="flex items-center gap-2 px-3 py-2 text-[11px] text-white/80 hover:bg-white/5 hover:text-white cursor-pointer"
+                                    >
+                                      <ExternalLink size={12} className="text-emerald-400 shrink-0" /> Open in Outlook Web
+                                    </a>
+                                    <a
+                                      href={buildMailtoUrl(req)}
+                                      onClick={() => setEmailMenuOpenId(null)}
+                                      className="flex items-center gap-2 px-3 py-2 text-[11px] text-white/80 hover:bg-white/5 hover:text-white cursor-pointer"
+                                    >
+                                      <Mail size={12} className="text-emerald-400 shrink-0" /> Open in Default Mail App
+                                    </a>
+                                    <div className="border-t border-white/5 my-1" />
+                                    <button
+                                      type="button"
+                                      onClick={() => { handleCopyEmail(req.email); setEmailMenuOpenId(null); }}
+                                      className="w-full flex items-center gap-2 px-3 py-2 text-[11px] text-white/80 hover:bg-white/5 hover:text-white cursor-pointer text-left"
+                                    >
+                                      {copiedEmail === req.email ? (
+                                        <Check size={12} className="text-emerald-400 shrink-0" />
+                                      ) : (
+                                        <Copy size={12} className="text-emerald-400 shrink-0" />
+                                      )}
+                                      Copy Email Address
+                                    </button>
+                                  </div>
+                                </>
+                              )}
+                            </div>
                             <select
                               value={req.status}
                               onChange={(e) => handleUpdateNutritionStatus(req.id, e.target.value as any)}
@@ -1945,6 +2033,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, onCatal
                               <option value="pending">Pending Review</option>
                               <option value="completed">Completed</option>
                               <option value="cancelled">Cancelled</option>
+
                             </select>
                           </div>
                         </div>
