@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, CreditCard, Lock, ArrowRight, CheckCircle2, ShoppingBag, ShieldCheck, AlertCircle, Loader2 } from 'lucide-react';
+import { X, Lock, ArrowRight, CheckCircle2, ShoppingBag, ShieldCheck, AlertCircle, Loader2 } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 import { api } from '../../api/client';
 import { loadStripe } from '@stripe/stripe-js';
@@ -21,8 +21,6 @@ interface CheckoutModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
-
-type PaymentMethodType = 'card' | 'gpay' | 'applepay';
 
 interface ShippingErrors {
   name?: string;
@@ -54,18 +52,6 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
   // Inline validation
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [errors, setErrors] = useState<ShippingErrors>({});
-
-  // GPay Sheet simulation states
-  const [isGpaySheetOpen, setIsGpaySheetOpen] = useState(false);
-  const [gpayLoading, setGpayLoading] = useState(false);
-  const [gpayEmail, setGpayEmail] = useState('');
-  const [gpayCard, setGpayCard] = useState('');
-
-  // Apple Pay Sheet simulation states
-  const [isApplePaySheetOpen, setIsApplePaySheetOpen] = useState(false);
-  const [applePayLoading, setApplePayLoading] = useState(false);
-  const [applePayEmail, setApplePayEmail] = useState('');
-  const [applePayCard, setApplePayCard] = useState('');
 
   const firstFieldRef = useRef<HTMLInputElement>(null);
 
@@ -155,20 +141,27 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
     return true;
   };
 
-  // Process order placement
-  const handleOrderSubmission = async (methodUsed: PaymentMethodType, paymentIntentId?: string) => {
+  // Process order placement. Every real payment now comes through the same
+  // embedded Stripe PaymentElement — whether the customer actually paid
+  // with a card, Google Pay, Apple Pay, or Link, Stripe settles it on the
+  // same PaymentIntent, so it's recorded as 'card' here. That's also what
+  // makes the backend treat it as a properly server-verified payment
+  // (placeOrder re-checks the PaymentIntent status with Stripe directly
+  // for paymentMethod === 'card') rather than the old simulated gpay/
+  // applepay paths, which were never actually verified.
+  const handleOrderSubmission = async (paymentIntentId: string) => {
     setLoading(true);
     try {
       const order = await placeOrder({
         customerName: name,
-        customerEmail: methodUsed === 'gpay' ? (gpayEmail || email) : methodUsed === 'applepay' ? (applePayEmail || email) : email,
+        customerEmail: email,
         address: address,
         city: city,
         postalCode: postalCode,
         country: country,
-        paymentMethod: methodUsed,
+        paymentMethod: 'card',
         paymentStatus: 'paid',
-        stripePaymentIntentId: paymentIntentId || `express_mock_${Date.now()}`
+        stripePaymentIntentId: paymentIntentId
       });
       setPlacedOrder(order);
       setStep('success');
@@ -186,42 +179,12 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
   };
 
   // The outer <form> exists to group and validate shipping fields (and to
-  // support Enter-to-advance between them). Actual card payment is
-  // submitted separately by StripePaymentSubForm's own button, since it
-  // needs the Stripe `elements` context to confirm payment — this handler
-  // just prevents an accidental native submit/page reload.
+  // support Enter-to-advance between them). Actual payment is submitted
+  // separately by StripePaymentSubForm's own button, since it needs the
+  // Stripe `elements` context to confirm payment — this handler just
+  // prevents an accidental native submit/page reload.
   const handleCheckoutSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-  };
-
-  const handleGpayClick = () => {
-    if (!validateShippingDetails()) return;
-    setIsGpaySheetOpen(true);
-  };
-
-  const handleGpaySheetConfirm = () => {
-    setGpayLoading(true);
-    setTimeout(async () => {
-      setIsGpaySheetOpen(false);
-      setGpayLoading(false);
-      await handleOrderSubmission('gpay', `gpay_intent_${Math.floor(Math.random() * 1000000)}`);
-      toast.success('Paid successfully with Google Pay!');
-    }, 1500);
-  };
-
-  const handleApplePayClick = () => {
-    if (!validateShippingDetails()) return;
-    setIsApplePaySheetOpen(true);
-  };
-
-  const handleApplePaySheetConfirm = () => {
-    setApplePayLoading(true);
-    setTimeout(async () => {
-      setIsApplePaySheetOpen(false);
-      setApplePayLoading(false);
-      await handleOrderSubmission('applepay', `applepay_intent_${Math.floor(Math.random() * 1000000)}`);
-      toast.success('Paid successfully with Apple Pay!');
-    }, 1500);
   };
 
   const fieldClass = (field: keyof ShippingErrors) =>
@@ -377,46 +340,14 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
                     </div>
                   </div>
 
-                  {/* Express Checkout */}
+                  {/* Section 3: Payment — a single embedded Stripe element now
+                      handles card, Google Pay, Apple Pay, Link, and anything
+                      else enabled in the Stripe Dashboard. Wallet buttons
+                      (when the browser/device supports them) render
+                      automatically at the top of PaymentElement itself —
+                      there's no separate Express Checkout section anymore. */}
                   <div className="space-y-3">
-                    <h3 className="font-bold uppercase tracking-wider border-b border-white/5 pb-1 text-[10px] text-white/40">3. Express Checkout</h3>
-                    <p className="text-[10px] text-white/45 italic leading-tight mb-2">Fill in your shipping details above first — Express Checkout will validate them automatically when clicked.</p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <button
-                        type="button"
-                        onClick={handleGpayClick}
-                        className="w-full flex items-center justify-center gap-1.5 py-3.5 bg-white text-black font-black uppercase text-xs tracking-wider rounded border border-white/15 hover:bg-white/90 transition-all cursor-pointer shadow-md"
-                        style={{ fontFamily: "'Barlow Condensed', sans-serif" }}
-                      >
-                        <svg className="h-4 w-auto inline-block align-middle" viewBox="0 0 24 24" fill="currentColor">
-                          <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                          <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                          <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l3.66-2.85z" fill="#FBBC05"/>
-                          <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.85c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-                        </svg>
-                        <span>Pay with GPay</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={handleApplePayClick}
-                        className="w-full flex items-center justify-center gap-1.5 py-3.5 bg-[#111] text-white font-black uppercase text-xs tracking-wider rounded border border-white/10 hover:bg-[#1f1f1f] transition-all cursor-pointer shadow-md"
-                        style={{ fontFamily: "'Barlow Condensed', sans-serif" }}
-                      >
-                        <span>Pay with Apple Pay</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="relative flex py-2 items-center">
-                    <div className="flex-grow border-t border-white/5"></div>
-                    <span className="flex-shrink mx-4 text-[9px] text-white/30 uppercase tracking-widest font-black">Or checkout using card details</span>
-                    <div className="flex-grow border-t border-white/5"></div>
-                  </div>
-
-                  {/* Section 4: Card details */}
-                  <div className="space-y-3">
-                    <h3 className="font-bold uppercase tracking-wider border-b border-white/5 pb-1 text-[10px] text-white/40">4. Card details</h3>
+                    <h3 className="font-bold uppercase tracking-wider border-b border-white/5 pb-1 text-[10px] text-white/40">3. Payment Details</h3>
                     <div className="space-y-3 p-4 bg-white/5 border border-white/5 rounded-sm">
                       {stripePromise ? (
                         intentError ? (
@@ -455,14 +386,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
                           >
                             <StripePaymentSubForm
                               email={email}
-                              name={name}
-                              address={address}
-                              city={city}
-                              postalCode={postalCode}
-                              country={country}
                               total={total}
                               validateShipping={validateShippingDetails}
-                              onSubmitSuccess={(intentId) => handleOrderSubmission("card", intentId)}
+                              onSubmitSuccess={handleOrderSubmission}
                             />
                           </Elements>
                         )
@@ -470,7 +396,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
                         /* No Stripe publishable key configured for this environment */
                         <div className="flex items-center gap-2 py-6 justify-center text-center text-[11px] text-white/40">
                           <AlertCircle size={14} className="text-white/30 shrink-0" />
-                          Card payments aren't configured for this environment. Use Google Pay or Apple Pay above, or contact support.
+                          Payment isn't configured for this environment. Please contact support.
                         </div>
                       )}
                     </div>
@@ -557,9 +483,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
                   </div>
                   <div className="flex justify-between border-b border-white/5 pb-1.5">
                     <span className="text-white/40">Fulfillment Method:</span>
-                    <span className="font-bold text-white uppercase">
-                      {placedOrder.paymentMethod === 'gpay' ? 'Google Pay Wallet' : placedOrder.paymentMethod === 'applepay' ? 'Apple Pay Wallet' : 'Credit/Debit Card'}
-                    </span>
+                    <span className="font-bold text-white uppercase">Card / Digital Wallet (Stripe)</span>
                   </div>
                   <div className="space-y-0.5">
                     <span className="text-white/40 block">Shipping Destination:</span>
@@ -580,180 +504,17 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose })
           )}
         </div>
       </div>
-
-      {/* Simulated Google Pay sheet modal overlay */}
-      {isGpaySheetOpen && (
-        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/75 backdrop-blur-sm animate-fade-in">
-          <div
-            className="w-full sm:max-w-md bg-[#121212] border border-white/10 rounded-t-xl sm:rounded-lg text-white shadow-2xl p-6 space-y-5"
-            style={{ animation: "slide-up 0.3s cubic-bezier(0.16, 1, 0.3, 1) both" }}
-          >
-            <div className="flex justify-between items-center border-b border-white/5 pb-3">
-              <div className="flex items-center gap-1.5">
-                <svg className="h-4.5 w-auto" viewBox="0 0 24 24">
-                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                  <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l3.66-2.85z" fill="#FBBC05"/>
-                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.85c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-                </svg>
-                <span className="font-bold text-sm text-white/90">Google Pay</span>
-              </div>
-              <button onClick={() => setIsGpaySheetOpen(false)} aria-label="Close Google Pay" className="text-white/40 hover:text-white cursor-pointer p-1.5 -m-1.5">
-                <X size={16} />
-              </button>
-            </div>
-
-            <div className="text-center py-2 space-y-1">
-              <p className="text-xs text-white/50 uppercase tracking-widest font-bold">Pay Merchant</p>
-              <h4 className="text-lg font-black uppercase text-emerald-400" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>Phase Fit Supplements</h4>
-              <p className="text-2xl font-black text-white">€{total.toFixed(2)}</p>
-            </div>
-
-            <div className="space-y-3.5 text-xs text-white/80 bg-white/5 p-4 rounded border border-white/5">
-              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1.5 sm:gap-0">
-                <span className="text-white/40 font-medium">Google Account *</span>
-                <input
-                  type="email" required autoComplete="email"
-                  value={gpayEmail}
-                  onChange={(e) => setGpayEmail(e.target.value)}
-                  placeholder="e.g. customer@gmail.com"
-                  className="bg-black/60 border border-white/10 px-2 py-1.5 sm:py-1 rounded text-white text-left sm:text-right focus:border-emerald-500 outline-none w-full sm:w-48 font-semibold text-xs"
-                />
-              </div>
-              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1.5 sm:gap-0 border-t border-white/5 pt-2.5">
-                <span className="text-white/40 font-medium">Billing & Card *</span>
-                <div className="flex items-center gap-1.5">
-                  <CreditCard size={12} className="text-emerald-400 shrink-0" />
-                  <input
-                    type="text" required
-                    value={gpayCard}
-                    onChange={(e) => setGpayCard(e.target.value)}
-                    placeholder="e.g. Visa •••• 9911 or Bank details"
-                    className="bg-black/60 border border-white/10 px-2 py-1.5 sm:py-1 rounded text-white text-left sm:text-right focus:border-emerald-500 outline-none w-full sm:w-48 font-semibold text-xs"
-                  />
-                </div>
-              </div>
-              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-1 sm:gap-0 border-t border-white/5 pt-2.5">
-                <span className="text-white/40 font-medium">Fulfillment Address</span>
-                <span className="font-semibold text-white sm:text-right sm:max-w-[200px]">
-                  {name}<br />
-                  <span className="text-[10px] text-white/60 font-light">{address}, {city}, {postalCode}, {country}</span>
-                </span>
-              </div>
-            </div>
-
-            <div className="flex gap-3 pt-2">
-              <button
-                type="button"
-                onClick={() => setIsGpaySheetOpen(false)}
-                className="flex-1 py-3 border border-white/10 hover:bg-white/5 text-white font-bold text-xs uppercase cursor-pointer rounded transition-colors"
-                style={{ fontFamily: "'Barlow Condensed', sans-serif" }}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={gpayLoading || !gpayEmail.trim() || !gpayCard.trim()}
-                onClick={handleGpaySheetConfirm}
-                className="flex-1 py-3 bg-emerald-500 hover:bg-emerald-400 text-black font-black text-xs uppercase cursor-pointer rounded flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
-                style={{ fontFamily: "'Barlow Condensed', sans-serif" }}
-              >
-                {gpayLoading ? <><Loader2 size={12} className="animate-spin" /> Authorising...</> : <>Confirm & Pay</>}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Simulated Apple Pay sheet modal overlay */}
-      {isApplePaySheetOpen && (
-        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/85 backdrop-blur-sm animate-fade-in">
-          <div
-            className="w-full sm:max-w-md bg-[#151517] border border-white/10 rounded-t-2xl sm:rounded-2xl text-white shadow-2xl p-6 space-y-5"
-            style={{ animation: "slide-up 0.3s cubic-bezier(0.16, 1, 0.3, 1) both" }}
-          >
-            <div className="flex justify-between items-center border-b border-white/5 pb-3">
-              <div className="flex items-center gap-1">
-                <span className="font-bold text-sm tracking-wider text-white">Apple Pay</span>
-              </div>
-              <button onClick={() => setIsApplePaySheetOpen(false)} aria-label="Close Apple Pay" className="text-white/40 hover:text-white cursor-pointer p-1.5 -m-1.5">
-                <X size={16} />
-              </button>
-            </div>
-
-            <div className="text-center py-1 space-y-1">
-              <p className="text-[10px] text-white/40 uppercase tracking-widest font-black">Pay Merchant</p>
-              <h4 className="text-md font-bold uppercase text-white">Phase Fit Supplements</h4>
-              <p className="text-2xl font-black text-white">€{total.toFixed(2)}</p>
-            </div>
-
-            <div className="space-y-3.5 text-xs text-white/80 bg-white/5 p-4 rounded-xl border border-white/5">
-              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1.5 sm:gap-0">
-                <span className="text-white/40 font-medium">Apple ID Account *</span>
-                <input
-                  type="email" required autoComplete="email"
-                  value={applePayEmail}
-                  onChange={(e) => setApplePayEmail(e.target.value)}
-                  placeholder="e.g. account@icloud.com"
-                  className="bg-black/60 border border-white/15 px-2 py-1.5 sm:py-1 rounded text-white text-left sm:text-right focus:border-white outline-none w-full sm:w-48 font-semibold text-xs"
-                />
-              </div>
-              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1.5 sm:gap-0 border-t border-white/5 pt-2.5">
-                <span className="text-white/40 font-medium">Billing & Card *</span>
-                <div className="flex items-center gap-1.5">
-                  <CreditCard size={12} className="text-white/60 shrink-0" />
-                  <input
-                    type="text" required
-                    value={applePayCard}
-                    onChange={(e) => setApplePayCard(e.target.value)}
-                    placeholder="e.g. Apple Card •••• 8888 or Bank details"
-                    className="bg-black/60 border border-white/15 px-2 py-1.5 sm:py-1 rounded text-white text-left sm:text-right focus:border-white outline-none w-full sm:w-48 font-semibold text-xs"
-                  />
-                </div>
-              </div>
-              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-1 sm:gap-0 border-t border-white/5 pt-2.5">
-                <span className="text-white/40 font-medium">Fulfillment Address</span>
-                <span className="font-semibold text-white sm:text-right sm:max-w-[200px]">
-                  {name}<br />
-                  <span className="text-[10px] text-white/60 font-light">{address}, {city}, {postalCode}, {country}</span>
-                </span>
-              </div>
-            </div>
-
-            <div className="flex gap-3 pt-2">
-              <button
-                type="button"
-                onClick={() => setIsApplePaySheetOpen(false)}
-                className="flex-1 py-3.5 border border-white/10 hover:bg-white/5 text-white font-bold text-xs uppercase cursor-pointer rounded-full transition-colors"
-                style={{ fontFamily: "'Barlow Condensed', sans-serif" }}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={applePayLoading || !applePayEmail.trim() || !applePayCard.trim()}
-                onClick={handleApplePaySheetConfirm}
-                className="flex-1 py-3.5 bg-white hover:bg-white/90 text-black font-black text-xs uppercase cursor-pointer rounded-full flex items-center justify-center gap-2 transition-all disabled:opacity-40"
-                style={{ fontFamily: "'Barlow Condensed', sans-serif" }}
-              >
-                {applePayLoading ? <><Loader2 size={12} className="animate-spin" /> Processing...</> : <>Confirm & Pay</>}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 };
 
-/* Sub-Form for Real Stripe Elements Integration */
+/* Sub-Form for Real Stripe Elements Integration.
+   PaymentElement automatically renders whichever methods the PaymentIntent
+   was created with (via automatic_payment_methods on the backend) that
+   the customer's browser/device supports — card fields, plus wallet
+   buttons (Google Pay / Apple Pay / Link) above them when available. */
 interface StripeSubFormProps {
   email: string;
-  name: string;
-  address: string;
-  city: string;
-  postalCode: string;
-  country: string;
   total: number;
   validateShipping: () => boolean;
   onSubmitSuccess: (paymentIntentId: string) => Promise<void>;
@@ -761,11 +522,6 @@ interface StripeSubFormProps {
 
 const StripePaymentSubForm: React.FC<StripeSubFormProps> = ({
   email,
-  name,
-  address,
-  city,
-  postalCode,
-  country,
   total,
   validateShipping,
   onSubmitSuccess
@@ -789,9 +545,18 @@ const StripePaymentSubForm: React.FC<StripeSubFormProps> = ({
       // Confirms the SAME PaymentIntent that Elements was initialized
       // with in CheckoutModal — no second /create-intent call here.
       // Stripe reads the client secret from the Elements instance itself.
+      // `return_url` is required by Stripe for any payment method that
+      // may need an off-site redirect step (some wallets/local methods do,
+      // depending on what's enabled in the Dashboard) — with
+      // redirect: "if_required", it's only actually used when Stripe
+      // determines a redirect is necessary; card/wallet payments that
+      // don't need one resolve inline exactly as before.
       const result = await stripe.confirmPayment({
         elements,
-        confirmParams: { receipt_email: email },
+        confirmParams: {
+          receipt_email: email,
+          return_url: window.location.href,
+        },
         redirect: "if_required",
       });
 
@@ -820,7 +585,7 @@ const StripePaymentSubForm: React.FC<StripeSubFormProps> = ({
     // an explicit type="button" onClick removes that failure path entirely.
     <div className="space-y-4">
       <div className="flex justify-between items-center text-[10px] text-white/40">
-        <span className="flex items-center gap-1"><Lock size={10} className="text-emerald-400" /> SECURE CARD PAYMENT PROTOCOL</span>
+        <span className="flex items-center gap-1"><Lock size={10} className="text-emerald-400" /> SECURE PAYMENT PROTOCOL</span>
         <span className="text-white/30">Cards & wallets via Stripe</span>
       </div>
 

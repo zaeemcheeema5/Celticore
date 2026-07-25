@@ -99,9 +99,14 @@ exports.createPaymentIntent = async (req, res) => {
             amount,
             currency: (currency || process.env.STORE_CURRENCY || "gbp").toLowerCase(),
             receipt_email: receipt_email || undefined,
-           automatic_payment_methods: {
-  enabled: true,
-},
+            // Lets Stripe automatically surface every payment method enabled
+            // in the Stripe Dashboard for this account/currency (card,
+            // Google Pay, Apple Pay, Link, and any local methods you turn
+            // on) inside the same embedded <PaymentElement/> on the
+            // frontend — instead of being hard-locked to card-only, which
+            // is what previously forced separate (simulated) GPay/Apple Pay
+            // buttons outside of Stripe entirely.
+            automatic_payment_methods: { enabled: true },
             metadata: {
                 subtotal: subtotal.toFixed(2),
                 discount: discount.toFixed(2),
@@ -213,7 +218,7 @@ exports.createCheckoutSession = (req, res) => {
                                 const session =
                                     await stripe.checkout.sessions.create({
 
-                                    
+                                        payment_method_types: ["card"],
 
                                         mode: "payment",
 
