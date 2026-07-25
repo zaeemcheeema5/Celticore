@@ -1,5 +1,6 @@
 const stripe = require("../utils/stripeClient");
 const db = require("../db");
+const sendEmail = require("../services/emailService");
 
 exports.stripeWebhook = async (req, res) => {
 
@@ -49,12 +50,48 @@ exports.stripeWebhook = async (req, res) => {
                 WHERE stripe_payment_intent = ? AND status != 'Paid'
                 `,
                 [intent.id],
-                (err) => {
+                function (err) {
 
-                    if (err)
+                    if (err) {
                         console.error(err);
-                    else
-                        console.log("Order confirmed paid via webhook for intent:", intent.id);
+                        return;
+                    }
+
+                    console.log("Order confirmed paid via webhook for intent:", intent.id);
+
+                    // Only email when this update actually flipped something.
+                    // In the normal card-checkout flow, placeOrder already
+                    // verifies payment and marks the order Paid synchronously
+                    // (sending Order Confirmation) before this webhook ever
+                    // arrives, so `this.changes` is 0 there — this guard is
+                    // what stops a redundant "Payment Successful" email going
+                    // out on top of that for every single order.
+                    if (this.changes === 0) return;
+
+                    db.get(
+                        `SELECT * FROM orders WHERE stripe_payment_intent = ?`,
+                        [intent.id],
+                        async (fetchErr, order) => {
+
+                            if (fetchErr || !order) {
+                                if (fetchErr) console.error(fetchErr);
+                                return;
+                            }
+
+                            try {
+                                await sendEmail.sendPaymentSuccess({
+                                    customerEmail: order.email,
+                                    customerName: order.customer_name,
+                                    orderId: order.id,
+                                    total: order.total,
+                                    paymentMethod: order.payment_method,
+                                    address: `${order.address}, ${order.city}, ${order.postal_code}, ${order.country || ''}`,
+                                });
+                            } catch (emailErr) {
+                                console.error("Payment success email failed:", emailErr.message);
+                            }
+                        }
+                    );
                 }
             );
 
@@ -78,6 +115,37 @@ exports.stripeWebhook = async (req, res) => {
             );
 
             console.log("Payment failed for intent:", intent.id);
+
+            // Best-effort failure email. Look up a matching order first
+            // (covers the case where one already exists); otherwise fall
+            // back to the PaymentIntent's own receipt_email — set at
+            // checkout — since a card declined during the initial Stripe
+            // confirmation never reaches placeOrder, so no order row exists
+            // yet at all in that case.
+            db.get(
+                `SELECT * FROM orders WHERE stripe_payment_intent = ?`,
+                [intent.id],
+                async (fetchErr, order) => {
+
+                    if (fetchErr) console.error(fetchErr);
+
+                    const customerEmail = order ? order.email : intent.receipt_email;
+                    const customerName = order ? order.customer_name : undefined;
+
+                    if (!customerEmail) return; // nothing to email
+
+                    try {
+                        await sendEmail.sendPaymentFailed({
+                            customerEmail,
+                            customerName,
+                            orderId: order ? order.id : undefined,
+                            amount: intent.amount ? intent.amount / 100 : undefined,
+                        });
+                    } catch (emailErr) {
+                        console.error("Payment failed email could not be sent:", emailErr.message);
+                    }
+                }
+            );
 
             break;
         }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { X, ShieldAlert, BarChart3, Database, Award, ClipboardCheck, MessageSquare, Plus, Trash2, CheckCircle2, XCircle, Star, ShoppingBag, Layers, Edit2, Upload, Eye, UserPlus, Key, Download, TrendingUp, TrendingDown, Search, Copy, Check, MapPin, Mail, CreditCard, Package, Filter } from 'lucide-react';
+import { X, ShieldAlert, BarChart3, Database, Award, ClipboardCheck, MessageSquare, Plus, Trash2, CheckCircle2, XCircle, Star, ShoppingBag, Layers, Edit2, Upload, Eye, UserPlus, Key, Download, TrendingUp, TrendingDown, Search, Copy, Check, MapPin, Mail, CreditCard, Package, Filter, Phone, Activity, Utensils, AlertTriangle, Send, Cake, Scale } from 'lucide-react';
 import { AreaChart, Area, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { dashboardService } from '../../api/dashboard';
 import { productsService } from '../../api/products';
@@ -90,6 +90,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, onCatal
   const [orderSearch, setOrderSearch] = useState('');
   const [orderStatusFilter, setOrderStatusFilter] = useState('');
   const [copiedTxId, setCopiedTxId] = useState<string | null>(null);
+
+  // Nutrition Requests UI States
+  const [nutritionSearch, setNutritionSearch] = useState('');
+  const [nutritionStatusFilter, setNutritionStatusFilter] = useState('');
 
   // Load Admin Data depending on active tab
   const loadData = async () => {
@@ -789,6 +793,53 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, onCatal
     if (method === 'gpay') return 'Google Pay';
     if (method === 'applepay') return 'Apple Pay';
     return 'Credit Card';
+  };
+
+  // ---- Nutrition Requests derived data ----
+  const NUTRITION_STATUS_COLORS: Record<string, string> = {
+    pending: '#F59E0B',
+    completed: '#10B981',
+    cancelled: '#EF4444',
+  };
+
+  const nutritionStatusCounts = useMemo(() => {
+    const counts: Record<string, number> = { pending: 0, completed: 0, cancelled: 0 };
+    nutrition.forEach((n) => {
+      counts[n.status] = (counts[n.status] || 0) + 1;
+    });
+    return counts;
+  }, [nutrition]);
+
+  const filteredNutrition = useMemo(() => {
+    return nutrition.filter((n) => {
+      if (nutritionStatusFilter && n.status !== nutritionStatusFilter) return false;
+      if (nutritionSearch.trim()) {
+        const q = nutritionSearch.trim().toLowerCase();
+        const haystack = `${n.name || ''} ${n.email || ''} ${n.goal || ''}`.toLowerCase();
+        if (!haystack.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [nutrition, nutritionSearch, nutritionStatusFilter]);
+
+  const getInitials = (name?: string) => {
+    if (!name) return '?';
+    const parts = name.trim().split(/\s+/);
+    return ((parts[0]?.[0] || '') + (parts[1]?.[0] || '')).toUpperCase() || name[0]?.toUpperCase() || '?';
+  };
+
+  const buildNutritionMailto = (req: NutritionRequest) => {
+    const subject = `Your CeltiCore Nutrition Plan${req.goal ? ` — ${req.goal}` : ''}`;
+    const body =
+      `Hi ${req.name || ''},\n\n` +
+      `Thanks for submitting your nutrition consultation request. `+
+      `Here is a summary of what you shared with us:\n\n` +
+      `Goal: ${req.goal || 'N/A'}\n` +
+      `Diet Preference: ${req.diet_preference || 'N/A'}\n` +
+      `Activity Level: ${req.activity_level || 'N/A'}\n\n` +
+      (req.admin_notes ? `Our recommendation:\n${req.admin_notes}\n\n` : '') +
+      `Best regards,\nCeltiCore Nutrition Team`;
+    return `mailto:${req.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   };
 
   return (
@@ -1762,95 +1813,216 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, onCatal
 
           {/* TAB CONTENT: NUTRITION REQUESTS */}
           {activeTab === 'nutrition' && (
-            <div className="space-y-4">
+            <div className="space-y-5">
+              {/* Summary Cards */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="p-4 bg-white/[0.03] border border-white/8 rounded-xl hover:border-white/15 transition-colors duration-200">
+                  <p className="text-[10px] uppercase text-white/40 font-bold tracking-wider">Total Requests</p>
+                  <p className="text-2xl sm:text-3xl font-black text-white mt-1" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
+                    {nutrition.length}
+                  </p>
+                </div>
+                <div className="p-4 bg-white/[0.03] border border-white/8 rounded-xl hover:border-white/15 transition-colors duration-200">
+                  <p className="text-[10px] uppercase text-white/40 font-bold tracking-wider">Pending Review</p>
+                  <p className="text-2xl sm:text-3xl font-black text-amber-400 mt-1" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
+                    {nutritionStatusCounts.pending}
+                  </p>
+                </div>
+                <div className="p-4 bg-white/[0.03] border border-white/8 rounded-xl hover:border-white/15 transition-colors duration-200">
+                  <p className="text-[10px] uppercase text-white/40 font-bold tracking-wider">Completed</p>
+                  <p className="text-2xl sm:text-3xl font-black text-emerald-400 mt-1" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
+                    {nutritionStatusCounts.completed}
+                  </p>
+                </div>
+                <div className="p-4 bg-white/[0.03] border border-white/8 rounded-xl hover:border-white/15 transition-colors duration-200">
+                  <p className="text-[10px] uppercase text-white/40 font-bold tracking-wider">Cancelled</p>
+                  <p className="text-2xl sm:text-3xl font-black text-red-400 mt-1" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
+                    {nutritionStatusCounts.cancelled}
+                  </p>
+                </div>
+              </div>
+
+              {/* Search + Status Filter Bar */}
+              <div className="flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between p-3 bg-white/[0.03] border border-white/8 rounded-xl">
+                <div className="relative flex-1 sm:max-w-xs">
+                  <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
+                  <input
+                    type="text"
+                    value={nutritionSearch}
+                    onChange={(e) => setNutritionSearch(e.target.value)}
+                    placeholder="Search name, email, or goal..."
+                    className="w-full pl-8 pr-3 py-2 text-xs text-white bg-black border border-white/10 focus:border-emerald-500 outline-none rounded-lg"
+                  />
+                </div>
+                <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide">
+                  <Filter size={12} className="text-white/30 shrink-0" />
+                  {(['', 'pending', 'completed', 'cancelled'] as const).map((s) => (
+                    <button
+                      key={s || 'all'}
+                      onClick={() => setNutritionStatusFilter(s)}
+                      className={`px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wide rounded-lg whitespace-nowrap transition-colors cursor-pointer border ${
+                        nutritionStatusFilter === s
+                          ? 'bg-emerald-500 text-black border-emerald-500'
+                          : 'text-white/50 border-white/10 hover:text-white hover:border-white/25'
+                      }`}
+                    >
+                      {s === '' ? 'All' : s}
+                      {s !== '' && (
+                        <span className="ml-1 opacity-70">({nutritionStatusCounts[s] || 0})</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Requests List */}
               {nutrition.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-14 sm:py-20 text-center gap-2.5">
-                    <ClipboardCheck size={28} className="text-white/15" />
-                    <p className="text-xs text-white/30 italic">No nutrition consultations requested.</p>
-                  </div>
+                  <ClipboardCheck size={28} className="text-white/15" />
+                  <p className="text-xs text-white/30 italic">No nutrition consultations requested.</p>
+                </div>
+              ) : filteredNutrition.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-14 sm:py-20 text-center gap-2.5">
+                  <Search size={28} className="text-white/15" />
+                  <p className="text-xs text-white/30 italic">No requests match your search or filter.</p>
+                  <button
+                    onClick={() => { setNutritionSearch(''); setNutritionStatusFilter(''); }}
+                    className="text-[10px] uppercase font-bold text-emerald-400 hover:text-emerald-300 cursor-pointer mt-1"
+                  >
+                    Clear search & filters
+                  </button>
+                </div>
               ) : (
-                nutrition.map((req) => (
-                  <div key={req.id} className="p-4 bg-white/[0.03] border border-white/8 rounded-xl hover:border-white/15 transition-colors duration-200 space-y-3 text-xs">
-                    <div className="flex flex-wrap justify-between items-center gap-2 pb-2 border-b border-white/5">
-                      <div>
-                        <span className="font-bold text-white">{req.name}</span>
-                        <span className="text-white/40 ml-2">({req.email})</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <select
-                          value={req.status}
-                          onChange={(e) => handleUpdateNutritionStatus(req.id, e.target.value as any)}
-                          className="bg-black border border-white/10 px-2 py-1 text-xs text-white outline-none"
-                        >
-                          <option value="pending">Pending Review</option>
-                          <option value="completed">Completed</option>
-                          <option value="cancelled">Cancelled</option>
-                        </select>
-                      </div>
-                    </div>
+                <div className="space-y-3">
+                  {filteredNutrition.map((req) => {
+                    const dotColor = NUTRITION_STATUS_COLORS[req.status] || '#6B7280';
+                    return (
+                      <div
+                        key={req.id}
+                        className="p-4 sm:p-5 bg-white/[0.03] border border-white/8 rounded-xl hover:border-white/15 transition-colors duration-200 space-y-4 text-xs"
+                      >
+                        {/* Header row */}
+                        <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-white/5">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div
+                              className="w-9 h-9 rounded-full flex items-center justify-center font-black text-[11px] text-black shrink-0"
+                              style={{ background: dotColor }}
+                            >
+                              {getInitials(req.name)}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-black text-white text-sm truncate" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
+                                  {req.name}
+                                </span>
+                                <span
+                                  className="px-2 py-0.5 rounded-full text-[9px] uppercase font-bold border"
+                                  style={{ color: dotColor, borderColor: `${dotColor}40`, background: `${dotColor}1A` }}
+                                >
+                                  {req.status === 'pending' ? 'Pending Review' : req.status}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-1.5 text-white/40 mt-0.5">
+                                <Mail size={10} className="shrink-0" />
+                                <span className="truncate">{req.email}</span>
+                              </div>
+                            </div>
+                          </div>
 
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-3 bg-black/30 rounded border border-white/5">
-                      <div>
-                        <p className="text-[9px] uppercase text-white/40 font-bold mb-0.5">Phone</p>
-                        <p className="text-white font-semibold">{req.phone || 'N/A'}</p>
-                      </div>
-                      <div>
-                        <p className="text-[9px] uppercase text-white/40 font-bold mb-0.5">Age / Gender</p>
-                        <p className="text-white font-semibold">{req.age || 'N/A'} yrs / {req.gender || 'N/A'}</p>
-                      </div>
-                      <div>
-                        <p className="text-[9px] uppercase text-white/40 font-bold mb-0.5">Weight / Height</p>
-                        <p className="text-white font-semibold">{req.weight || 'N/A'} kg / {req.height || 'N/A'} cm</p>
-                      </div>
-                      <div>
-                        <p className="text-[9px] uppercase text-white/40 font-bold mb-0.5">Diet Preference</p>
-                        <p className="text-emerald-400 font-semibold">{req.diet_preference || 'N/A'}</p>
-                      </div>
-                      <div>
-                        <p className="text-[9px] uppercase text-white/40 font-bold mb-0.5">Fitness Goal</p>
-                        <p className="text-emerald-400 font-semibold">{req.goal || 'N/A'}</p>
-                      </div>
-                      <div>
-                        <p className="text-[9px] uppercase text-white/40 font-bold mb-0.5">Activity Level</p>
-                        <p className="text-white font-semibold">{req.activity_level || 'N/A'}</p>
-                      </div>
-                      <div className="col-span-2 sm:col-span-2">
-                        <p className="text-[9px] uppercase text-white/40 font-bold mb-0.5">Medical Conditions</p>
-                        <p className="text-red-400/90 whitespace-pre-wrap">{req.medical_conditions || 'None stated'}</p>
-                      </div>
-                    </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <a
+                              href={buildNutritionMailto(req)}
+                              className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide rounded-lg bg-emerald-500 text-black hover:bg-emerald-400 transition-colors cursor-pointer"
+                              title={`Email ${req.name}`}
+                            >
+                              <Send size={12} /> Reply via Email
+                            </a>
+                            <select
+                              value={req.status}
+                              onChange={(e) => handleUpdateNutritionStatus(req.id, e.target.value as any)}
+                              className="bg-black border border-white/10 hover:border-white/25 px-2.5 py-1.5 text-[11px] font-semibold text-white outline-none rounded-lg cursor-pointer"
+                            >
+                              <option value="pending">Pending Review</option>
+                              <option value="completed">Completed</option>
+                              <option value="cancelled">Cancelled</option>
+                            </select>
+                          </div>
+                        </div>
 
-                    {req.notes && (
-                      <div className="space-y-1">
-                        <p className="text-[10px] uppercase text-white/40 font-bold">Customer Additional Notes</p>
-                        <p className="text-white/70 leading-relaxed font-light whitespace-pre-wrap">{req.notes}</p>
-                      </div>
-                    )}
+                        {/* Profile stat grid */}
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                          <div className="p-2.5 bg-black/30 rounded-lg border border-white/5">
+                            <p className="text-[9px] uppercase text-white/40 font-bold mb-1 flex items-center gap-1"><Phone size={10} /> Phone</p>
+                            <p className="text-white font-semibold truncate">{req.phone || 'N/A'}</p>
+                          </div>
+                          <div className="p-2.5 bg-black/30 rounded-lg border border-white/5">
+                            <p className="text-[9px] uppercase text-white/40 font-bold mb-1 flex items-center gap-1"><Cake size={10} /> Age / Gender</p>
+                            <p className="text-white font-semibold">{req.age || 'N/A'} yrs · {req.gender || 'N/A'}</p>
+                          </div>
+                          <div className="p-2.5 bg-black/30 rounded-lg border border-white/5">
+                            <p className="text-[9px] uppercase text-white/40 font-bold mb-1 flex items-center gap-1"><Scale size={10} /> Weight / Height</p>
+                            <p className="text-white font-semibold">{req.weight || 'N/A'} kg · {req.height || 'N/A'} cm</p>
+                          </div>
+                          <div className="p-2.5 bg-black/30 rounded-lg border border-white/5">
+                            <p className="text-[9px] uppercase text-white/40 font-bold mb-1 flex items-center gap-1"><Utensils size={10} /> Diet Pref.</p>
+                            <p className="text-emerald-400 font-semibold truncate">{req.diet_preference || 'N/A'}</p>
+                          </div>
+                          <div className="p-2.5 bg-black/30 rounded-lg border border-white/5">
+                            <p className="text-[9px] uppercase text-white/40 font-bold mb-1 flex items-center gap-1"><Award size={10} /> Fitness Goal</p>
+                            <p className="text-emerald-400 font-semibold truncate">{req.goal || 'N/A'}</p>
+                          </div>
+                          <div className="p-2.5 bg-black/30 rounded-lg border border-white/5">
+                            <p className="text-[9px] uppercase text-white/40 font-bold mb-1 flex items-center gap-1"><Activity size={10} /> Activity</p>
+                            <p className="text-white font-semibold truncate">{req.activity_level || 'N/A'}</p>
+                          </div>
+                        </div>
 
-                    <div className="pt-2">
-                      <label className="block text-[10px] uppercase text-white/40 font-bold mb-1">Advisor Notes (Admin Only)</label>
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          key={`${req.id}-${req.admin_notes}`}
-                          defaultValue={req.admin_notes || ''}
-                          onBlur={(e) => handleSaveNutritionNotes(req.id, e.target.value)}
-                          placeholder="e.g. Recommended Whey + Creatine cycle plan..."
-                          className="flex-1 px-3 py-1.5 text-xs text-white bg-black border border-white/10 focus:border-emerald-500 outline-none"
-                        />
-                        <button
-                          onClick={(e) => {
-                            const input = e.currentTarget.previousElementSibling as HTMLInputElement;
-                            handleSaveNutritionNotes(req.id, input.value);
-                          }}
-                          className="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white cursor-pointer"
-                        >
-                          Save Notes
-                        </button>
+                        {/* Medical conditions callout */}
+                        <div className={`p-2.5 rounded-lg border flex items-start gap-2 ${
+                          req.medical_conditions ? 'bg-red-500/5 border-red-500/20' : 'bg-black/30 border-white/5'
+                        }`}>
+                          <AlertTriangle size={12} className={`shrink-0 mt-0.5 ${req.medical_conditions ? 'text-red-400' : 'text-white/30'}`} />
+                          <div>
+                            <p className="text-[9px] uppercase text-white/40 font-bold mb-0.5">Medical Conditions</p>
+                            <p className={`whitespace-pre-wrap ${req.medical_conditions ? 'text-red-400/90' : 'text-white/40'}`}>
+                              {req.medical_conditions || 'None stated'}
+                            </p>
+                          </div>
+                        </div>
+
+                        {req.notes && (
+                          <div className="space-y-1 pl-3 border-l-2 border-white/10">
+                            <p className="text-[9px] uppercase text-white/40 font-bold">Customer Additional Notes</p>
+                            <p className="text-white/70 leading-relaxed font-light whitespace-pre-wrap">{req.notes}</p>
+                          </div>
+                        )}
+
+                        <div className="pt-1">
+                          <label className="block text-[9px] uppercase text-white/40 font-bold mb-1">Advisor Notes (Admin Only)</label>
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              key={`${req.id}-${req.admin_notes}`}
+                              defaultValue={req.admin_notes || ''}
+                              onBlur={(e) => handleSaveNutritionNotes(req.id, e.target.value)}
+                              placeholder="e.g. Recommended Whey + Creatine cycle plan..."
+                              className="flex-1 px-3 py-2 text-xs text-white bg-black border border-white/10 focus:border-emerald-500 outline-none rounded-lg"
+                            />
+                            <button
+                              onClick={(e) => {
+                                const input = e.currentTarget.previousElementSibling as HTMLInputElement;
+                                handleSaveNutritionNotes(req.id, input.value);
+                              }}
+                              className="px-3 py-2 bg-white/10 hover:bg-white/20 text-white text-[11px] font-bold uppercase rounded-lg cursor-pointer whitespace-nowrap"
+                            >
+                              Save Notes
+                            </button>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                ))
+                    );
+                  })}
+                </div>
               )}
             </div>
           )}

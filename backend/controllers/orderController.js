@@ -410,6 +410,11 @@ exports.getOrders = (req, res) => {
 // ==========================
 // Update Order Status
 // ==========================
+// Fires the matching customer email (Shipped / Delivered / Cancelled) after
+// a successful status change — but only when the status is genuinely
+// different from what it already was, so clicking "Save" again on an
+// unchanged status (or any other redundant update) never re-sends the
+// email.
 
 exports.updateOrderStatus = (req, res) => {
 
@@ -421,33 +426,97 @@ exports.updateOrderStatus = (req, res) => {
         });
     }
 
-    db.run(
-        `
-        UPDATE orders
-        SET status = ?
-        WHERE id = ?
-        `,
-        [status, req.params.id],
-        function (err) {
+    db.get(
+        `SELECT * FROM orders WHERE id = ?`,
+        [req.params.id],
+        (fetchErr, existingOrder) => {
 
-            if (err) {
-
-                return res.status(500).json({
-                    error: err.message
-                });
-
+            if (fetchErr) {
+                return res.status(500).json({ error: fetchErr.message });
             }
 
-            if (this.changes === 0) {
-                return res.status(404).json({
-                    error: "Order not found."
-                });
+            if (!existingOrder) {
+                return res.status(404).json({ error: "Order not found." });
             }
 
-            res.json({
-                success: true,
-                message: "Order status updated"
-            });
+            const previousStatus = (existingOrder.status || '').toLowerCase();
+            const newStatus = status.toLowerCase();
+
+            db.run(
+                `
+                UPDATE orders
+                SET status = ?
+                WHERE id = ?
+                `,
+                [status, req.params.id],
+                function (err) {
+
+                    if (err) {
+
+                        return res.status(500).json({
+                            error: err.message
+                        });
+
+                    }
+
+                    if (this.changes === 0) {
+                        return res.status(404).json({
+                            error: "Order not found."
+                        });
+                    }
+
+                    res.json({
+                        success: true,
+                        message: "Order status updated"
+                    });
+
+                    // ==========================
+                    // Best-effort status-change email (never blocks the response above)
+                    // ==========================
+                    if (previousStatus === newStatus) return; // no real change — don't re-send
+
+                    if (!['shipped', 'delivered', 'cancelled'].includes(newStatus)) return;
+
+                    db.all(
+                        `
+                        SELECT product_id, product_name AS name, quantity, price, flavour
+                        FROM order_items
+                        WHERE order_id = ?
+                        `,
+                        [req.params.id],
+                        async (itemsErr, items) => {
+
+                            if (itemsErr) {
+                                console.error("Could not load order items for status email:", itemsErr.message);
+                                return;
+                            }
+
+                            const emailOrder = {
+                                customerEmail: existingOrder.email,
+                                customerName: existingOrder.customer_name,
+                                orderId: existingOrder.id,
+                                items: items || [],
+                                total: existingOrder.total,
+                                paymentStatus: existingOrder.payment_status,
+                            };
+
+                            try {
+                                if (newStatus === 'shipped') {
+                                    await sendEmail.sendOrderShipped(emailOrder);
+                                } else if (newStatus === 'delivered') {
+                                    await sendEmail.sendOrderDelivered(emailOrder);
+                                } else if (newStatus === 'cancelled') {
+                                    await sendEmail.sendOrderCancelled(emailOrder);
+                                }
+                            } catch (emailErr) {
+                                console.error(`Order ${newStatus} email failed:`, emailErr.message);
+                            }
+
+                        }
+                    );
+
+                }
+            );
 
         }
     );

@@ -84,6 +84,11 @@ exports.signup = async (req, res) => {
 
                 setAuthCookie(res, token);
 
+                // Best-effort welcome email — fire-and-forget so a slow or
+                // failed send never delays or breaks account creation.
+                sendEmail.sendWelcomeEmail({ username: name, email })
+                    .catch(emailErr => console.error("Welcome email failed:", emailErr.message));
+
                 return res.status(201).json({
                     success: true,
                     message: "Account created successfully",
