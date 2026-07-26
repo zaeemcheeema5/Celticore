@@ -82,15 +82,16 @@ export const PrivacyPolicyModal: React.FC<PrivacyPolicyModalProps> = ({ isOpen, 
             <h3 className="text-white font-bold uppercase text-xs tracking-widest mb-2">Your rights</h3>
             <p>
               You can ask us to access, correct, or delete your personal data at any time by
-              emailing <span className="text-emerald-400">support@celticore.com</span>. We'll
-              respond within 30 days.
+              emailing <span className="text-emerald-400">support@thecelticore.com</span>. We'll
+              respond within 48 hours.
             </p>
           </section>
 
           <section>
             <h3 className="text-white font-bold uppercase text-xs tracking-widest mb-2">Contact</h3>
             <p>
-              Celti Core, 100 Core Way, London, UK. support@celticore.com · +44 (0) 20 7946 0958
+              Celti Core,
+Main Street, Mooncoin, X91 NX53, Waterford, Ireland · 083 483 2200
             </p>
           </section>
         </div>
