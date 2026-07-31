@@ -11,6 +11,102 @@ const orderConfirmation = require("../templates/orderConfirmation");
 // { product_id, name, price, quantity, flavour } — NOT { id, ... }.
 // Reading item.id here (instead of item.product_id) meant every order
 // item bound `undefined` to the INSERT and crashed the whole request.
+//
+// PRICING INTEGRITY
+// ------------------
+// Previously this endpoint trusted the client-submitted item prices,
+// subtotal, and discount for every field it stored (order_items.price,
+// orders.subtotal, orders.discount) and only cross-checked the *total*
+// against Stripe for card payments — and did no cross-check at all for
+// every other payment method (bank transfer, COD, gpay/applepay). That
+// meant:
+//   - A card payer could pay the correct total while submitting a
+//     fabricated line-item/discount breakdown, corrupting order_items,
+//     the confirmation email, and admin sales/revenue reports.
+//   - A non-card order's total/discount/prices were never verified
+//     against the database at all before being stored as the order's
+//     official record.
+//
+// Fixed by recomputing every price-affecting field here, from the
+// `products` table and (if a coupon code was supplied) the `coupons`
+// table, the same way paymentController.createPaymentIntent already
+// does for the Stripe charge itself. The client-submitted items/total/
+// discount are now only used to build the request; the *server's own*
+// recalculated values are what get stored and (for card orders)
+// compared against the Stripe-confirmed amount.
+async function recomputeOrderPricing(items, couponCode) {
+
+    if (!Array.isArray(items) || items.length === 0) {
+        throw { status: 400, message: "Order must contain at least one item" };
+    }
+
+    for (const item of items) {
+        const qty = Number(item.quantity);
+        if (!item.product_id || !Number.isFinite(qty) || qty <= 0) {
+            throw { status: 400, message: `Invalid item in cart (product id: ${item.product_id})` };
+        }
+    }
+
+    const productIds = [...new Set(items.map(i => i.product_id))];
+    const placeholders = productIds.map(() => "?").join(",");
+
+    const products = await new Promise((resolve, reject) => {
+        db.all(
+            `SELECT id, name, price FROM products WHERE id IN (${placeholders})`,
+            productIds,
+            (err, rows) => err ? reject(err) : resolve(rows)
+        );
+    });
+
+    const productById = {};
+    products.forEach(p => { productById[p.id] = p; });
+
+    const recomputedItems = items.map(item => {
+        const product = productById[item.product_id];
+        if (!product) {
+            throw { status: 400, message: `Product ${item.product_id} no longer exists` };
+        }
+        return {
+            product_id: product.id,
+            name: product.name,
+            price: Number(product.price),
+            quantity: Number(item.quantity),
+            flavour: typeof item.flavour === "string" ? item.flavour : ""
+        };
+    });
+
+    const subtotal = recomputedItems.reduce(
+        (sum, item) => sum + item.price * item.quantity,
+        0
+    );
+
+    let discount = 0;
+
+    if (couponCode) {
+
+        const coupon = await new Promise((resolve, reject) => {
+            db.get(
+                `SELECT * FROM coupons WHERE code = ? AND is_active = 1`,
+                [couponCode],
+                (err, row) => err ? reject(err) : resolve(row)
+            );
+        });
+
+        const isValid = coupon && (!coupon.expiry_date || new Date(coupon.expiry_date) >= new Date());
+
+        if (isValid) {
+            if (coupon.discount_type === "percentage") {
+                discount = (subtotal * Number(coupon.discount_value)) / 100;
+            } else if (coupon.discount_type === "fixed") {
+                discount = Number(coupon.discount_value);
+            }
+        }
+    }
+
+    const total = Math.max(0, subtotal - discount);
+
+    return { items: recomputedItems, subtotal, discount, total };
+}
 
 exports.placeOrder = async (req, res) => {
 
@@ -22,21 +118,13 @@ exports.placeOrder = async (req, res) => {
         city,
         postalCode,
         country,
-        items,
-        total,
-        discount,
+        items: rawItems,
+        couponCode,
         paymentMethod,
-        paymentStatus,
         stripePaymentIntentId,
         deliveryMethod,
         deliveryCost
     } = req.body;
-
-    if (!Array.isArray(items) || items.length === 0) {
-        return res.status(400).json({
-            error: 'Order must contain at least one item'
-        });
-    }
 
     if (!customerName || !customerEmail || !address || !city || !postalCode) {
         return res.status(400).json({
@@ -44,7 +132,19 @@ exports.placeOrder = async (req, res) => {
         });
     }
 
-    const subtotal = total + (discount || 0);
+    // Recompute items/subtotal/discount/total from the database. This is
+    // the single source of truth from here on — the client's own total/
+    // discount/item-price fields (if it still sends any) are ignored.
+    let subtotal, discount, total, items;
+
+    try {
+        ({ items, subtotal, discount, total } =
+            await recomputeOrderPricing(rawItems, couponCode));
+    } catch (pricingErr) {
+        return res.status(pricingErr.status || 500).json({
+            error: pricingErr.message || "Could not calculate order pricing."
+        });
+    }
 
     // req.user is populated by optionalAuthMiddleware when a valid session
     // cookie/token is present; guests simply get null here and the order
@@ -75,6 +175,11 @@ exports.placeOrder = async (req, res) => {
         try {
 
             const intent = await stripe.paymentIntents.retrieve(stripePaymentIntentId);
+
+            // Compared against the server's own recomputed total, not the
+            // client's — so a client can no longer pay the correct amount
+            // while claiming a different discount/coupon or line-item
+            // breakdown for the stored order record.
             const expectedAmount = Math.round(total * 100);
 
             if (intent.status !== 'succeeded') {
@@ -85,7 +190,7 @@ exports.placeOrder = async (req, res) => {
 
             if (intent.amount !== expectedAmount) {
                 return res.status(400).json({
-                    error: "Payment amount does not match order total."
+                    error: "Payment amount does not match the current order total. Prices or your coupon may have changed — please refresh and try again."
                 });
             }
 

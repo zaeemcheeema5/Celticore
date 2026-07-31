@@ -1,5 +1,12 @@
 // Base URL for API
-export const API_URL = 'https://api.thecelticore.com';
+//
+// Reads from VITE_API_URL (set in frontend/.env) so local/dev builds can
+// point at a local backend without editing source. Previously this was
+// hardcoded straight to the production URL even though VITE_API_URL was
+// defined in .env and unused anywhere in the codebase — every build,
+// dev included, silently talked to production regardless of what was in
+// the env file.
+export const API_URL = import.meta.env.VITE_API_URL || 'https://api.thecelticore.com';
 
 // Network Request Helper
 async function request(endpoint: string, options: RequestInit = {}) {

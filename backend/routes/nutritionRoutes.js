@@ -6,6 +6,7 @@ const nutritionController =
     require('../controllers/nutritionController');
 
 const adminAuthMiddleware = require('../middleware/adminAuthMiddleware');
+const validateNutrition = require('../middleware/validateNutrition');
 /**
  * @swagger
  * tags:
@@ -57,6 +58,7 @@ const adminAuthMiddleware = require('../middleware/adminAuthMiddleware');
 
 router.post(
     '/',
+    validateNutrition,
     nutritionController.createNutritionRequest
 );
 

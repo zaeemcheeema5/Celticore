@@ -2,150 +2,82 @@ const db = require('../db');
 
 
 // DASHBOARD STATS
+//
+// PREVIOUSLY: db.serialize() (backend/db.js) is a no-op passthrough left
+// over from the sqlite3-compatibility shim — it does not actually run
+// callbacks in order. The 11 db.get() calls below each pull their own
+// connection from the MySQL pool and run concurrently, but the response
+// was being sent from inside the *last* call's callback (the revenue sum),
+// assuming every other stat had already finished writing into `stats` by
+// then. There's no guarantee of that: under load, or simply because one
+// query is faster than another, the revenue query could resolve before
+// e.g. the low-stock or pending-reviews count does. When that happened the
+// response went out with that field still `undefined`, which silently
+// became `0` in the JSON body (via `row?.total || 0`) instead of an error —
+// admins could see incorrect zeroed-out stats with nothing to indicate
+// anything had gone wrong.
+//
+// FIX: run every query as a real Promise (via db.execute, the mysql2
+// promise-pool path already exposed by db.js) and wait for all of them
+// with Promise.all before responding, so the response is only ever built
+// from fully-resolved data.
+exports.getDashboardStats = async (req, res) => {
 
-exports.getDashboardStats = (req, res) => {
+    try {
 
-    const stats = {};
+        const queries = {
+            totalProducts:
+                "SELECT COUNT(*) as total FROM products",
+            totalOrders:
+                "SELECT COUNT(*) as total FROM orders",
+            totalUsers:
+                "SELECT COUNT(*) as total FROM users",
+            totalMessages:
+                "SELECT COUNT(*) as total FROM contact_messages",
+            totalNutritionRequests:
+                "SELECT COUNT(*) as total FROM nutrition_requests",
+            pendingOrders:
+                "SELECT COUNT(*) as total FROM orders WHERE LOWER(status) = 'pending'",
+            completedOrders:
+                "SELECT COUNT(*) as total FROM orders WHERE LOWER(status) = 'completed'",
+            lowStockProducts:
+                "SELECT COUNT(*) as total FROM products WHERE stock_quantity <= low_stock_threshold",
+            pendingReviews:
+                "SELECT COUNT(*) AS total FROM reviews WHERE LOWER(status) = 'pending'",
+            pendingNutrition:
+                "SELECT COUNT(*) AS total FROM nutrition_requests WHERE LOWER(status) = 'pending'",
+            unreadMessages:
+                "SELECT COUNT(*) AS total FROM contact_messages WHERE read = 0"
+        };
 
-    db.serialize(() => {
+        const keys = Object.keys(queries);
 
-        db.get(
-            'SELECT COUNT(*) as total FROM products',
-            [],
-            (err, row) => {
-                stats.totalProducts = row?.total || 0;
-            }
+        const results = await Promise.all(
+            keys.map(async (key) => {
+                const [rows] = await db.execute(queries[key], []);
+                return rows[0]?.total || 0;
+            })
         );
 
-        db.get(
-            'SELECT COUNT(*) as total FROM orders',
-            [],
-            (err, row) => {
-                stats.totalOrders = row?.total || 0;
-            }
+        const stats = {};
+        keys.forEach((key, i) => { stats[key] = results[i]; });
+
+        const [revenueRows] = await db.execute(
+            "SELECT SUM(total) as revenue FROM orders",
+            []
         );
 
-        db.get(
-            'SELECT COUNT(*) as total FROM users',
-            [],
-            (err, row) => {
-                stats.totalUsers = row?.total || 0;
-            }
-        );
+        stats.totalRevenue = revenueRows[0]?.revenue || 0;
 
-        db.get(
-            'SELECT COUNT(*) as total FROM contact_messages',
-            [],
-            (err, row) => {
-                stats.totalMessages = row?.total || 0;
-            }
-        );
+        res.json(stats);
 
-        db.get(
-            'SELECT COUNT(*) as total FROM nutrition_requests',
-            [],
-            (err, row) => {
-                stats.totalNutritionRequests =
-                    row?.total || 0;
-            }
-        );
+    } catch (err) {
 
-        db.get(
-            `
-            SELECT COUNT(*) as total
-            FROM orders
-            WHERE LOWER(status) = 'pending'
-            `,
-            [],
-            (err, row) => {
-                stats.pendingOrders =
-                    row?.total || 0;
-            }
-        );
+        res.status(500).json({
+            error: err.message
+        });
 
-        db.get(
-            `
-            SELECT COUNT(*) as total
-            FROM orders
-            WHERE LOWER(status) = 'completed'
-            `,
-            [],
-            (err, row) => {
-                stats.completedOrders =
-                    row?.total || 0;
-            }
-        );
-
-        db.get(
-            `
-            SELECT COUNT(*) as total
-            FROM products
-            WHERE stock_quantity <= low_stock_threshold
-            `,
-            [],
-            (err, row) => {
-                stats.lowStockProducts =
-                    row?.total || 0;
-            }
-        );
-
-        db.get(
-            `
-            SELECT COUNT(*) AS total
-            FROM reviews
-            WHERE LOWER(status) = 'pending'
-            `,
-            [],
-            (err, row) => {
-                stats.pendingReviews = row?.total || 0;
-            }
-        );
-
-        db.get(
-            `
-            SELECT COUNT(*) AS total
-            FROM nutrition_requests
-            WHERE LOWER(status) = 'pending'
-            `,
-            [],
-            (err, row) => {
-                stats.pendingNutrition = row?.total || 0;
-            }
-        );
-
-        db.get(
-            `
-            SELECT COUNT(*) AS total
-            FROM contact_messages
-            WHERE read = 0
-            `,
-            [],
-            (err, row) => {
-                stats.unreadMessages = row?.total || 0;
-            }
-        );
-
-        db.get(
-            `
-            SELECT SUM(total) as revenue
-            FROM orders
-            `,
-            [],
-            (err, row) => {
-
-                if (err) {
-                    return res.status(500).json({
-                        error: err.message
-                    });
-                }
-
-                stats.totalRevenue = row?.revenue || 0;
-
-                res.json(stats);
-            }
-        );
-
-    });
+    }
 };
 
 

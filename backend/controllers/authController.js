@@ -574,7 +574,7 @@ exports.forgotPassword = (req, res) => {
 
                         to: user.email,
 
-                        subject: "CeltiCore Password Reset OTP",
+                        subject: "theCeltiCore Password Reset OTP",
 
                         html: passwordResetTemplate({
 

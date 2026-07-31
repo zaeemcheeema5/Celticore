@@ -151,6 +151,12 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       items,
       total,
       discount,
+      // The backend now recomputes subtotal/discount/total itself from the
+      // products and coupons tables (see orderController.placeOrder) — it
+      // no longer trusts total/discount/item prices from this client. The
+      // coupon code is still sent so the server can look up and apply the
+      // same discount rather than just ignoring it.
+      couponCode: coupon?.code,
       ...shippingDetails,
     };
 

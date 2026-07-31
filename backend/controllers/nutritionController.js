@@ -189,5 +189,3 @@ exports.addAdminNotes = (req,res)=>{
         }
     );
 };
-console.log('Nutrition Controller Exports');
-console.log(module.exports);
