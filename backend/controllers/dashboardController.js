@@ -47,7 +47,18 @@ exports.getDashboardStats = async (req, res) => {
             pendingNutrition:
                 "SELECT COUNT(*) AS total FROM nutrition_requests WHERE LOWER(status) = 'pending'",
             unreadMessages:
-                "SELECT COUNT(*) AS total FROM contact_messages WHERE read = 0"
+                // contact_messages has no boolean `read` column — it tracks
+                // this via a `status` VARCHAR column (default 'unread', set
+                // to 'read' by contactController.markRead). The previous
+                // query ("WHERE read = 0") referenced a column that never
+                // existed in the schema (db.js's contact_messages table
+                // definition) and was a MySQL/MariaDB syntax error on top of
+                // that ('read' is also a reserved word). The old per-
+                // callback code never checked this specific query's `err`,
+                // so it silently showed 0 instead of the real unread count;
+                // the Promise.all rewrite above surfaces the error properly,
+                // which is what exposed this pre-existing bug.
+                "SELECT COUNT(*) AS total FROM contact_messages WHERE status = 'unread'"
         };
 
         const keys = Object.keys(queries);
