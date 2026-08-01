@@ -17,7 +17,7 @@ const helmet = require("helmet");
 
 const isProd = (process.env.NODE_ENV || "development") === "production";
 
-// Required in production so req.secure / X-Forwarded-Proto are trusted when
+// Required in production soooo req.secure / X-Forwarded-Proto are trusted when
 // the app sits behind a reverse proxy or load balancer (Heroku, Render,
 // Nginx, Cloudflare, etc). Without this, the HTTPS redirect below can never
 // tell it's already being served over TLS and will redirect-loop.
