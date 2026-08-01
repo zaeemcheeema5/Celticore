@@ -280,24 +280,11 @@ const handleResetPasswordSubmit = async (e: React.FormEvent) => {
 
               <div className="flex items-center gap-3 my-1">
                 <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.07)" }} />
-                <span className="text-[11px] text-white/25" style={{ fontFamily: "'DM Sans', sans-serif" }}>or continue with</span>
+                <span className="text-[11px] text-white/25" style={{ fontFamily: "'DM Sans', sans-serif" }}>CelticCore</span>
                 <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.07)" }} />
               </div>
 
-              <div className="flex gap-3">
-                {["Google", "Apple"].map(p => (
-                  <button
-                    type="button"
-                    key={p}
-                    className="flex-1 py-2.5 text-[10px] font-bold tracking-[0.15em] uppercase text-white/40 hover:text-white/70 transition-all duration-200 cursor-pointer"
-                    style={{ border: "1px solid rgba(255,255,255,0.09)", fontFamily: "'Barlow Condensed', sans-serif" }}
-                    onMouseEnter={e => e.currentTarget.style.borderColor = "rgba(255,255,255,0.25)"}
-                    onMouseLeave={e => e.currentTarget.style.borderColor = "rgba(255,255,255,0.09)"}
-                  >
-                    {p}
-                  </button>
-                ))}
-              </div>
+         
 
               <p className="text-center text-[11px] text-white/30 mt-1" style={{ fontFamily: "'DM Sans', sans-serif" }}>
                 {authMode === "login" ? "New to Celti Core?" : "Already have an account?"}{" "}
