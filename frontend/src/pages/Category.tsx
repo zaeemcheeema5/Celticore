@@ -26,6 +26,16 @@ const getCategoryIcon = (id: string) => {
   }
 };
 
+// Exact colors pulled from the "Vivid Tiles" (Design 01) category mockup
+const CATEGORY_COLORS: Record<string, string> = {
+  protein: '#E4572E',       // burnt orange-red
+  creatine: '#2E6FA7',      // blue
+  'pre-workout': '#D7263D', // red
+  'eaa-bcaa': '#149E8D',    // teal
+  vitamins: '#4C9A2A',      // green
+  wellbeing: '#7B4EA3',     // purple
+};
+
 export const Category: React.FC<CategoryProps> = ({
   pageId,
   categories,
@@ -88,12 +98,12 @@ export const Category: React.FC<CategoryProps> = ({
             opacity: 0.07,
           }}
         />
-        
+
         <div
           className="absolute inset-0"
           style={{ background: `radial-gradient(ellipse at 80% 50%, ${accent}18 0%, transparent 65%)` }}
         />
-        
+
         <div
           className="absolute bottom-0 left-0 right-0 h-px"
           style={{ background: `linear-gradient(to right, transparent, ${accent}40, transparent)` }}
@@ -101,40 +111,40 @@ export const Category: React.FC<CategoryProps> = ({
 
         <div className="relative max-w-7xl mx-auto">
           {/* Back button */}
-         <button
-  onClick={() => onNavigate("home")}
-  className="
-    group flex items-center gap-3 mb-6 
-    px-5 py-2.5 
-    rounded-full
-    text-xs font-bold tracking-[0.2em] uppercase
-    border border-emerald-400/40
-    bg-gradient-to-r from-emerald-500/20 via-green-400/10 to-yellow-500/20
-    text-emerald-300
-    backdrop-blur-md
-    shadow-[0_0_20px_rgba(16,185,129,0.25)]
-    transition-all duration-300
-    hover:scale-105
-    hover:text-white
-    hover:border-emerald-400
-    hover:shadow-[0_0_30px_rgba(16,185,129,0.5)]
-    cursor-pointer
-  "
-  style={{ fontFamily: "'DM Sans', sans-serif" }}
->
-  <ArrowLeft 
-    size={16} 
-    className="
-      transition-transform duration-300 
-      group-hover:-translate-x-1
-      text-yellow-400
-    " 
-  />
+          <button
+            onClick={() => onNavigate("home")}
+            className="
+              group flex items-center gap-3 mb-6 
+              px-5 py-2.5 
+              rounded-full
+              text-xs font-bold tracking-[0.2em] uppercase
+              border border-emerald-400/40
+              bg-gradient-to-r from-emerald-500/20 via-green-400/10 to-yellow-500/20
+              text-emerald-300
+              backdrop-blur-md
+              shadow-[0_0_20px_rgba(16,185,129,0.25)]
+              transition-all duration-300
+              hover:scale-105
+              hover:text-white
+              hover:border-emerald-400
+              hover:shadow-[0_0_30px_rgba(16,185,129,0.5)]
+              cursor-pointer
+            "
+            style={{ fontFamily: "'DM Sans', sans-serif" }}
+          >
+            <ArrowLeft
+              size={16}
+              className="
+                transition-transform duration-300 
+                group-hover:-translate-x-1
+                text-yellow-400
+              "
+            />
 
-  <span>
-    Back to Home
-  </span>
-</button>
+            <span>
+              Back to Home
+            </span>
+          </button>
 
           <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
             <div>
@@ -152,14 +162,14 @@ export const Category: React.FC<CategoryProps> = ({
                   {displayTagline}
                 </span>
               </div>
-              
+
               <h1
                 className="font-black uppercase leading-none text-white"
                 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: "clamp(2.2rem, 6vw, 4rem)" }}
               >
                 {displayName}
               </h1>
-              
+
               <p className="text-white/40 text-sm mt-1" style={{ fontFamily: "'DM Sans', sans-serif" }}>
                 {categoryProducts.length} products — {displayDescription}
               </p>
@@ -212,7 +222,7 @@ export const Category: React.FC<CategoryProps> = ({
         )}
       </div>
 
-      {/* More Categories */}
+      {/* More Categories — Design 01 "Vivid Tiles" */}
       <div
         className="px-4 sm:px-6 md:px-14 lg:px-20 py-10 sm:py-12"
         style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}
@@ -224,28 +234,48 @@ export const Category: React.FC<CategoryProps> = ({
           >
             More <span style={{ color: accent }}>Categories</span>
           </h2>
-          <div className="flex flex-wrap gap-3">
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
             {categories
               .filter((c) => c.id !== pageId && c.slug !== pageId)
               .map((c) => {
                 const CatIcon = getCategoryIcon(c.id);
-                const otherAccent = c.accentColor || c.accent_color || "#10B981";
+                const tileColor =
+                  CATEGORY_COLORS[c.id] || c.accentColor || c.accent_color || "#10B981";
                 return (
                   <button
                     key={c.id}
                     onClick={() => onNavigate(c.id)}
-                    className="flex items-center gap-2 px-4 py-2.5 text-xs font-bold tracking-widest uppercase transition-all duration-250 cursor-pointer"
-                    style={{
-                      fontFamily: "'Barlow Condensed', sans-serif",
-                      border: `1px solid ${otherAccent}30`,
-                      color: otherAccent,
-                      background: `${otherAccent}08`,
-                    }}
-                    onMouseEnter={(e) => { e.currentTarget.style.background = `${otherAccent}20`; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.background = `${otherAccent}08`; }}
+                    className="group relative flex flex-col justify-between p-5 rounded-2xl overflow-hidden text-left transition-transform duration-300 cursor-pointer hover:-translate-y-1"
+                    style={{ background: tileColor, minHeight: "150px" }}
                   >
-                    <CatIcon size={13} />
-                    {c.name}
+                    {/* decorative ring, matches Design 01 */}
+                    <span
+                      className="absolute -top-8 -right-8 w-28 h-28 rounded-full pointer-events-none"
+                      style={{ border: "1.5px solid rgba(255,255,255,0.25)" }}
+                    />
+
+                    <div
+                      className="relative w-10 h-10 rounded-full flex items-center justify-center"
+                      style={{ background: "rgba(255,255,255,0.18)" }}
+                    >
+                      <CatIcon size={18} className="text-white" />
+                    </div>
+
+                    <div className="relative mt-4">
+                      <div
+                        className="font-black uppercase text-white leading-none"
+                        style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: "1.15rem" }}
+                      >
+                        {c.name}
+                      </div>
+                      <div
+                        className="flex items-center gap-1 mt-2 text-[10px] font-bold tracking-widest uppercase text-white/85 group-hover:gap-2 transition-all duration-200"
+                        style={{ fontFamily: "'DM Sans', sans-serif" }}
+                      >
+                        Shop now <ChevronRight size={12} />
+                      </div>
+                    </div>
                   </button>
                 );
               })}
