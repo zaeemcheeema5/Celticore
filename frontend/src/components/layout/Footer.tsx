@@ -116,9 +116,9 @@ export const Footer: React.FC<FooterProps> = ({ onOpenNutrition, onNavigate, onO
             {/* Socials — raised circular badges with a lift-on-hover "3D" feel */}
             <div className="flex items-center gap-3 mt-auto">
               {[
-                { Icon: Instagram, href: '#', label: 'Instagram' },
-                { Icon: Facebook, href: '#', label: 'Facebook' },
-                { Icon: Twitter, href: '#', label: 'X (Twitter)' },
+{ Icon: Instagram, href: 'https://www.instagram.com/celticoreproject?igsh=MWNsZjNhNHdyeTEzdQ==', label: 'Instagram' },
+{ Icon: Facebook, href: 'https://www.facebook.com/share/1BUPkJjDTK/', label: 'Facebook' },
+{ Icon: Twitter, href: 'https://x.com/Celti_Core', label: 'X (Twitter)' },
               ].map(({ Icon, href, label }) => (
                 <a
                   key={label}
@@ -370,7 +370,7 @@ export const Footer: React.FC<FooterProps> = ({ onOpenNutrition, onNavigate, onO
             <span>Mon - Fri: 9:00 AM - 6:00 PM GMT</span>
           </div>
         </div>
-      </div>
+      </div>---
     </footer>
   );
 };
