@@ -570,7 +570,12 @@ exports.forgotPassword = (req, res) => {
                         });
                     }
 
-                    await sendEmail({
+                    // Fire-and-forget — never let a slow/hung SMTP connection
+                    // block or fail this response. If sendMail() hangs (bad
+                    // SMTP host/port/creds, blocked outbound port, etc.),
+                    // awaiting it here would stall the request until the
+                    // client times out, which is what was happening before.
+                    sendEmail({
 
                         to: user.email,
 
@@ -584,7 +589,9 @@ exports.forgotPassword = (req, res) => {
 
                         })
 
-                    });
+                    }).catch(emailErr =>
+                        console.error("Password reset email failed:", emailErr.message)
+                    );
 
                     res.json({
 
