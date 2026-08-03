@@ -51,6 +51,7 @@ const orderCancelledTemplate = require("../templates/orderCancelled");
 const paymentSuccessTemplate = require("../templates/paymentSuccess");
 const paymentFailedTemplate = require("../templates/paymentFailed");
 const welcomeEmailTemplate = require("../templates/welcomeEmail");
+const passwordResetTemplate = require("../templates/passwordReset");
 
 const CLIENT_URL = process.env.CLIENT_URL || "";
 
@@ -183,6 +184,19 @@ const sendWelcomeEmail = async ({ username, email }) => {
     });
 };
 
+const sendPasswordReset = async ({ username, email, otp }) => {
+    if (!email) return { success: false, error: "No email" };
+
+    return sendEmail({
+        to: email,
+        subject: `Your CeltiCore Password Reset Code`,
+        html: passwordResetTemplate({
+            username,
+            otp,
+        })
+    });
+};
+
 // Keep `require("../services/emailService")` callable directly (existing
 // call sites in orderController/authController do this) while also
 // exposing the named helpers as properties on the same export — no
@@ -196,3 +210,4 @@ module.exports.sendOrderCancelled = sendOrderCancelled;
 module.exports.sendPaymentSuccess = sendPaymentSuccess;
 module.exports.sendPaymentFailed = sendPaymentFailed;
 module.exports.sendWelcomeEmail = sendWelcomeEmail;
+module.exports.sendPasswordReset = sendPasswordReset;
