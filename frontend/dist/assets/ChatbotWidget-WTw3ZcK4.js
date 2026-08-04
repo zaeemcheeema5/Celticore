@@ -1,4 +1,4 @@
-import{c as k,g as m,r as o,j as e,X as j,U as S,h as N}from"./index-wjAJ9i36.js";import{M as I}from"./message-square-DMtObQxh.js";/**
+import{c as k,h as m,r as o,j as e,X as j,U as S,i as N}from"./index-DwXtNzbY.js";import{M as I}from"./message-square-BUtWMW52.js";/**
  * @license lucide-react v0.487.0 - ISC
  *
  * This source code is licensed under the ISC license.

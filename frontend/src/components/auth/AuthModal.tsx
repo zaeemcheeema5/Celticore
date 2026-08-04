@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { X, Eye, EyeOff, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'sonner';
-import axios from 'axios'; // Ensure axios or your custom API instance is used here
+import { authService } from '../../api/auth';
 
 import logoImage from '../../assets/logo.webp';
 
@@ -62,13 +62,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
 
     setLoading(true);
     try {
-      const response = await axios.post('http://localhost:5000/api/auth/forgot-password', { email });
-      if (response.data.success) {
-        toast.success(response.data.message);
+      const response: any = await authService.forgotPassword(email);
+      if (response.success) {
+        toast.success(response.message);
         setForgotStep('enter_otp');
       }
     } catch (err: any) {
-      toast.error(err.response?.data?.error || "Failed to send reset code.");
+      toast.error(err.message || "Failed to send reset code.");
     } finally {
       setLoading(false);
     }
@@ -85,14 +85,13 @@ const handleVerifyOtp = async (e: React.FormEvent) => {
 
   setLoading(true);
   try {
-    // UPDATED: Added full backend URL
-    const response = await axios.post('http://localhost:5000/api/auth/verify-otp', { email, otp });
-    if (response.data.success) {
-      toast.success(response.data.message);
+    const response: any = await authService.verifyOtp(email, otp);
+    if (response.success) {
+      toast.success(response.message);
       setForgotStep('new_password');
     }
   } catch (err: any) {
-    toast.error(err.response?.data?.message || err.response?.data?.error || "Invalid or expired OTP.");
+    toast.error(err.message || "Invalid or expired OTP.");
   } finally {
     setLoading(false);
   }
@@ -108,17 +107,16 @@ const handleResetPasswordSubmit = async (e: React.FormEvent) => {
 
   setLoading(true);
   try {
-    // UPDATED: Added full backend URL
-    const response = await axios.post('http://localhost:5000/api/auth/reset-password', { email, otp, password });
-    if (response.data.success) {
-      toast.success(response.data.message);
+    const response: any = await authService.resetPassword(email, otp, password);
+    if (response.success) {
+      toast.success(response.message);
       setAuthMode('login');
       setForgotStep('request_email');
       setOtp('');
       setPassword('');
     }
   } catch (err: any) {
-    toast.error(err.response?.data?.message || err.response?.data?.error || "Failed to reset password.");
+    toast.error(err.message || "Failed to reset password.");
   } finally {
     setLoading(false);
   }
