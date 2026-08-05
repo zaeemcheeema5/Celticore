@@ -151,7 +151,10 @@ app.use("/api", apiLimiter);
 // Must come BEFORE express.json()
 // =====================================
 
-app.use("/api", webhookRoutes);
+app.use(
+    "/api/webhook",
+    webhookRoutes
+);
 
 
 // =====================================
