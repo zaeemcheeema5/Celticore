@@ -3,6 +3,24 @@ const crypto = require('crypto');
 
 
 // =========================
+// STORE CONTACT INFORMATION
+// Real channels for handing a conversation off to the actual Celti Core
+// team — used by the FAQ answers below and the "talk to a human" intent.
+// =========================
+
+const CONTACT_INFO = {
+    phone: '083 483 2200',
+    address: 'Main Street, Mooncoin, Co. Waterford, X91 NX53, Ireland',
+    emails: {
+        general: 'info@thecelticore.com',
+        support: 'support@thecelticore.com',
+        sales: 'sales@thecelticore.com',
+        hello: 'hello@thecelticore.com'
+    }
+};
+
+
+// =========================
 // START CHAT SESSION
 // =========================
 
@@ -158,6 +176,17 @@ function getSessionContext(session_id, callback) {
 const FOLLOWUP_MORE = /(show more|more options|other options|anything else|more results|see more|any others)/;
 const FOLLOWUP_CHEAPER = /(cheaper|less expensive|lower price|more affordable|any cheaper)/;
 const GREETING_REGEX = /^(hi+|he+y+|hello+|hiya|yo|good morning|good afternoon|good evening)\b/;
+
+// Conversational intents that make the assistant feel like it's actually
+// listening rather than just pattern-matching product keywords. Checked
+// early in routeMessage, before typo correction / category search, since
+// they're short, common phrases that shouldn't get swallowed by anything
+// else below.
+const HUMAN_HANDOFF_REGEX = /(talk to (a |someone|a person|a human)|speak (to|with) (someone|a person|a human|a representative)|real person|human agent|customer service|speak to your team|call (you|someone)|phone number|contact (support|you|someone))/;
+const IDENTITY_REGEX = /(are you (a )?(real|human|bot|robot|ai)\b|is this a bot|am i talking to a (bot|human|real person)|are you a person)/;
+const THANKS_REGEX = /^(thanks|thank you|thankyou|cheers|appreciate it|ty)\b/;
+const FAREWELL_REGEX = /^(bye|goodbye|see ya|see you|later|that'?s all|no that'?s (it|all)|nothing else)\b/;
+const WHOLESALE_REGEX = /(wholesale|bulk order|bulk pricing|reseller|stockist|business inquiry|business enquiry|partnership|trade account)/;
 
 // Product/category words the bot understands. Typos within a small edit
 // distance of these get auto-corrected before intent matching runs, so
@@ -465,7 +494,7 @@ function findProductDetail(session_id, query, originalMessage, res, onNoMatch) {
                 parts.push(`Rated ${product.rating}/5${product.reviews ? ` from ${product.reviews} reviews` : ''}.`);
             }
 
-            const reply = parts.join(' ');
+            const reply = `Here's what I found for you:\n\n${parts.join(' ')}`;
 
             db.serialize(() => {
                 db.run(
@@ -502,6 +531,25 @@ function findProductDetail(session_id, query, originalMessage, res, onNoMatch) {
 }
 
 
+// Warm, direct hand-off message pointing to the real Celti Core team.
+// Routes to Sales & Wholesale for business-shaped enquiries, and Customer
+// Support otherwise, so people land on the right inbox the first time.
+function buildHumanHandoffReply(userMessage) {
+
+    const isWholesale = WHOLESALE_REGEX.test(userMessage);
+    const deptLabel = isWholesale ? 'Sales & Wholesale' : 'Customer Support';
+    const email = isWholesale ? CONTACT_INFO.emails.sales : CONTACT_INFO.emails.support;
+
+    return (
+        `Of course — happy to point you to our team directly.\n\n` +
+        `Call us: ${CONTACT_INFO.phone}\n` +
+        `${deptLabel}: ${email}\n` +
+        `Visit us: ${CONTACT_INFO.address}\n\n` +
+        `They'll be able to sort out anything I can't help with here. Is there anything I can try to help with in the meantime?`
+    );
+}
+
+
 function routeMessage(session_id, rawUserMessage, originalMessage, context, res) {
 
     // GREETING / SMALL TALK
@@ -510,7 +558,54 @@ function routeMessage(session_id, rawUserMessage, originalMessage, context, res)
         return saveChat(
             session_id,
             originalMessage,
-            "Hey there! I'm your Celti Core assistant \u2014 ask me about any product (protein, creatine, pre-workout, vitamins...), get workout advice, or try something like \"show whey under 30\".",
+            "Hi, welcome to Celti Core! I'm here to help you find the right supplement, answer training questions, or sort out anything order-related. " +
+            "Try something like \"what's the best protein for building muscle\" or \"show me pre-workout under €30\" — " +
+            "and if you'd rather speak with our team directly, just say \"talk to a human\" any time. What can I help you with today?",
+            res
+        );
+    }
+
+    // HONEST IDENTITY CHECK — sounding professional and personable is not
+    // the same as claiming to be a human, so if someone asks directly,
+    // they get a straight answer (with an easy path to an actual person).
+    if (IDENTITY_REGEX.test(rawUserMessage)) {
+        return saveChat(
+            session_id,
+            originalMessage,
+            "I'm Celti Core's virtual shopping assistant, not a human — but I'm here around the clock and can connect you with our real team any time, " +
+            `just say \"talk to a human\" or call us directly on ${CONTACT_INFO.phone}. How can I help in the meantime?`,
+            res
+        );
+    }
+
+    // HAND-OFF TO A REAL PERSON
+
+    if (HUMAN_HANDOFF_REGEX.test(rawUserMessage)) {
+        return saveChat(
+            session_id,
+            originalMessage,
+            buildHumanHandoffReply(rawUserMessage),
+            res
+        );
+    }
+
+    // THANKS / FAREWELL — small conversational courtesies that make the
+    // chat feel like an actual exchange instead of a lookup box.
+
+    if (THANKS_REGEX.test(rawUserMessage)) {
+        return saveChat(
+            session_id,
+            originalMessage,
+            "You're very welcome! Let me know if there's anything else I can help with — product recommendations, workout advice, or your order.",
+            res
+        );
+    }
+
+    if (FAREWELL_REGEX.test(rawUserMessage)) {
+        return saveChat(
+            session_id,
+            originalMessage,
+            `Thanks for stopping by Celti Core! If anything comes up later, we're at ${CONTACT_INFO.phone} or ${CONTACT_INFO.emails.support}. Take care!`,
             res
         );
     }
@@ -546,7 +641,7 @@ function routeMessage(session_id, rawUserMessage, originalMessage, context, res)
         return saveChat(
             session_id,
             originalMessage,
-            "I don't have a previous search to build on yet — try asking about protein, creatine, or whey!",
+            "I don't have a previous search to build on yet — try asking about protein, creatine, or whey, and I'll take it from there!",
             res
         );
     }
@@ -583,7 +678,7 @@ function routeMessage(session_id, rawUserMessage, originalMessage, context, res)
         return saveChat(
             session_id,
             originalMessage,
-            "I don't have a previous search to compare against yet — try asking about protein, creatine, or whey!",
+            "I don't have a previous search to compare against yet — try asking about protein, creatine, or whey, and I'll take it from there!",
             res
         );
     }
@@ -609,7 +704,8 @@ function routeMessage(session_id, rawUserMessage, originalMessage, context, res)
             return saveChat(
                 session_id,
                 originalMessage,
-                `I couldn't find a product or topic matching "${productQuery}". Try asking about a specific supplement (protein, creatine, pre-workout...) or a product category.`,
+                `I couldn't find a product or topic matching "${productQuery}" in our range right now. Try asking about a specific supplement ` +
+                `(protein, creatine, pre-workout...), or reach out to our team at ${CONTACT_INFO.emails.support} and they'll help you track it down.`,
                 res
             );
         });
@@ -700,22 +796,37 @@ function routeMessage(session_id, rawUserMessage, originalMessage, context, res)
     }
 
 
-    // STORE FAQ
+    // STORE FAQ — now backed by real contact channels rather than a
+    // generic "check our Contact page" deflection, and covers a broader
+    // set of everyday questions (wholesale, opening hours, "where are
+    // you", phone/email lookups) rather than just the original five.
 
     let botResponse = null;
 
     if (userMessage.includes('delivery')) {
-        botResponse = 'Delivery usually takes 2-5 business days.';
+        botResponse = `Delivery typically takes 2-5 business days once your order ships. If it's taking longer than expected, drop us a line at ${CONTACT_INFO.emails.support} with your order number and we'll chase it up for you.`;
     } else if (userMessage.includes('payment')) {
-        botResponse = 'We accept Card and Bank Transfer at checkout.';
+        botResponse = "We accept Card and Bank Transfer at checkout — both are secure and straightforward. Let me know if you run into any issues and I can point you to the right person.";
+    } else if (WHOLESALE_REGEX.test(userMessage)) {
+        botResponse = `For wholesale, bulk orders, or partnership enquiries, our Sales & Wholesale team would love to hear from you — ${CONTACT_INFO.emails.sales} or call ${CONTACT_INFO.phone}.`;
     } else if (userMessage.includes('shipping')) {
-        botResponse = 'Shipping charges are calculated during checkout.';
+        botResponse = "Shipping costs are calculated at checkout based on your location and order size, so you'll always see the exact cost before paying. Any questions about a specific order, just ask!";
     } else if (userMessage.includes('return') || userMessage.includes('refund')) {
-        botResponse = 'For returns or refunds, please reach out through our Contact page with your order number and we\'ll sort it out.';
+        botResponse = `No problem — for returns or refunds, email us at ${CONTACT_INFO.emails.support} with your order number and we'll take care of it. You can also call ${CONTACT_INFO.phone} if it's urgent.`;
     } else if (userMessage.includes('track')) {
-        botResponse = 'You can check your order status from your account\'s order history once you\'re logged in.';
-    } else if (userMessage.includes('contact')) {
-        botResponse = 'You can contact Celti Core support through our Contact page.';
+        botResponse = `You can check your order status any time from your account's order history once you're logged in. If something looks off, our support team is happy to dig into it — ${CONTACT_INFO.emails.support}.`;
+    } else if (userMessage.includes('hour') || userMessage.includes('open') || userMessage.includes('opening time')) {
+        botResponse = `For our current opening hours or to speak with someone directly, give us a call on ${CONTACT_INFO.phone} — happy to help.`;
+    } else if (
+        userMessage.includes('contact') || userMessage.includes('phone') || userMessage.includes('email') ||
+        userMessage.includes('address') || userMessage.includes('location') || userMessage.includes('where are you')
+    ) {
+        botResponse =
+            `You can reach the Celti Core team directly:\n` +
+            `Phone: ${CONTACT_INFO.phone}\n` +
+            `Customer Support: ${CONTACT_INFO.emails.support}\n` +
+            `General Enquiries: ${CONTACT_INFO.emails.general}\n` +
+            `Visit us: ${CONTACT_INFO.address}`;
     }
 
     if (botResponse) {
@@ -746,10 +857,12 @@ function routeMessage(session_id, rawUserMessage, originalMessage, context, res)
             return saveChat(
                 session_id,
                 originalMessage,
-                "I couldn't quite understand that. I can help with:\n" +
-                "• Products — \"show whey under 30\", \"what is creatine\"\n" +
-                "• Workouts — \"beginner workout\", \"chest exercises\", \"how many reps should I do\"\n" +
-                "• Orders — delivery, payment, shipping, or contact info",
+                "I'm not quite sure I follow — but I'd love to help! Try asking me things like:\n" +
+                "• \"Show me whey protein under €30\"\n" +
+                "• \"What's the difference between whey and creatine?\"\n" +
+                "• \"Give me a beginner workout plan\"\n" +
+                "• \"Where's my order?\" or \"How do I return something?\"\n\n" +
+                `Or if you'd rather chat with a real person, just say "talk to a human" — or reach us directly on ${CONTACT_INFO.phone} / ${CONTACT_INFO.emails.support}.`,
                 res
             );
         }
@@ -890,8 +1003,8 @@ function searchProducts(
             if (candidates.length === 0) {
 
                 const message = (excludeNames && excludeNames.size > 0)
-                    ? "That's all the matching products I have for now."
-                    : 'No matching products found.';
+                    ? `That's everything I've got matching that for now — but our team can dig deeper if you'd like. Just reach out to ${CONTACT_INFO.emails.support}.`
+                    : `I couldn't find anything matching that right now. Try a different keyword, or let me know your budget — or reach our team directly at ${CONTACT_INFO.emails.support}.`;
 
                 return saveChat(
                     session_id,
@@ -915,12 +1028,14 @@ function searchProducts(
                 category: product.category
             }));
 
+            const introLine = (excludeNames && excludeNames.size > 0)
+                ? "Here are a few more options for you:"
+                : "Great choice — here's what I'd recommend:";
+
             const reply =
-                products
-                    .map(
-                        p => `${p.name} - €${p.price}`
-                    )
-                    .join("\n");
+                `${introLine}\n\n` +
+                products.map(p => `${p.name} - €${p.price}`).join("\n") +
+                `\n\nWant me to narrow these down further, or compare a couple of them?`;
 
             db.serialize(() => {
 
@@ -1027,8 +1142,8 @@ function budgetProducts(
             if (candidates.length === 0) {
 
                 const message = (excludeNames && excludeNames.size > 0)
-                    ? "That's all I have within that budget for now."
-                    : `No products found under €${budget}${category ? ` in ${category}` : ''}`;
+                    ? `That's all I have within that budget for now — but our team can take a closer look if you'd like. Reach out to ${CONTACT_INFO.emails.support}.`
+                    : `No products found under €${budget}${category ? ` in ${category}` : ''}. Try a slightly higher budget, or reach our team directly at ${CONTACT_INFO.emails.support}.`;
 
                 return saveChat(
                     session_id,
@@ -1052,12 +1167,14 @@ function budgetProducts(
                 category: product.category
             }));
 
+            const introLine = (excludeNames && excludeNames.size > 0)
+                ? `Here are a few more picks under €${budget}:`
+                : `Here's what fits under €${budget}${category ? ` for ${category}` : ''}:`;
+
             const reply =
-                products
-                    .map(
-                        p => `${p.name} - €${p.price}`
-                    )
-                    .join("\n");
+                `${introLine}\n\n` +
+                products.map(p => `${p.name} - €${p.price}`).join("\n") +
+                `\n\nLet me know if you'd like to see more, or adjust the budget.`;
 
             db.serialize(() => {
 
