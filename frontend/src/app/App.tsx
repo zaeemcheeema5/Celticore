@@ -1,6 +1,7 @@
 import { useState, useEffect, lazy, Suspense } from "react";
 import { Toaster } from "sonner";
-import { AuthProvider } from "../context/AuthContext";
+import { ShieldAlert } from "lucide-react";
+import { AuthProvider, useAuth } from "../context/AuthContext";
 import { CartProvider } from "../context/CartContext";
 import { WishlistProvider } from "../context/WishlistContext";
 import { productsService } from "../api/products";
@@ -50,6 +51,11 @@ function MainAppLayout() {
   // deep-link or a page refresh lands on the right page instead of
   // always resetting to "home".
   const [currentPage, setCurrentPage] = useState<string>(getPageFromHash);
+  // isAdmin/authLoading gate the "admin" page below: AdminDashboard has no
+  // auth checks of its own (it starts fetching admin data immediately), so
+  // App.tsx is what stops an unauthenticated / non-admin visitor from ever
+  // mounting it — including someone who deep-links straight to #admin.
+  const { isAuthenticated, isAdmin, loading: authLoading } = useAuth();
   const [categories, setCategories] = useState<CategoryType[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -175,6 +181,70 @@ function MainAppLayout() {
   }
 
   if (currentPage === "admin") {
+    // Auth state resolves asynchronously (a cookie check against the
+    // server — see AuthContext). While that's in flight we don't yet know
+    // whether this is an admin, so show the same loading screen as the
+    // rest of the app rather than briefly flashing the "not authorized"
+    // gate for a legitimate admin who just refreshed the page.
+    if (authLoading) {
+      return (
+        <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center">
+          <img
+            src={logoImage}
+            alt="Celti Core"
+            className="w-28 h-28 object-contain animate-pulse"
+          />
+        </div>
+      );
+    }
+
+    // Not an authenticated admin — never mount AdminDashboard. It has no
+    // auth checks of its own, so this is the actual gate (the server
+    // rejecting unauthenticated API calls is the real security boundary;
+    // this is what keeps the UI from being reachable at all).
+    if (!isAdmin) {
+      return (
+        <>
+          <Toaster position="bottom-left" toastOptions={{ style: { background: '#0c0c0c', color: '#fff', border: '1px solid rgba(255,255,255,0.08)' } }} />
+          <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center gap-5 text-center px-4">
+            <ShieldAlert size={40} className="text-emerald-500/70" />
+            <div>
+              <h1 className="text-white text-lg font-black uppercase tracking-[0.1em]" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
+                Admin Access Required
+              </h1>
+              <p className="text-white/40 text-xs mt-2 max-w-xs mx-auto" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                {isAuthenticated
+                  ? "This account doesn't have admin privileges."
+                  : "Sign in with an administrator account to continue."}
+              </p>
+            </div>
+            <div className="flex items-center gap-4 mt-1">
+              <button
+                onClick={() => setIsAuthOpen(true)}
+                className="px-6 py-2.5 text-[11px] font-black uppercase tracking-[0.2em] text-black cursor-pointer"
+                style={{ fontFamily: "'Barlow Condensed', sans-serif", background: "linear-gradient(135deg, #10B981 0%, #059669 100%)" }}
+              >
+                Sign In
+              </button>
+              <button
+                onClick={() => handleNavigate("home")}
+                className="text-[11px] text-white/40 hover:text-white/70 uppercase tracking-[0.15em] transition-colors cursor-pointer"
+                style={{ fontFamily: "'DM Sans', sans-serif" }}
+              >
+                Return to Store
+              </button>
+            </div>
+          </div>
+          <Suspense fallback={null}>
+            <AuthModal
+              isOpen={isAuthOpen}
+              onClose={() => setIsAuthOpen(false)}
+            />
+          </Suspense>
+        </>
+      );
+    }
+
     return (
       <>
         <Toaster position="bottom-left" toastOptions={{ style: { background: '#0c0c0c', color: '#fff', border: '1px solid rgba(255,255,255,0.08)' } }} />
