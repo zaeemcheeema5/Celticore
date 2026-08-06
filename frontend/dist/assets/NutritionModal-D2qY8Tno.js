@@ -1,4 +1,4 @@
-import{c as O,u as P,r,j as t,X as z,i as G,t as p}from"./index-DwXtNzbY.js";import{C as E,n as V}from"./nutrition-DHAE8Aja.js";/**
+import{c as O,u as P,r,j as t,X as z,i as G,t as p}from"./index-DCfngSDG.js";import{C as E,n as V}from"./nutrition-zmH_Q7XN.js";/**
  * @license lucide-react v0.487.0 - ISC
  *
  * This source code is licensed under the ISC license.

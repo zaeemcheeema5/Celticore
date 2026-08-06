@@ -70,6 +70,27 @@ function MainAppLayout() {
     loadCatalog();
   }, []);
 
+  // "Are you sure you want to leave?" prompt on tab close / reload /
+  // navigating away from the site.
+  //
+  // Note: modern browsers (Chrome, Firefox, Safari — since ~2021) ignore
+  // any custom message text here for security reasons (it stops sites
+  // using a fake message to trick people, e.g. "Your bank transfer is
+  // processing"). They always show their own fixed wording, something
+  // like "Leave site? Changes you made may not be saved." The
+  // `e.returnValue = ''` line below is what actually triggers that
+  // native browser prompt — the string itself is a legacy fallback for
+  // older browsers and isn't otherwise used.
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, []);
+
   const handleNavigate = (page: string) => {
     setCurrentPage(page);
     window.scrollTo({ top: 0, behavior: "smooth" });

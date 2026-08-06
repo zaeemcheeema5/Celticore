@@ -257,7 +257,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, categories, products, on
         <div className="absolute bottom-0 left-0 right-0 h-24 pointer-events-none" style={{ background: "linear-gradient(to bottom, transparent, #ffffff)" }}/>
       </section>
 
-      {/* CATEGORY EXPLORATION — Design 01 "Vivid Tiles" look, background driven by cat.accentColor */}
+      {/* CATEGORY EXPLORATION */}
       <section className="relative py-6 pb-20 sm:pb-28 px-4 sm:px-6 md:px-14 lg:px-20" style={{ background: "#ffffff" }}>
         <div className="max-w-7xl mx-auto mb-12">
           <div className="flex items-center gap-4 mb-3">
@@ -275,85 +275,79 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, categories, products, on
           {categories.map((cat) => {
             const Icon = getCategoryIcon(cat.id);
             const accent = cat.accentColor || cat.accent_color || "#10B981";
-            const isHovered = hoveredCard === cat.id;
+            const cardImg = cat.cardImage || cat.card_image || cat.image || "";
             return (
               <div
                 key={cat.id}
-                className="group relative overflow-hidden cursor-pointer category-card rounded-2xl"
+                className="group relative overflow-hidden cursor-pointer category-card"
                 style={{
-                  background: accent,
+                  background: "#fafafa",
+                  border: `1px solid ${hoveredCard === cat.id ? `${accent}45` : "rgba(0,0,0,0.08)"}`,
                   aspectRatio: "16/10",
-                  transform: isHovered ? "translateY(-6px)" : "translateY(0)",
-                  boxShadow: isHovered ? "0 18px 34px rgba(0,0,0,0.22)" : "0 4px 14px rgba(0,0,0,0.06)",
-                  transition: "transform 300ms ease, box-shadow 300ms ease",
+                  boxShadow: hoveredCard === cat.id ? `0 8px 40px ${accent}18` : "none"
                 }}
                 onMouseEnter={() => setHoveredCard(cat.id)}
                 onMouseLeave={() => setHoveredCard(null)}
                 onClick={() => onNavigate(cat.id)}
               >
-                {/* Decorative ring accent, matches Design 01 tile */}
-                <span
-                  className="absolute -top-10 -right-10 w-40 h-40 rounded-full pointer-events-none"
-                  style={{ border: "1.5px solid rgba(255,255,255,0.28)" }}
-                />
+                {/* Category Graphic */}
+                <img src={cardImg} alt={cat.name} loading="lazy" decoding="async" className="absolute inset-0 w-full h-full object-cover opacity-[0.18] group-hover:opacity-[0.28] transition-opacity duration-500"/>
+                <div className="absolute inset-0" style={{ background: `
+radial-gradient(circle at top right, rgba(245,158,11,.08), transparent 30%),
+linear-gradient(135deg,#050505 0%,#0E0E0E 50%,#1A1A1A 100%)
+` }}/>
+                {/* Category Graphic */}
+                <img src={cardImg} alt={cat.name} loading="lazy" decoding="async" className="absolute inset-0 w-full h-full object-cover opacity-[0.18] group-hover:opacity-[0.28] group-hover:scale-105 transition-all duration-700"/>
+                <div className="absolute inset-0" style={{ background: `radial-gradient(circle at top right, rgba(251,191,36,0.10), transparent 35%), linear-gradient(135deg, rgba(0,0,0,0.95) 0%, rgba(5,5,5,0.85) 55%, rgba(10,10,10,0.8) 100%)` }}/>
 
-                {/* Subtle dark-to-transparent wash for text legibility, still shows accent color through */}
-                <div
-                  className="absolute inset-0 pointer-events-none"
-                  style={{ background: "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.18) 100%)" }}
-                />
+                {/* Hover Ambient Radial Glow */}
+                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" style={{ background: `radial-gradient(ellipse at 20% 80%, ${accent}12 0%, transparent 65%)` }}/>
 
-                {/* Large translucent ghost icon */}
-                <div className="absolute -bottom-4 -right-4 opacity-[0.14] group-hover:opacity-[0.22] transition-opacity duration-400 pointer-events-none">
-                  <Icon size={110} color="#ffffff" />
+                {/* SVG Micro-effects */}
+                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-400 pointer-events-none">
+                  <CardEffect effect={cat.effect} color={accent}/>
+                </div>
+
+                {/* Large Background Ghost Icon */}
+                <div className="absolute -bottom-3 -right-3 opacity-[0.06] group-hover:opacity-[0.12] transition-opacity duration-400 pointer-events-none">
+                  <Icon size={110} style={{ color: accent }}/>
                 </div>
 
                 {/* Information */}
-                <div className="absolute inset-0 flex flex-col justify-between p-5 md:p-6">
-                  <div className="flex items-start justify-between">
-                    <div
-                      className="w-10 h-10 rounded-full flex items-center justify-center transition-transform duration-300"
-                      style={{ background: "rgba(255,255,255,0.2)", transform: isHovered ? "scale(1.08)" : "scale(1)" }}
-                    >
-                      <Icon size={18} color="#ffffff" />
-                    </div>
-                    <div
-                      className="text-[10px] font-bold tracking-[0.2em] uppercase opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center gap-1"
-                      style={{ color: "#ffffff", fontFamily: "'DM Sans', sans-serif" }}
-                    >
-                      View All <ChevronRight size={10}/>
-                    </div>
-                  </div>
-                  <div>
-                    <p
-                      className="text-[10px] font-bold tracking-[0.25em] uppercase mb-1"
-                      style={{ color: "rgba(255,255,255,0.85)", fontFamily: "'DM Sans', sans-serif" }}
-                    >
-                      {cat.tagline}
-                    </p>
-                    <h3
-                      className="text-[1.75rem] md:text-[1.95rem] font-black uppercase tracking-tight leading-none mb-1.5"
-                      style={{ fontFamily: "'Barlow Condensed', sans-serif", color: "#FFFFFF" }}
-                    >
-                      {cat.name}
-                    </h3>
-                    <p className="text-white/90 text-xs mb-4 leading-relaxed" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-                      {cat.description}
-                    </p>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); onNavigate(cat.id); }}
-                      className="w-full py-2 text-[10px] font-black tracking-[0.25em] uppercase transition-all duration-250 cursor-pointer rounded-md"
-                      style={{
-                        fontFamily: "'Barlow Condensed', sans-serif",
-                        background: "#ffffff",
-                        color: accent,
-                        border: "1px solid #ffffff",
-                      }}
-                      onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.9)"; }}
-                      onMouseLeave={e => { e.currentTarget.style.background = "#ffffff"; }}
-                    >
-                      Shop {cat.name}
-                    </button>
+                               <div className="absolute inset-0 flex flex-col justify-between p-5 md:p-6">
+                                 <div className="flex items-start justify-between">
+                                   <div
+                                     className="w-9 h-9 flex items-center justify-center transition-shadow duration-400"
+                                     style={{ background: `${accent}14`, border: `1px solid ${accent}35`, boxShadow: hoveredCard === cat.id ? `0 0 18px ${accent}45` : "none" }}
+                                   >
+                                     <Icon size={16} style={{ color: accent }}/>
+                                   </div>
+                                   <div className="text-[10px] font-bold tracking-[0.2em] uppercase opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center gap-1" style={{ color: accent, fontFamily: "'DM Sans', sans-serif" }}>
+                                     View All <ChevronRight size={10}/>
+                                   </div>
+                                 </div>
+                                 <div>
+                                   <p className="text-[10px] font-bold tracking-[0.25em] uppercase mb-1" style={{ color: accent, fontFamily: "'DM Sans', sans-serif" }}>{cat.tagline}</p>
+                                   <h3
+                                     className="text-[1.6rem] md:text-[1.8rem] font-extrabold uppercase leading-tight mb-1.5 transition-all duration-300"
+                                     style={{
+                                       fontFamily: "'Montserrat', sans-serif",
+                                       fontWeight: 800,
+                                       letterSpacing: "0.01em",
+                                       color: "#FFFFFF",
+                                       textShadow: hoveredCard === cat.id ? `0 0 22px ${accent}55` : "none",
+                                     }}
+                                   >{cat.name}</h3>
+                                   <p className="text-white/85 text-xs mb-4 leading-relaxed" style={{ fontFamily: "'DM Sans', sans-serif" }}>{cat.description}</p>
+                                   <button
+                                     onClick={(e) => { e.stopPropagation(); onNavigate(cat.id); }}
+                                     className="w-full py-2 text-[10px] font-black tracking-[0.25em] uppercase transition-all duration-250 cursor-pointer"
+                                     style={{ fontFamily: "'Barlow Condensed', sans-serif", background: `${accent}12`, border: `1px solid ${accent}30`, color: accent }}
+                                     onMouseEnter={e => { e.currentTarget.style.background = accent; e.currentTarget.style.color = "#000"; }}
+                                     onMouseLeave={e => { e.currentTarget.style.background = `${accent}12`; e.currentTarget.style.color = accent; }}
+                                   >
+                                     Shop {cat.name}
+                                   </button>
                   </div>
                 </div>
               </div>
@@ -398,8 +392,8 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, categories, products, on
                       {cat.tagline}
                     </p>
                     <h3
-                      className="text-xl sm:text-2xl md:text-[1.85rem] font-black uppercase tracking-tight leading-none"
-                      style={{ fontFamily: "'Barlow Condensed', sans-serif", color: "#0b0b0bff" }}
+                      className="text-xl sm:text-2xl md:text-[1.7rem] font-extrabold uppercase leading-tight"
+                      style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 800, letterSpacing: "0.01em", color: "#0b0b0bff" }}
                     >
                       {cat.name}
                     </h3>
