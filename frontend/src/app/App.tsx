@@ -36,8 +36,20 @@ const ProductDetailsModal = lazy(() => import("../components/product/ProductDeta
 const CheckoutModal = lazy(() => import("../components/cart/CheckoutModal").then((m) => ({ default: m.CheckoutModal })));
 const PrivacyPolicyModal = lazy(() => import("../components/common/PrivacyPolicyModal").then((m) => ({ default: m.PrivacyPolicyModal })));
 
+// ── HISTORY / HASH HELPERS ──────────────────────────────────────────────
+// Derives the current "page" id from the URL hash (e.g. "#category-x" ->
+// "category-x"). Falls back to "home" when there is no hash, which keeps
+// the very first load behaving exactly as before (currentPage === "home").
+function getPageFromHash(): string {
+  const hash = window.location.hash.replace(/^#\/?/, "");
+  return hash || "home";
+}
+
 function MainAppLayout() {
-  const [currentPage, setCurrentPage] = useState<string>("home");
+  // Initialize currentPage from the URL hash on first load, so a
+  // deep-link or a page refresh lands on the right page instead of
+  // always resetting to "home".
+  const [currentPage, setCurrentPage] = useState<string>(getPageFromHash);
   const [categories, setCategories] = useState<CategoryType[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -70,6 +82,32 @@ function MainAppLayout() {
     loadCatalog();
   }, []);
 
+  // Create the initial history entry on startup. Using replaceState (not
+  // pushState) here means we don't add an extra entry to the stack — we
+  // just make sure the entry that's already there carries a `page` state
+  // object and a hash matching whatever page we initialized to above, so
+  // popstate has something consistent to compare against later.
+  useEffect(() => {
+    window.history.replaceState({ page: currentPage }, "", `#${currentPage}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Synchronize currentPage when the browser Back/Forward buttons are
+  // used. We prefer the page stored in event.state (set by our own
+  // pushState/replaceState calls below); if that's missing for any
+  // reason (e.g. entry created outside our control) we fall back to
+  // parsing the hash.
+  useEffect(() => {
+    const handlePopState = (e: PopStateEvent) => {
+      const page = (e.state && e.state.page) || getPageFromHash();
+      setCurrentPage(page);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
   // "Are you sure you want to leave?" prompt on tab close / reload /
   // navigating away from the site.
   //
@@ -93,12 +131,19 @@ function MainAppLayout() {
 
   const handleNavigate = (page: string) => {
     setCurrentPage(page);
+    // Push a new history entry so Back/Forward can step through pages
+    // instead of leaving the site. Skip pushing a duplicate entry if
+    // we're already on this page (e.g. re-clicking the active nav link).
+    if (page !== currentPage) {
+      window.history.pushState({ page }, "", `#${page}`);
+    }
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleSearchNavigate = (query: string) => {
     setSearchQuery(query);
     setCurrentPage("search");
+    window.history.pushState({ page: "search" }, "", `#search`);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
