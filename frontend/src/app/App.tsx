@@ -330,7 +330,7 @@ function MainAppLayout() {
 
       {/* Floating Chat Widget */}
       <Suspense fallback={null}>
-        <ChatbotWidget />
+        <ChatbotWidget onProductClick={(p) => handleSearchNavigate(p.name)} />
       </Suspense>
 
       {/* Modals & Slide-out Drawers */}
