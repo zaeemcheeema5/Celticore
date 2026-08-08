@@ -200,7 +200,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           className="flex items-center gap-2 sm:gap-3 md:gap-4 group cursor-pointer shrink-0 min-w-0"
         >
           <div
-            className="relative flex items-center justify-center shrink-0 w-9 h-9 sm:w-12 sm:h-12 md:w-[52px] md:h-[52px] lg:w-[58px] lg:h-[58px]"
+            className="relative flex items-center justify-center shrink-0 w-9 h-9 sm:w-11 sm:h-11 md:w-12 md:h-12 lg:w-[52px] lg:h-[52px] xl:w-[58px] xl:h-[58px]"
           >
             {/* Glow */}
             <div
@@ -223,9 +223,10 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Wordmark — smaller and tighter tracking on phones so it never
               wraps or forces a horizontal scroll; grows into the original
-              wide desktop treatment from md up. */}
+              wide desktop treatment from lg up. Truncates with an ellipsis
+              rather than overflowing if the viewport is extremely narrow. */}
           <span
-            className="uppercase whitespace-nowrap truncate transition-all duration-300 group-hover:text-emerald-300 text-[0.95rem] tracking-[0.10em] sm:text-lg sm:tracking-[0.14em] md:text-xl md:tracking-[0.18em] lg:text-[1.35rem] lg:tracking-[0.22em]"
+            className="uppercase whitespace-nowrap truncate transition-all duration-300 group-hover:text-emerald-300 text-[0.82rem] tracking-[0.08em] xs:text-[0.95rem] xs:tracking-[0.10em] sm:text-base sm:tracking-[0.12em] md:text-lg md:tracking-[0.15em] lg:text-xl lg:tracking-[0.18em] xl:text-[1.35rem] xl:tracking-[0.22em]"
             style={{
               fontFamily: "'Oswald', sans-serif",
               fontWeight: 700,
@@ -237,8 +238,12 @@ export const Navbar: React.FC<NavbarProps> = ({
           </span>
         </button>
 
-        {/* Desktop Links */}
-        <div className="hidden md:flex items-center gap-5 lg:gap-7 xl:gap-9 shrink-0">
+        {/* Desktop Links — only from lg (≈1024px) up. Tablets (iPad
+            portrait/landscape, most Android tablets sit between 768–1024px)
+            fall back to the drawer instead, since "Nutrition Consultation"
+            plus "Shop"/"Contact" plus the icon cluster don't comfortably
+            fit at md widths without wrapping or crowding the icons. */}
+        <div className="hidden lg:flex items-center gap-6 xl:gap-9 shrink-0">
           <div className="relative" onMouseEnter={handleShopEnter} onMouseLeave={handleShopLeave}>
             <button className="nav-link flex items-center gap-1">
               Shop
@@ -284,7 +289,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             </div>
           </div>
-          <button onClick={onOpenNutrition} className="nav-link">
+          <button onClick={onOpenNutrition} className="nav-link whitespace-nowrap">
             Nutrition Consultation
           </button>
           <button
@@ -301,12 +306,12 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
 
         {/* Right Side Icons */}
-        <div className="flex items-center gap-1 sm:gap-2.5 shrink-0">
+        <div className="flex items-center gap-0.5 xs:gap-1 sm:gap-2 md:gap-2.5 shrink-0">
           {/* Search */}
           <div className="relative" ref={searchWrapperRef}>
             {searchOpen ? (
               <div
-                className="flex items-center gap-2 sm:gap-3 px-2.5 sm:px-3 py-1.5 rounded"
+                className="flex items-center gap-1.5 sm:gap-3 px-2 sm:px-3 py-1.5 rounded"
                 style={{
                   border: '1px solid rgba(16,185,129,0.35)',
                   background: 'rgba(255,255,255,0.03)',
@@ -325,7 +330,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     }
                   }}
                   placeholder="Search..."
-                  className="bg-transparent outline-none text-xs sm:text-sm text-white placeholder-white/30 w-20 sm:w-40 md:w-48"
+                  className="bg-transparent outline-none text-xs sm:text-sm text-white placeholder-white/30 w-16 xs:w-20 sm:w-40 md:w-48"
                 />
                 <button
                   onClick={() => {
@@ -341,11 +346,12 @@ export const Navbar: React.FC<NavbarProps> = ({
             ) : (
               <button
                 onClick={handleOpenSearch}
-                className="flex items-center justify-center w-10 h-10 sm:w-9 sm:h-9 text-white/50 hover:text-white transition-colors cursor-pointer"
+                className="flex items-center justify-center w-9 h-9 sm:w-9 sm:h-9 text-white/50 hover:text-white transition-colors cursor-pointer"
                 title="Search"
                 aria-label="Open search"
               >
-                <Search size={19} />
+                <Search size={18} className="sm:hidden" />
+                <Search size={19} className="hidden sm:block" />
               </button>
             )}
 
@@ -406,11 +412,12 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Wishlist Icon */}
           <button
             onClick={onOpenWishlist}
-            className="relative flex items-center justify-center w-10 h-10 sm:w-9 sm:h-9 text-white/50 hover:text-white transition-colors cursor-pointer"
+            className="relative flex items-center justify-center w-9 h-9 text-white/50 hover:text-white transition-colors cursor-pointer"
             title="Wishlist"
             aria-label="Wishlist"
           >
-            <Heart size={19} className={wishlistItems.length > 0 ? 'fill-red-500 text-red-500' : ''} />
+            <Heart size={18} className={`sm:hidden ${wishlistItems.length > 0 ? 'fill-red-500 text-red-500' : ''}`} />
+            <Heart size={19} className={`hidden sm:block ${wishlistItems.length > 0 ? 'fill-red-500 text-red-500' : ''}`} />
             {wishlistItems.length > 0 && (
               <span
                 className="absolute top-0.5 right-0.5 flex items-center justify-center rounded-full font-black animate-pulse"
@@ -424,11 +431,12 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Shopping Cart Icon */}
           <button
             onClick={onOpenCart}
-            className="relative flex items-center justify-center w-10 h-10 sm:w-9 sm:h-9 text-white/50 hover:text-white transition-colors cursor-pointer"
+            className="relative flex items-center justify-center w-9 h-9 text-white/50 hover:text-white transition-colors cursor-pointer"
             title="Cart"
             aria-label="Cart"
           >
-            <ShoppingCart size={19} />
+            <ShoppingCart size={18} className="sm:hidden" />
+            <ShoppingCart size={19} className="hidden sm:block" />
             {cartCount > 0 && (
               <span
                 className="absolute top-0.5 right-0.5 flex items-center justify-center rounded-full font-black"
@@ -444,10 +452,10 @@ export const Navbar: React.FC<NavbarProps> = ({
             <div className="relative">
               <button
                 onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
-                className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 text-xs font-semibold tracking-wider text-emerald-400 hover:text-emerald-300 transition-colors cursor-pointer border border-emerald-500/25 bg-emerald-500/5 rounded"
+                className="flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-3 py-1.5 text-xs font-semibold tracking-wider text-emerald-400 hover:text-emerald-300 transition-colors cursor-pointer border border-emerald-500/25 bg-emerald-500/5 rounded"
               >
                 <User size={13} />
-                <span className="hidden sm:inline max-w-[9rem] truncate">{user?.name}</span>
+                <span className="hidden md:inline max-w-[7rem] lg:max-w-[9rem] truncate">{user?.name}</span>
                 <ChevronDown
                   size={12}
                   className={`transition-transform duration-200 ${profileDropdownOpen ? 'rotate-180' : ''}`}
@@ -497,7 +505,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           ) : (
             <button
               onClick={onOpenAuth}
-              className="hidden md:inline-flex items-center gap-2 px-4 lg:px-5 py-2 text-[0.68rem] lg:text-[0.7rem] font-bold tracking-[0.14em] lg:tracking-[0.18em] uppercase transition-all duration-250 cursor-pointer"
+              className="hidden lg:inline-flex items-center gap-2 px-4 xl:px-5 py-2 text-[0.68rem] xl:text-[0.7rem] font-bold tracking-[0.14em] xl:tracking-[0.18em] uppercase transition-all duration-250 cursor-pointer"
               style={{
                 fontFamily: "'Barlow Condensed', sans-serif",
                 border: '1px solid #10B981',
@@ -517,9 +525,11 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
           )}
 
-          {/* Mobile Menu Toggle — 44px+ touch target on phones/tablets */}
+          {/* Mobile Menu Toggle — 44px+ touch target, visible through tablet
+              sizes now (up to lg) since the full desktop link row only
+              shows from lg up. */}
           <button
-            className="md:hidden flex items-center justify-center w-10 h-10 -mr-1 text-white/60 hover:text-white transition-colors cursor-pointer"
+            className="lg:hidden flex items-center justify-center w-10 h-10 -mr-1 text-white/60 hover:text-white transition-colors cursor-pointer"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
             aria-expanded={mobileMenuOpen}
@@ -537,10 +547,12 @@ export const Navbar: React.FC<NavbarProps> = ({
           the notch, or once the logo/wordmark sizes above started scaling
           per-breakpoint). Categories now come from the same fetched
           `categories` list the desktop dropdown uses, instead of a
-          hardcoded slug array that could drift out of sync. */}
+          hardcoded slug array that could drift out of sync. Now covers
+          everything below lg, so tablets (iPad, Android tablets) get this
+          drawer too instead of a squeezed inline nav. */}
       {mobileMenuOpen && (
         <div
-          className="md:hidden fixed inset-0 z-[60] flex flex-col"
+          className="lg:hidden fixed inset-0 z-[60] flex flex-col"
           style={{ background: 'rgba(5,5,5,0.98)', backdropFilter: 'blur(20px)' }}
         >
           <div
@@ -596,7 +608,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             <button
               onClick={onOpenNutrition}
-              className="text-base sm:text-lg font-black tracking-[0.1em] uppercase text-emerald-400 hover:text-emerald-300 transition-colors cursor-pointer mt-2"
+              className="text-base sm:text-lg font-black tracking-[0.1em] uppercase text-emerald-400 hover:text-emerald-300 transition-colors cursor-pointer mt-2 text-center px-4"
               style={{ fontFamily: "'Barlow Condensed', sans-serif" }}
             >
               Nutrition Consultation
@@ -609,7 +621,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   document.getElementById('footer-contact')?.scrollIntoView({ behavior: 'smooth' });
                 }, 300);
               }}
-              className="text-base sm:text-lg font-black tracking-[0.1em] uppercase text-white/70 hover:text-emerald-400 transition-colors cursor-pointer"
+              className="text-base sm:text-lg font-black tracking-[0.1em] uppercase text-white/70 hover:text-emerald-400 transition-colors cursor-pointer text-center px-4"
               style={{ fontFamily: "'Barlow Condensed', sans-serif" }}
             >
               Contact

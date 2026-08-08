@@ -82,11 +82,11 @@ export const Category: React.FC<CategoryProps> = ({
   const displayDescription = isAllProducts ? "Every product across every category" : cat!.description;
 
   return (
-    <div className="min-h-screen" style={{ background: "#050505" }}>
+    <div className="min-h-screen" style={{ background: "#eeeaeaff" }}>
       {/* Category Hero Banner */}
       <div
         className="relative pt-20 sm:pt-24 pb-10 sm:pb-14 px-4 sm:px-6 md:px-14 lg:px-20 overflow-hidden"
-        style={{ background: "#080808", borderBottom: "1px solid rgba(255,255,255,0.05)" }}
+        style={{ background: "#090909ff", borderBottom: "1px solid rgba(255,255,255,0.05)" }}
       >
         {/* Background Overlay */}
         <div
@@ -189,7 +189,7 @@ export const Category: React.FC<CategoryProps> = ({
                     style={{
                       fontFamily: "'DM Sans', sans-serif",
                       background: sortBy === s ? accent : "transparent",
-                      color: sortBy === s ? "#000" : "rgba(255,255,255,0.35)",
+                      color: sortBy === s ? "#e7dedeff" : "rgba(255,255,255,0.35)",
                       border: `1px solid ${sortBy === s ? accent : "rgba(255,255,255,0.1)"}`,
                     }}
                   >
@@ -232,7 +232,7 @@ export const Category: React.FC<CategoryProps> = ({
             className="text-2xl font-black uppercase tracking-tight text-white mb-6"
             style={{ fontFamily: "'Barlow Condensed', sans-serif" }}
           >
-            More <span style={{ color: accent }}>Categories</span>
+            . <span style={{ color: accent }}>More Categories</span>
           </h2>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
