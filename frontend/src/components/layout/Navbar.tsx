@@ -8,8 +8,16 @@ import {
   Menu,
   X,
   ChevronDown,
+  ChevronRight,
   Search,
   Package,
+  Shield,
+  Zap,
+  Droplets,
+  Sun,
+  Leaf,
+  Sparkles,
+  MessageCircle,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
@@ -18,6 +26,20 @@ import { productsService } from '../../api/products';
 import { Product } from '../../types';
 import { Category } from '../../types';
 import logoImage from '../../assets/logo.webp';
+
+// Same icon mapping used on the Home page's category tiles, so the drawer
+// list reads as one consistent system rather than plain text rows.
+const getCategoryIcon = (id: string) => {
+  switch (id) {
+    case 'protein': return Shield;
+    case 'creatine': return Zap;
+    case 'eaa-bcaa': return Droplets;
+    case 'vitamins': return Sun;
+    case 'pre-workout': return Zap;
+    case 'wellbeing': return Leaf;
+    default: return Sparkles;
+  }
+};
 
 interface NavbarProps {
   currentPage: string;
@@ -44,6 +66,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const { cartCount } = useCart();
   const { wishlistItems } = useWishlist();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [drawerVisible, setDrawerVisible] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [shopOpen, setShopOpen] = useState(false);
   const shopCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -121,10 +144,13 @@ export const Navbar: React.FC<NavbarProps> = ({
     if (mobileMenuOpen) {
       const previousOverflow = document.body.style.overflow;
       document.body.style.overflow = 'hidden';
+      const raf = requestAnimationFrame(() => setDrawerVisible(true));
       return () => {
         document.body.style.overflow = previousOverflow;
+        cancelAnimationFrame(raf);
       };
     }
+    setDrawerVisible(false);
   }, [mobileMenuOpen]);
 
   useEffect(() => {
@@ -552,13 +578,36 @@ export const Navbar: React.FC<NavbarProps> = ({
           drawer too instead of a squeezed inline nav. */}
       {mobileMenuOpen && (
         <div
-          className="lg:hidden fixed inset-0 z-[60] flex flex-col"
-          style={{ background: 'rgba(5,5,5,0.98)', backdropFilter: 'blur(20px)' }}
+          className="lg:hidden fixed inset-0 z-[60] flex flex-col overflow-hidden"
+          style={{ background: '#050505' }}
         >
+          {/* Ambient brand glow — same emerald identity as the rest of the
+              site instead of flat black, so the drawer doesn't feel like a
+              placeholder screen. */}
+          <div className="absolute inset-0 pointer-events-none">
+            <div
+              className="absolute rounded-full blur-[90px] opacity-[0.16]"
+              style={{ width: 360, height: 360, background: '#10B981', top: '-8%', left: '-15%' }}
+            />
+            <div
+              className="absolute rounded-full blur-[100px] opacity-[0.10]"
+              style={{ width: 320, height: 320, background: '#10B981', bottom: '5%', right: '-12%' }}
+            />
+            <div
+              className="absolute inset-0 opacity-[0.03]"
+              style={{
+                backgroundImage:
+                  'linear-gradient(#10B981 1px, transparent 1px), linear-gradient(90deg, #10B981 1px, transparent 1px)',
+                backgroundSize: '48px 48px',
+              }}
+            />
+          </div>
+
+          {/* Header */}
           <div
-            className="flex items-center justify-between px-4 sm:px-6 py-3"
+            className="relative flex items-center justify-between px-4 sm:px-6 py-3"
             style={{
-              borderBottom: '1px solid rgba(255,255,255,0.06)',
+              borderBottom: '1px solid rgba(16,185,129,0.14)',
               paddingTop: 'max(0.75rem, env(safe-area-inset-top))',
             }}
           >
@@ -566,78 +615,241 @@ export const Navbar: React.FC<NavbarProps> = ({
               onClick={() => handleNavigate('home')}
               className="flex items-center gap-2.5 cursor-pointer"
             >
-              <img src={logoImage} alt="Celti Core Logo" className="w-8 h-8 object-contain" />
+              <div className="relative flex items-center justify-center w-8 h-8">
+                <div
+                  className="absolute inset-0"
+                  style={{ background: 'radial-gradient(circle, rgba(16,185,129,.3), transparent 70%)', filter: 'blur(5px)', transform: 'scale(1.3)' }}
+                />
+                <img src={logoImage} alt="Celti Core Logo" className="relative w-8 h-8 object-contain" />
+              </div>
               <span
                 className="uppercase text-sm tracking-[0.14em] text-emerald-400"
-                style={{ fontFamily: "'Oswald', sans-serif", fontWeight: 700 }}
+                style={{ fontFamily: "'Oswald', sans-serif", fontWeight: 700, textShadow: '0 0 8px rgba(16,185,129,.3)' }}
               >
                 CELTI CORE
               </span>
             </button>
             <button
               onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center justify-center w-10 h-10 text-white/70 hover:text-white cursor-pointer"
+              className="flex items-center justify-center w-10 h-10 rounded-full text-white/70 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
               aria-label="Close menu"
             >
-              <X size={22} />
+              <X size={20} />
             </button>
           </div>
 
+          {/* Scrollable menu body */}
           <div
-            className="flex-1 overflow-y-auto flex flex-col items-center justify-center gap-4 sm:gap-5 py-8 px-4"
-            style={{ paddingBottom: 'max(2rem, env(safe-area-inset-bottom))' }}
+            className="relative flex-1 overflow-y-auto px-3 sm:px-4 pt-5 pb-4"
           >
-            {categories.map((category) => (
-              <button
-                key={category.id}
-                onClick={() => handleNavigate(category.slug)}
-                className="text-xl sm:text-2xl font-black tracking-[0.1em] uppercase hover:text-emerald-400 transition-colors text-white cursor-pointer text-center px-4"
-                style={{ fontFamily: "'Barlow Condensed', sans-serif" }}
-              >
-                {category.name}
-              </button>
-            ))}
-
-            <button
-              onClick={() => handleNavigate('products')}
-              className="text-xl sm:text-2xl font-black tracking-[0.1em] uppercase hover:text-emerald-400 transition-colors text-emerald-400 cursor-pointer text-center px-4"
-              style={{ fontFamily: "'Barlow Condensed', sans-serif" }}
+            <p
+              className="px-3 mb-2 text-[10px] font-bold tracking-[0.35em] uppercase text-white/30"
+              style={{ fontFamily: "'DM Sans', sans-serif" }}
             >
-              View All Products
-            </button>
+              Shop
+            </p>
 
-            <button
-              onClick={onOpenNutrition}
-              className="text-base sm:text-lg font-black tracking-[0.1em] uppercase text-emerald-400 hover:text-emerald-300 transition-colors cursor-pointer mt-2 text-center px-4"
-              style={{ fontFamily: "'Barlow Condensed', sans-serif" }}
-            >
-              Nutrition Consultation
-            </button>
+            <div className="flex flex-col gap-1">
+              {categories.map((category, idx) => {
+                const Icon = getCategoryIcon(category.id);
+                return (
+                  <div
+                    key={category.id}
+                    className="transition-all ease-out"
+                    style={{
+                      transitionDuration: '450ms',
+                      transitionDelay: `${idx * 45}ms`,
+                      opacity: drawerVisible ? 1 : 0,
+                      transform: drawerVisible ? 'translateY(0)' : 'translateY(10px)',
+                    }}
+                  >
+                    <button
+                      onClick={() => handleNavigate(category.slug)}
+                      className="group w-full flex items-center gap-3.5 px-3 py-3 rounded-xl transition-colors duration-200 hover:bg-white/[0.04] active:bg-emerald-500/10 cursor-pointer"
+                    >
+                      <span className="flex items-center justify-center w-10 h-10 rounded-full shrink-0 bg-white/[0.04] border border-white/10 transition-colors duration-200 group-hover:border-emerald-500/40 group-hover:bg-emerald-500/10">
+                        <Icon size={17} className="text-white/60 transition-colors duration-200 group-hover:text-emerald-400" />
+                      </span>
+                      <span
+                        className="flex-1 text-left text-[0.95rem] font-bold tracking-[0.06em] uppercase text-white/85 transition-colors duration-200 group-hover:text-white"
+                        style={{ fontFamily: "'Barlow Condensed', sans-serif" }}
+                      >
+                        {category.name}
+                      </span>
+                      <ChevronRight
+                        size={16}
+                        className="text-white/20 shrink-0 transition-all duration-200 group-hover:text-emerald-400 group-hover:translate-x-0.5"
+                      />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
 
-            <button
-              onClick={() => {
-                handleNavigate('home');
-                setTimeout(() => {
-                  document.getElementById('footer-contact')?.scrollIntoView({ behavior: 'smooth' });
-                }, 300);
+            {/* Highlighted "view all" row */}
+            <div
+              className="transition-all ease-out mt-1.5"
+              style={{
+                transitionDuration: '450ms',
+                transitionDelay: `${categories.length * 45}ms`,
+                opacity: drawerVisible ? 1 : 0,
+                transform: drawerVisible ? 'translateY(0)' : 'translateY(10px)',
               }}
-              className="text-base sm:text-lg font-black tracking-[0.1em] uppercase text-white/70 hover:text-emerald-400 transition-colors cursor-pointer text-center px-4"
-              style={{ fontFamily: "'Barlow Condensed', sans-serif" }}
             >
-              Contact
-            </button>
+              <button
+                onClick={() => handleNavigate('products')}
+                className="group w-full flex items-center gap-3.5 px-3 py-3 rounded-xl cursor-pointer transition-colors duration-200"
+                style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.25)' }}
+              >
+                <span
+                  className="flex items-center justify-center w-10 h-10 rounded-full shrink-0"
+                  style={{ background: 'rgba(16,185,129,0.15)' }}
+                >
+                  <Sparkles size={17} className="text-emerald-400" />
+                </span>
+                <span
+                  className="flex-1 text-left text-[0.95rem] font-black tracking-[0.06em] uppercase text-emerald-400"
+                  style={{ fontFamily: "'Barlow Condensed', sans-serif" }}
+                >
+                  View All Products
+                </span>
+                <ChevronRight size={16} className="text-emerald-400/60 shrink-0 transition-transform duration-200 group-hover:translate-x-0.5" />
+              </button>
+            </div>
 
-            {!isAuthenticated && (
+            {/* Divider */}
+            <div
+              className="h-px my-5 mx-3"
+              style={{ background: 'linear-gradient(to right, transparent, rgba(16,185,129,0.3), transparent)' }}
+            />
+
+            <p
+              className="px-3 mb-2 text-[10px] font-bold tracking-[0.35em] uppercase text-white/30"
+              style={{ fontFamily: "'DM Sans', sans-serif" }}
+            >
+              More
+            </p>
+
+            <div className="flex flex-col gap-1">
+              {[
+                { icon: Leaf, label: 'Nutrition Consultation', onClick: onOpenNutrition },
+                {
+                  icon: MessageCircle,
+                  label: 'Contact',
+                  onClick: () => {
+                    handleNavigate('home');
+                    setTimeout(() => {
+                      document.getElementById('footer-contact')?.scrollIntoView({ behavior: 'smooth' });
+                    }, 300);
+                  },
+                },
+                ...(isAuthenticated
+                  ? [
+                      { icon: Package, label: 'My Orders', onClick: () => handleNavigate('my-orders') },
+                      ...(isAdmin ? [{ icon: Settings, label: 'Admin Dashboard', onClick: onOpenAdmin }] : []),
+                    ]
+                  : []),
+              ].map((item, i) => {
+                const Icon = item.icon;
+                const idx = categories.length + 1 + i;
+                return (
+                  <div
+                    key={item.label}
+                    className="transition-all ease-out"
+                    style={{
+                      transitionDuration: '450ms',
+                      transitionDelay: `${idx * 45}ms`,
+                      opacity: drawerVisible ? 1 : 0,
+                      transform: drawerVisible ? 'translateY(0)' : 'translateY(10px)',
+                    }}
+                  >
+                    <button
+                      onClick={item.onClick}
+                      className="group w-full flex items-center gap-3.5 px-3 py-3 rounded-xl transition-colors duration-200 hover:bg-white/[0.04] active:bg-emerald-500/10 cursor-pointer"
+                    >
+                      <span className="flex items-center justify-center w-10 h-10 rounded-full shrink-0 bg-white/[0.04] border border-white/10 transition-colors duration-200 group-hover:border-emerald-500/40 group-hover:bg-emerald-500/10">
+                        <Icon size={16} className="text-white/60 transition-colors duration-200 group-hover:text-emerald-400" />
+                      </span>
+                      <span
+                        className="flex-1 text-left text-[0.9rem] font-bold tracking-[0.06em] uppercase text-white/70 transition-colors duration-200 group-hover:text-white"
+                        style={{ fontFamily: "'Barlow Condensed', sans-serif" }}
+                      >
+                        {item.label}
+                      </span>
+                      <ChevronRight size={15} className="text-white/15 shrink-0 transition-all duration-200 group-hover:text-emerald-400 group-hover:translate-x-0.5" />
+                    </button>
+                  </div>
+                );
+              })}
+
+              {isAuthenticated && (
+                <div
+                  className="transition-all ease-out"
+                  style={{
+                    transitionDuration: '450ms',
+                    transitionDelay: `${(categories.length + 4) * 45}ms`,
+                    opacity: drawerVisible ? 1 : 0,
+                    transform: drawerVisible ? 'translateY(0)' : 'translateY(10px)',
+                  }}
+                >
+                  <button
+                    onClick={() => {
+                      logout();
+                      setMobileMenuOpen(false);
+                    }}
+                    className="group w-full flex items-center gap-3.5 px-3 py-3 rounded-xl transition-colors duration-200 hover:bg-red-500/[0.06] active:bg-red-500/10 cursor-pointer"
+                  >
+                    <span className="flex items-center justify-center w-10 h-10 rounded-full shrink-0 bg-white/[0.04] border border-white/10 transition-colors duration-200 group-hover:border-red-500/40 group-hover:bg-red-500/10">
+                      <LogOut size={16} className="text-white/60 transition-colors duration-200 group-hover:text-red-400" />
+                    </span>
+                    <span
+                      className="flex-1 text-left text-[0.9rem] font-bold tracking-[0.06em] uppercase text-white/70 transition-colors duration-200 group-hover:text-red-400"
+                      style={{ fontFamily: "'Barlow Condensed', sans-serif" }}
+                    >
+                      Logout
+                    </span>
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Sticky footer — account summary or login CTA, pinned below the
+              scroll area with safe-area padding for gesture-nav phones. */}
+          <div
+            className="relative px-4 sm:px-6 pt-3"
+            style={{
+              borderTop: '1px solid rgba(255,255,255,0.06)',
+              paddingBottom: 'max(1rem, env(safe-area-inset-bottom))',
+            }}
+          >
+            {isAuthenticated ? (
+              <div className="flex items-center gap-3 py-2.5">
+                <span
+                  className="flex items-center justify-center w-10 h-10 rounded-full shrink-0"
+                  style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)' }}
+                >
+                  <User size={17} className="text-emerald-400" />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-white truncate" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                    {user?.name || 'My Account'}
+                  </p>
+                  <p className="text-[11px] text-white/35">Signed in</p>
+                </div>
+              </div>
+            ) : (
               <button
                 onClick={() => {
                   onOpenAuth();
                   setMobileMenuOpen(false);
                 }}
-                className="mt-4 px-10 py-3 text-sm font-bold tracking-widest uppercase cursor-pointer"
+                className="w-full py-3.5 text-sm font-black tracking-[0.2em] uppercase cursor-pointer transition-all duration-250"
                 style={{
-                  border: '1px solid #10B981',
-                  color: '#10B981',
                   fontFamily: "'Barlow Condensed', sans-serif",
+                  background: 'linear-gradient(135deg, #10B981, #0d9668)',
+                  color: '#000',
+                  boxShadow: '0 0 24px rgba(16,185,129,0.35)',
                 }}
               >
                 Login / Sign Up
