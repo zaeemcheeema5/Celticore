@@ -135,9 +135,9 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, categories, products, on
   const slide = HERO_SLIDES[currentSlide];
 
   return (
-    <div className="w-full">
+    <div className="w-full overflow-x-hidden">
       {/* HERO SECTION */}
-      <section className="relative min-h-screen flex items-center overflow-hidden" style={{ background: "#ffffff" }}>
+      <section className="relative min-h-[92svh] sm:min-h-screen flex items-center overflow-hidden" style={{ background: "#ffffff" }}>
         {/* Dynamic gradient background overlays with transition */}
         {HERO_SLIDES.map((s, idx) => (
           <div 
@@ -162,36 +162,36 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, categories, products, on
           <div className="absolute inset-0" style={{ background:"linear-gradient(to top, rgba(255,255,255,.85) 0%, transparent 70%)" }}/>
         </div>
 
-        {/* Ambient blobs */}
+        {/* Ambient blobs - scaled down on small screens so they don't dominate the viewport */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden z-[2]">
-          <div className="absolute rounded-full blur-[130px] opacity-[0.14]" style={{ width: 550, height: 550, background: slide.accent, top: "5%", left: "-8%", transition: "background 1s ease-in-out", animation: "float 10s 0s infinite ease-in-out" }}/>
-          <div className="absolute rounded-full blur-[110px] opacity-[0.10]" style={{ width: 440, height: 440, background: slide.accent === "#10B981" ? "#4b5563" : "#000", bottom: "5%", right: "-6%", transition: "background 1s ease-in-out", animation: "float 13s 3s infinite ease-in-out" }}/>
-          <div className="absolute inset-0 opacity-[0.02]" style={{ backgroundImage: `linear-gradient(${slide.accent} 1px, transparent 1px), linear-gradient(90deg, ${slide.accent} 1px, transparent 1px)`, backgroundSize: "72px 72px", transition: "all 1s ease-in-out" }}/>
+          <div className="absolute rounded-full blur-[70px] sm:blur-[100px] lg:blur-[130px] opacity-[0.14] w-[260px] h-[260px] sm:w-[400px] sm:h-[400px] lg:w-[550px] lg:h-[550px]" style={{ background: slide.accent, top: "5%", left: "-8%", transition: "background 1s ease-in-out", animation: "float 10s 0s infinite ease-in-out" }}/>
+          <div className="absolute rounded-full blur-[60px] sm:blur-[85px] lg:blur-[110px] opacity-[0.10] w-[220px] h-[220px] sm:w-[320px] sm:h-[320px] lg:w-[440px] lg:h-[440px]" style={{ background: slide.accent === "#10B981" ? "#4b5563" : "#000", bottom: "5%", right: "-6%", transition: "background 1s ease-in-out", animation: "float 13s 3s infinite ease-in-out" }}/>
+          <div className="absolute inset-0 opacity-[0.02]" style={{ backgroundImage: `linear-gradient(${slide.accent} 1px, transparent 1px), linear-gradient(90deg, ${slide.accent} 1px, transparent 1px)`, backgroundSize: "44px 44px", transition: "all 1s ease-in-out" }}/>
           <div className="absolute left-0 right-0 h-px opacity-[0.08]" style={{ background: `linear-gradient(to right, transparent, ${slide.accent} 40%, ${slide.accent} 60%, transparent)`, transition: "all 1s ease-in-out", animation: "scan-line 8s linear infinite" }}/>
         </div>
 
-        {/* Floating particles */}
+        {/* Floating particles - fewer / smaller on mobile via reduced opacity, kept lightweight */}
         {Array.from({ length: 24 }, (_, i) => (
-          <div key={i} className="absolute rounded-full pointer-events-none z-[2]" style={{ left: `${(i*37+7)%100}%`, top: `${(i*61+13)%100}%`, width: [2,2,1,3][i%4], height: [2,2,1,3][i%4], background: i%2===0 ? slide.accent : "#ffffff", opacity: 0.15+(i%4)*0.08, transition: "background 1s ease-in-out", animation: `float ${4+(i%5)}s ${(i*0.35)%4}s infinite ease-in-out` }}/>
+          <div key={i} className="absolute rounded-full pointer-events-none z-[2] hidden xs:block sm:block" style={{ left: `${(i*37+7)%100}%`, top: `${(i*61+13)%100}%`, width: [2,2,1,3][i%4], height: [2,2,1,3][i%4], background: i%2===0 ? slide.accent : "#ffffff", opacity: 0.15+(i%4)*0.08, transition: "background 1s ease-in-out", animation: `float ${4+(i%5)}s ${(i*0.35)%4}s infinite ease-in-out` }}/>
         ))}
 
-        <div className="relative z-10 w-full px-4 sm:px-6 md:px-14 lg:px-20 pt-16 sm:pt-20">
-          <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 items-center min-h-screen py-12 sm:py-16">
+        <div className="relative z-10 w-full px-4 sm:px-6 md:px-14 lg:px-20 pt-8 sm:pt-16 md:pt-20">
+          <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8 sm:gap-8 items-center min-h-[92svh] sm:min-h-screen py-8 sm:py-12 md:py-16">
             {/* Slide Information */}
-            <div key={`txt-${currentSlide}`} className="hero-text-enter">
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 mb-6 text-[10px] font-bold tracking-[0.35em] uppercase" style={{ border: `1px solid ${slide.accent}`, color: slide.accent, background: `${slide.accent}12`, fontFamily: "'Barlow Condensed', sans-serif" }}>
+            <div key={`txt-${currentSlide}`} className="hero-text-enter order-2 lg:order-1 text-center lg:text-left">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 mb-4 sm:mb-6 text-[9px] sm:text-[10px] font-bold tracking-[0.3em] sm:tracking-[0.35em] uppercase" style={{ border: `1px solid ${slide.accent}`, color: slide.accent, background: `${slide.accent}12`, fontFamily: "'Barlow Condensed', sans-serif" }}>
                 <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: slide.accent }}/>
                 {slide.tag}
               </div>
-              <h1 className="font-black leading-[0.9] mb-3 text-gray-900" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: "clamp(2.75rem, 11vw, 6.5rem)", letterSpacing: "-0.02em" }}>
+              <h1 className="font-black leading-[0.95] sm:leading-[0.9] mb-3 text-gray-900" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: "clamp(2.25rem, 12vw, 6.5rem)", letterSpacing: "-0.02em" }}>
                 {slide.title}<br/>
                 <span style={{ color: slide.accent }}>
                   {slide.titleAccent}
                 </span>
               </h1>
-              <p className="text-sm font-semibold tracking-[0.25em] uppercase mb-4" style={{ color: slide.accent, fontFamily: "'DM Sans', sans-serif", opacity: 0.85 }}>{slide.subtitle}</p>
-              <p className="text-gray-600 text-[0.95rem] leading-relaxed mb-8 max-w-[420px]" style={{ fontFamily: "'DM Sans', sans-serif" }}>{slide.description}</p>
-              <div className="flex flex-wrap items-center gap-3">
+              <p className="text-xs sm:text-sm font-semibold tracking-[0.2em] sm:tracking-[0.25em] uppercase mb-3 sm:mb-4" style={{ color: slide.accent, fontFamily: "'DM Sans', sans-serif", opacity: 0.85 }}>{slide.subtitle}</p>
+              <p className="text-gray-600 text-sm sm:text-[0.95rem] leading-relaxed mb-6 sm:mb-8 max-w-[420px] mx-auto lg:mx-0" style={{ fontFamily: "'DM Sans', sans-serif" }}>{slide.description}</p>
+              <div className="flex flex-wrap items-center justify-center lg:justify-start gap-3">
                 <button onClick={() => onNavigate(slide.page)} className="px-6 sm:px-8 py-3 sm:py-3.5 font-black text-xs tracking-[0.2em] uppercase transition-all duration-300 hover:scale-105 cursor-pointer" style={{ fontFamily: "'Barlow Condensed', sans-serif", background: `linear-gradient(135deg, ${slide.accent}, ${slide.accent}bb)`, color: "#000", boxShadow: `0 0 28px ${slide.accent}40` }}>
                   {slide.cta}
                 </button>
@@ -208,18 +208,18 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, categories, products, on
                   Learn More
                 </button>
               </div>
-              <div className="flex gap-5 sm:gap-8 mt-8 sm:mt-10">
+              <div className="flex flex-wrap justify-center lg:justify-start gap-5 sm:gap-8 mt-8 sm:mt-10">
                 {[{ val: "50K+", label: "Athletes" }, { val: "4.9★", label: "Avg Rating" }, { val: "100%", label: "Lab-Tested" }].map(s => (
-                  <div key={s.label}>
-                    <div className="text-xl font-black text-gray-900" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>{s.val}</div>
-                    <div className="text-[10px] uppercase tracking-widest text-gray-400" style={{ fontFamily: "'DM Sans', sans-serif" }}>{s.label}</div>
+                  <div key={s.label} className="text-center lg:text-left">
+                    <div className="text-lg sm:text-xl font-black text-gray-900" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>{s.val}</div>
+                    <div className="text-[9px] sm:text-[10px] uppercase tracking-widest text-gray-400" style={{ fontFamily: "'DM Sans', sans-serif" }}>{s.label}</div>
                   </div>
                 ))}
               </div>
             </div>
 
             {/* Product Rendering */}
-            <div key={`img-${currentSlide}`} className="hero-visual-enter flex items-center justify-center h-64 sm:h-80 md:h-[500px] lg:h-[560px]">
+            <div key={`img-${currentSlide}`} className="hero-visual-enter order-1 lg:order-2 flex items-center justify-center h-52 xs:h-64 sm:h-80 md:h-[440px] lg:h-[560px]">
               <div 
                 className="relative w-full h-full max-w-lg flex items-center justify-center"
                 style={{
@@ -228,7 +228,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, categories, products, on
                 }}
               >
                 {/* Glow behind product */}
-                <div className="absolute w-[85%] h-[85%] rounded-full blur-[90px] opacity-30" style={{ background: slide.accent }}/>
+                <div className="absolute w-[85%] h-[85%] rounded-full blur-[60px] sm:blur-[90px] opacity-30" style={{ background: slide.accent }}/>
                 <img 
                   src={slide.bgImage} 
                   alt={slide.titleAccent} 
@@ -245,30 +245,30 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, categories, products, on
         </div>
 
         {/* Carousel buttons */}
-        <div className="absolute bottom-6 sm:bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-3 sm:gap-5 z-10">
-          <button onClick={() => setCurrentSlide((p) => (p - 1 + HERO_SLIDES.length) % HERO_SLIDES.length)} className="p-2 sm:p-1.5 text-gray-400 hover:text-gray-800 transition-colors cursor-pointer"><ChevronLeft size={18}/></button>
-          <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
+        <div className="absolute bottom-4 sm:bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-2 sm:gap-5 z-10">
+          <button onClick={() => setCurrentSlide((p) => (p - 1 + HERO_SLIDES.length) % HERO_SLIDES.length)} className="p-2 sm:p-1.5 text-gray-400 hover:text-gray-800 transition-colors cursor-pointer"><ChevronLeft size={16} className="sm:hidden"/><ChevronLeft size={18} className="hidden sm:block"/></button>
+          <div className="flex gap-2 items-center">
             {HERO_SLIDES.map((_, i) => (
-              <button key={i} onClick={() => setCurrentSlide(i)} className="transition-all duration-400 cursor-pointer" style={{ width: i === currentSlide ? 28 : 7, height: 2, background: i === currentSlide ? slide.accent : "rgba(0,0,0,0.15)" }}/>
+              <button key={i} onClick={() => setCurrentSlide(i)} className="transition-all duration-400 cursor-pointer" style={{ width: i === currentSlide ? 24 : 6, height: 2, background: i === currentSlide ? slide.accent : "rgba(0,0,0,0.15)" }}/>
             ))}
           </div>
-          <button onClick={() => setCurrentSlide((p) => (p + 1) % HERO_SLIDES.length)} className="p-2 sm:p-1.5 text-gray-400 hover:text-gray-800 transition-colors cursor-pointer"><ChevronRight size={18}/></button>
+          <button onClick={() => setCurrentSlide((p) => (p + 1) % HERO_SLIDES.length)} className="p-2 sm:p-1.5 text-gray-400 hover:text-gray-800 transition-colors cursor-pointer"><ChevronRight size={16} className="sm:hidden"/><ChevronRight size={18} className="hidden sm:block"/></button>
         </div>
         <div className="absolute bottom-0 left-0 right-0 h-24 pointer-events-none" style={{ background: "linear-gradient(to bottom, transparent, #ffffff)" }}/>
       </section>
 
       {/* CATEGORY EXPLORATION — Design 01 "Vivid Tiles" look, background driven by cat.accentColor */}
-      <section className="relative py-6 pb-20 sm:pb-28 px-4 sm:px-6 md:px-14 lg:px-20" style={{ background: "#ffffff" }}>
-        <div className="max-w-7xl mx-auto mb-12">
-          <div className="flex items-center gap-4 mb-3">
+      <section className="relative py-6 pb-14 sm:pb-20 md:pb-28 px-4 sm:px-6 md:px-14 lg:px-20" style={{ background: "#ffffff" }}>
+        <div className="max-w-7xl mx-auto mb-8 sm:mb-12">
+          <div className="flex items-center gap-3 sm:gap-4 mb-3">
             <div className="h-px flex-1" style={{ background: "linear-gradient(to right, transparent, rgba(16,185,129,0.5))" }}/>
-            <span className="text-[10px] font-bold tracking-[0.45em] uppercase text-emerald-500" style={{ fontFamily: "'DM Sans', sans-serif" }}>Our Range</span>
+            <span className="text-[9px] sm:text-[10px] font-bold tracking-[0.35em] sm:tracking-[0.45em] uppercase text-emerald-500 whitespace-nowrap" style={{ fontFamily: "'DM Sans', sans-serif" }}>Our Range</span>
             <div className="h-px flex-1" style={{ background: "linear-gradient(to left, transparent, rgba(16,185,129,0.5))" }}/>
           </div>
-          <h2 className="text-center font-black tracking-tight text-gray-900" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: "clamp(2.4rem, 5vw, 4.5rem)", lineHeight: 0.95 }}>
+          <h2 className="text-center font-black tracking-tight text-gray-900" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: "clamp(2rem, 8vw, 4.5rem)", lineHeight: 0.95 }}>
             EXPLORE THE <span className="text-gold">CATEGORIES</span>
           </h2>
-          <p className="text-center text-gray-500 text-sm mt-3" style={{ fontFamily: "'DM Sans', sans-serif" }}>Precision-formulated. Clinically dosed. Zero compromise.</p>
+          <p className="text-center text-gray-500 text-xs sm:text-sm mt-3 px-2" style={{ fontFamily: "'DM Sans', sans-serif" }}>Precision-formulated. Clinically dosed. Zero compromise.</p>
         </div>
 
         <div className="max-w-7xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5">
@@ -279,10 +279,9 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, categories, products, on
             return (
               <div
                 key={cat.id}
-                className="group relative overflow-hidden cursor-pointer category-card rounded-2xl"
+                className="group relative overflow-hidden cursor-pointer category-card rounded-2xl aspect-[4/3] xs:aspect-[16/11] sm:aspect-[16/10]"
                 style={{
                   background: accent,
-                  aspectRatio: "16/10",
                   transform: isHovered ? "translateY(-6px)" : "translateY(0)",
                   boxShadow: isHovered ? "0 18px 34px rgba(0,0,0,0.22)" : "0 4px 14px rgba(0,0,0,0.06)",
                   transition: "transform 300ms ease, box-shadow 300ms ease",
@@ -293,7 +292,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, categories, products, on
               >
                 {/* Decorative ring accent, matches Design 01 tile */}
                 <span
-                  className="absolute -top-10 -right-10 w-40 h-40 rounded-full pointer-events-none"
+                  className="absolute -top-8 -right-8 sm:-top-10 sm:-right-10 w-28 h-28 sm:w-40 sm:h-40 rounded-full pointer-events-none"
                   style={{ border: "1.5px solid rgba(255,255,255,0.28)" }}
                 />
 
@@ -304,21 +303,23 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, categories, products, on
                 />
 
                 {/* Large translucent ghost icon */}
-                <div className="absolute -bottom-4 -right-4 opacity-[0.14] group-hover:opacity-[0.22] transition-opacity duration-400 pointer-events-none">
-                  <Icon size={110} color="#ffffff" />
+                <div className="absolute -bottom-3 -right-3 sm:-bottom-4 sm:-right-4 opacity-[0.14] group-hover:opacity-[0.22] transition-opacity duration-400 pointer-events-none">
+                  <Icon size={72} className="sm:hidden" color="#ffffff" />
+                  <Icon size={110} className="hidden sm:block" color="#ffffff" />
                 </div>
 
                 {/* Information */}
-                <div className="absolute inset-0 flex flex-col justify-between p-5 md:p-6">
+                <div className="absolute inset-0 flex flex-col justify-between p-4 sm:p-5 md:p-6">
                   <div className="flex items-start justify-between">
                     <div
-                      className="w-10 h-10 rounded-full flex items-center justify-center transition-transform duration-300"
+                      className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-transform duration-300"
                       style={{ background: "rgba(255,255,255,0.2)", transform: isHovered ? "scale(1.08)" : "scale(1)" }}
                     >
-                      <Icon size={18} color="#ffffff" />
+                      <Icon size={16} className="sm:hidden" color="#ffffff" />
+                      <Icon size={18} className="hidden sm:block" color="#ffffff" />
                     </div>
                     <div
-                      className="text-[10px] font-bold tracking-[0.2em] uppercase opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center gap-1"
+                      className="text-[9px] sm:text-[10px] font-bold tracking-[0.15em] sm:tracking-[0.2em] uppercase opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-300 flex items-center gap-1"
                       style={{ color: "#ffffff", fontFamily: "'DM Sans', sans-serif" }}
                     >
                       View All <ChevronRight size={10}/>
@@ -326,23 +327,23 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, categories, products, on
                   </div>
                   <div>
                     <p
-                      className="text-[10px] font-bold tracking-[0.25em] uppercase mb-1"
+                      className="text-[9px] sm:text-[10px] font-bold tracking-[0.2em] sm:tracking-[0.25em] uppercase mb-1"
                       style={{ color: "rgba(255,255,255,0.85)", fontFamily: "'DM Sans', sans-serif" }}
                     >
                       {cat.tagline}
                     </p>
                     <h3
-                      className="text-[1.75rem] md:text-[1.95rem] font-black uppercase tracking-tight leading-none mb-1.5"
+                      className="text-[1.4rem] sm:text-[1.75rem] md:text-[1.95rem] font-black uppercase tracking-tight leading-none mb-1.5"
                       style={{ fontFamily: "'Poppins', sans-serif", color: "#FFFFFF" }}
                     >
                       {cat.name}
                     </h3>
-                    <p className="text-white/90 text-xs mb-4 leading-relaxed" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                    <p className="text-white/90 text-[11px] sm:text-xs mb-3 sm:mb-4 leading-relaxed line-clamp-2 sm:line-clamp-none" style={{ fontFamily: "'DM Sans', sans-serif" }}>
                       {cat.description}
                     </p>
                     <button
                       onClick={(e) => { e.stopPropagation(); onNavigate(cat.id); }}
-                      className="group/btn relative w-full py-2.5 text-[10px] font-black tracking-[0.3em] uppercase cursor-pointer rounded-lg overflow-hidden transition-all duration-300"
+                      className="group/btn relative w-full py-2 sm:py-2.5 text-[9px] sm:text-[10px] font-black tracking-[0.25em] sm:tracking-[0.3em] uppercase cursor-pointer rounded-lg overflow-hidden transition-all duration-300"
                       style={{
                         fontFamily: "'Barlow Condensed', sans-serif",
                         background: "rgba(255,255,255,0.1)",
@@ -369,9 +370,9 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, categories, products, on
                         className="absolute inset-0 -translate-x-full group-hover/btn:translate-x-full transition-transform duration-700 ease-out pointer-events-none"
                         style={{ background: "linear-gradient(120deg, transparent 30%, rgba(255,255,255,0.55) 50%, transparent 70%)" }}
                       />
-                      <span className="relative flex items-center justify-center gap-1.5">
+                      <span className="relative flex items-center justify-center gap-1.5 truncate px-1">
                         Shop {cat.name}
-                        <ChevronRight size={12} className="transition-transform duration-300 group-hover/btn:translate-x-1" />
+                        <ChevronRight size={12} className="transition-transform duration-300 group-hover/btn:translate-x-1 shrink-0" />
                       </span>
                     </button>
                   </div>
@@ -383,20 +384,20 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, categories, products, on
       </section>
 
       {/* PER-CATEGORY PRODUCT SHOWCASE */}
-      <section className="relative py-6 pb-16 sm:pb-20 px-4 sm:px-6 md:px-14 lg:px-20" style={{ background: "#ffffff" }}>
-        <div className="max-w-7xl mx-auto mb-12">
-          <div className="flex items-center gap-4 mb-3">
+      <section className="relative py-6 pb-14 sm:pb-20 px-4 sm:px-6 md:px-14 lg:px-20" style={{ background: "#ffffff" }}>
+        <div className="max-w-7xl mx-auto mb-8 sm:mb-12">
+          <div className="flex items-center gap-3 sm:gap-4 mb-3">
             <div className="h-px flex-1" style={{ background: "linear-gradient(to right, transparent, rgba(16,185,129,0.5))" }}/>
-            <span className="text-[10px] font-bold tracking-[0.45em] uppercase text-emerald-500" style={{ fontFamily: "'DM Sans', sans-serif" }}>Shop By Category</span>
+            <span className="text-[9px] sm:text-[10px] font-bold tracking-[0.35em] sm:tracking-[0.45em] uppercase text-emerald-500 whitespace-nowrap" style={{ fontFamily: "'DM Sans', sans-serif" }}>Shop By Category</span>
             <div className="h-px flex-1" style={{ background: "linear-gradient(to left, transparent, rgba(16,185,129,0.5))" }}/>
           </div>
-         <h2 className="text-center font-black tracking-tight text-gray-900" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: "clamp(2.4rem, 5vw, 4.5rem)", lineHeight: 0.95 }}>
+         <h2 className="text-center font-black tracking-tight text-gray-900" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: "clamp(2rem, 8vw, 4.5rem)", lineHeight: 0.95 }}>
             EXPLORE ALL <span className="text-gold">PRODUCTS</span>
           </h2>
-          <p className="text-center text-white/50 text-sm mt-3" style={{ fontFamily: "'DM Sans', sans-serif" }}>Precision-formulated. Clinically dosed. Zero compromise.</p>
+          <p className="text-center text-gray-400 sm:text-white/50 text-xs sm:text-sm mt-3 px-2" style={{ fontFamily: "'DM Sans', sans-serif" }}>Precision-formulated. Clinically dosed. Zero compromise.</p>
         </div>
 
-        <div className="max-w-7xl mx-auto flex flex-col gap-14 sm:gap-16">
+        <div className="max-w-7xl mx-auto flex flex-col gap-10 sm:gap-14 md:gap-16">
           {categories.map((cat) => {
             const accent = cat.accentColor || cat.accent_color || "#10B981";
             const catProducts = products
@@ -409,16 +410,16 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, categories, products, on
             return (
               <div key={`shelf-${cat.id}`}>
                 {/* Category Shelf Header */}
-                <div className="flex items-end justify-between gap-4 mb-5 sm:mb-6">
-                  <div>
+                <div className="flex flex-wrap items-center sm:items-end justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
+                  <div className="min-w-0">
                     <p
-                      className="text-[10px] font-bold tracking-[0.3em] uppercase mb-1"
+                      className="text-[9px] sm:text-[10px] font-bold tracking-[0.25em] sm:tracking-[0.3em] uppercase mb-1"
                       style={{ color: accent, fontFamily: "'DM Sans', sans-serif" }}
                     >
                       {cat.tagline}
                     </p>
                     <h3
-                      className="text-xl sm:text-2xl md:text-[1.85rem] font-black uppercase tracking-tight leading-none"
+                      className="text-lg sm:text-2xl md:text-[1.85rem] font-black uppercase tracking-tight leading-none"
                       style={{ fontFamily: "'Barlow Condensed', sans-serif", color: "#0b0b0bff" }}
                     >
                       {cat.name}
@@ -427,7 +428,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, categories, products, on
 
                   <button
                     onClick={() => onNavigate(cat.id)}
-                    className="group/viewall shrink-0 flex items-center gap-2 text-[10px] sm:text-xs font-black tracking-[0.25em] uppercase cursor-pointer whitespace-nowrap px-3.5 py-1.5 rounded-full transition-all duration-300"
+                    className="group/viewall shrink-0 flex items-center gap-1.5 sm:gap-2 text-[9px] sm:text-xs font-black tracking-[0.2em] sm:tracking-[0.25em] uppercase cursor-pointer whitespace-nowrap px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-full transition-all duration-300"
                     style={{
                       fontFamily: "'Barlow Condensed', sans-serif",
                       color: accent,
@@ -455,7 +456,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, categories, products, on
                 </div>
 
                 {/* Product Row */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-5">
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-5">
                   {catProducts.map((p) => (
                     <ProductCard
                       key={p.id}
@@ -471,21 +472,22 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, categories, products, on
         </div>
       </section>
       {/* TRUST AND VALUES SECTION */}
-      <section className="py-8 px-4 sm:px-6 md:px-14" style={{ background: "#ffffff", borderTop: "1px solid rgba(0,0,0,0.06)", borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
-        <div className="max-w-7xl mx-auto flex flex-wrap justify-center md:justify-between gap-x-6 gap-y-5 md:gap-0">
+      <section className="py-6 sm:py-8 px-4 sm:px-6 md:px-14" style={{ background: "#ffffff", borderTop: "1px solid rgba(0,0,0,0.06)", borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
+        <div className="max-w-7xl mx-auto grid grid-cols-2 sm:flex sm:flex-wrap justify-center md:justify-between gap-x-4 gap-y-5 sm:gap-x-6 md:gap-0">
           {[
             { icon: Shield, label: "Third-Party Lab Tested", sub: "Every batch verified" },
             { icon: Star, label: "4.9/5 Average Rating", sub: "From 12,000+ reviews" },
             { icon: Leaf, label: "No Artificial Fillers", sub: "Clean label promise" },
             { icon: Zap, label: "Fast UK Dispatch", sub: "Next-day available" }
           ].map(({ icon: Icon, label, sub }) => (
-            <div key={label} className="flex items-center gap-3">
-              <div className="w-8 h-8 flex items-center justify-center shrink-0" style={{ border: "1px solid rgba(16,185,129,0.2)" }}>
-                <Icon size={15} style={{ color: "#10B981" }}/>
+            <div key={label} className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center shrink-0" style={{ border: "1px solid rgba(16,185,129,0.2)" }}>
+                <Icon size={14} className="sm:hidden" style={{ color: "#10B981" }}/>
+                <Icon size={15} className="hidden sm:block" style={{ color: "#10B981" }}/>
               </div>
-              <div>
-                <div className="text-xs font-semibold text-gray-700" style={{ fontFamily: "'DM Sans', sans-serif" }}>{label}</div>
-                <div className="text-[10px] text-gray-400" style={{ fontFamily: "'DM Sans', sans-serif" }}>{sub}</div>
+              <div className="min-w-0">
+                <div className="text-[11px] sm:text-xs font-semibold text-gray-700 leading-tight" style={{ fontFamily: "'DM Sans', sans-serif" }}>{label}</div>
+                <div className="text-[9px] sm:text-[10px] text-gray-400 leading-tight" style={{ fontFamily: "'DM Sans', sans-serif" }}>{sub}</div>
               </div>
             </div>
           ))}
