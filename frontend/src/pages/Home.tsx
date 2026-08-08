@@ -178,7 +178,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, categories, products, on
         <div className="relative z-10 w-full px-4 sm:px-6 md:px-14 lg:px-20 pt-8 sm:pt-16 md:pt-20">
           <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8 sm:gap-8 items-center min-h-[92svh] sm:min-h-screen py-8 sm:py-12 md:py-16">
             {/* Slide Information */}
-            <div key={`txt-${currentSlide}`} className="hero-text-enter text-center lg:text-left">
+            <div key={`txt-${currentSlide}`} className="hero-text-enter order-2 lg:order-1 text-center lg:text-left">
               <div className="inline-flex items-center gap-2 px-3 py-1.5 mb-4 sm:mb-6 text-[9px] sm:text-[10px] font-bold tracking-[0.3em] sm:tracking-[0.35em] uppercase" style={{ border: `1px solid ${slide.accent}`, color: slide.accent, background: `${slide.accent}12`, fontFamily: "'Barlow Condensed', sans-serif" }}>
                 <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: slide.accent }}/>
                 {slide.tag}
@@ -219,7 +219,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, categories, products, on
             </div>
 
             {/* Product Rendering */}
-            <div key={`img-${currentSlide}`} className="hero-visual-enter flex items-center justify-center h-52 xs:h-64 sm:h-80 md:h-[440px] lg:h-[560px]">
+            <div key={`img-${currentSlide}`} className="hero-visual-enter order-1 lg:order-2 flex items-center justify-center h-52 xs:h-64 sm:h-80 md:h-[440px] lg:h-[560px]">
               <div 
                 className="relative w-full h-full max-w-lg flex items-center justify-center"
                 style={{
