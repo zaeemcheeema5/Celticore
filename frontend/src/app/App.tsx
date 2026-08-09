@@ -30,6 +30,9 @@ const MyOrders = lazy(() => import("../pages/MyOrders").then((m) => ({ default: 
 const AuthModal = lazy(() => import("../components/auth/AuthModal").then((m) => ({ default: m.AuthModal })));
 const CartDrawer = lazy(() => import("../components/cart/CartDrawer").then((m) => ({ default: m.CartDrawer })));
 const ChatbotWidget = lazy(() => import("../components/chatbot/ChatbotWidget").then((m) => ({ default: m.ChatbotWidget })));
+// NutritionModal is now a full routed page (see currentPage === "nutrition"
+// below), not a modal toggle — it renders inline in <main> like Category/
+// SearchResults/MyOrders instead of floating at the bottom of the tree.
 const NutritionModal = lazy(() => import("../components/nutrition/NutritionModal").then((m) => ({ default: m.NutritionModal })));
 const WishlistDrawer = lazy(() => import("../components/wishlist/WishlistDrawer").then((m) => ({ default: m.WishlistDrawer })));
 const AdminDashboard = lazy(() => import("../components/admin/AdminDashboard").then((m) => ({ default: m.AdminDashboard })));
@@ -65,7 +68,6 @@ function MainAppLayout() {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [isWishlistOpen, setIsWishlistOpen] = useState(false);
-  const [isNutritionOpen, setIsNutritionOpen] = useState(false);
   const [isPrivacyOpen, setIsPrivacyOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -273,7 +275,7 @@ function MainAppLayout() {
         onOpenCart={() => setIsCartOpen(true)}
         onOpenWishlist={() => setIsWishlistOpen(true)}
         onOpenAdmin={() => handleNavigate("admin")}
-        onOpenNutrition={() => setIsNutritionOpen(true)}
+        onOpenNutrition={() => handleNavigate("nutrition")}
         onSearchNavigate={handleSearchNavigate}
       />
 
@@ -298,6 +300,8 @@ function MainAppLayout() {
               />
             ) : currentPage === "my-orders" ? (
               <MyOrders onNavigate={handleNavigate} />
+            ) : currentPage === "nutrition" ? (
+              <NutritionModal onClose={() => handleNavigate("home")} />
             ) : (
               <Category
                 pageId={currentPage}
@@ -313,7 +317,7 @@ function MainAppLayout() {
 
       {/* Footer Contact and Brand Info */}
       <Footer
-        onOpenNutrition={() => setIsNutritionOpen(true)}
+        onOpenNutrition={() => handleNavigate("nutrition")}
         onNavigate={handleNavigate}
         onOpenPrivacy={() => setIsPrivacyOpen(true)}
       />
@@ -359,13 +363,6 @@ function MainAppLayout() {
         <CheckoutModal
           isOpen={isCheckoutOpen}
           onClose={() => setIsCheckoutOpen(false)}
-        />
-      </Suspense>
-
-      <Suspense fallback={null}>
-        <NutritionModal
-          isOpen={isNutritionOpen}
-          onClose={() => setIsNutritionOpen(false)}
         />
       </Suspense>
 

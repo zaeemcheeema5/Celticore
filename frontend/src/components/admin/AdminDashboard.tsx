@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { X, ShieldAlert, BarChart3, Database, Award, ClipboardCheck, MessageSquare, Plus, Trash2, CheckCircle2, XCircle, Star, ShoppingBag, Layers, Edit2, Upload, Eye, UserPlus, Key, Download, TrendingUp, TrendingDown, Search, Copy, Check, MapPin, Mail, CreditCard, Package, Filter, Phone, Activity, Utensils, AlertTriangle, Send, Cake, Scale, ChevronDown, ExternalLink } from 'lucide-react';
+import { X, ShieldAlert, BarChart3, Database, Award, ClipboardCheck, MessageSquare, Plus, Trash2, CheckCircle2, XCircle, Star, ShoppingBag, Layers, Edit2, Upload, Eye, UserPlus, Key, Download, TrendingUp, TrendingDown, Search, Copy, Check, MapPin, Mail, CreditCard, Package, Filter, Phone, Activity, Utensils, AlertTriangle, Send, Cake, Scale, ChevronDown, ExternalLink, Leaf } from 'lucide-react';
 import { AreaChart, Area, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { dashboardService } from '../../api/dashboard';
 import { productsService } from '../../api/products';
@@ -1841,76 +1841,167 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, onCatal
 
           {/* TAB CONTENT: NUTRITION REQUESTS */}
           {activeTab === 'nutrition' && (
-            <div className="space-y-5">
-              {/* Summary Cards */}
+            <div className="nutri-scope space-y-6">
+              <style>{`
+                .nutri-scope {
+                  --nu-void: #050706;
+                  --nu-emerald: #10B981;
+                  --nu-emerald-soft: rgba(16,185,129,0.10);
+                  --nu-gold: #C9A961;
+                  --nu-gold-soft: rgba(201,169,97,0.35);
+                  --nu-cream: #F5F2EA;
+                }
+                .nutri-scope .nu-serif { font-family: 'Fraunces', 'Barlow Condensed', serif; }
+                .nutri-scope .nu-card {
+                  background: linear-gradient(160deg, rgba(255,255,255,0.035) 0%, rgba(0,0,0,0.25) 100%);
+                  border: 1px solid rgba(16,185,129,0.14);
+                  border-radius: 14px;
+                  position: relative;
+                  overflow: hidden;
+                  transition: border-color 0.25s ease, transform 0.25s ease;
+                }
+                .nutri-scope .nu-card::before {
+                  content: '';
+                  position: absolute; top: 0; left: 20px; right: 20px; height: 1px;
+                  background: linear-gradient(90deg, transparent, var(--nu-gold), transparent);
+                  opacity: 0.55;
+                }
+                .nutri-scope .nu-card:hover { border-color: rgba(16,185,129,0.32); }
+                .nutri-scope .nu-stat-card {
+                  background: linear-gradient(160deg, rgba(255,255,255,0.04) 0%, rgba(0,0,0,0.2) 100%);
+                  border: 1px solid rgba(255,255,255,0.07);
+                  border-radius: 12px;
+                  position: relative;
+                  overflow: hidden;
+                }
+                .nutri-scope .nu-stat-card::after {
+                  content: '';
+                  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+                  background: linear-gradient(90deg, var(--nu-emerald), var(--nu-gold));
+                  opacity: 0.7;
+                }
+                .nutri-scope .nu-avatar {
+                  background: conic-gradient(from 220deg, var(--nu-emerald), var(--nu-gold), var(--nu-emerald));
+                  padding: 2px;
+                  border-radius: 999px;
+                }
+                .nutri-scope .nu-avatar-inner {
+                  width: 100%; height: 100%; border-radius: 999px;
+                  background: #06110d;
+                  display: flex; align-items: center; justify-content: center;
+                }
+                .nutri-scope .nu-field {
+                  background: rgba(16,185,129,0.04);
+                  border: 1px solid rgba(16,185,129,0.14);
+                  border-radius: 10px;
+                  transition: all 0.25s ease;
+                }
+                .nutri-scope .nu-field:hover { border-color: rgba(16,185,129,0.28); }
+                .nutri-scope .nu-input-notes:focus {
+                  border-color: var(--nu-gold) !important;
+                  box-shadow: 0 0 0 3px rgba(201,169,97,0.1);
+                }
+                .nutri-scope .nu-btn-gold {
+                  font-family: 'Barlow Condensed', sans-serif;
+                  letter-spacing: 0.14em;
+                  text-transform: uppercase;
+                  font-weight: 700;
+                  background: linear-gradient(135deg, #10B981 0%, #067A56 100%);
+                  color: #04120C;
+                  border: 1px solid rgba(16,185,129,0.5);
+                  transition: all 0.3s cubic-bezier(.2,.8,.2,1);
+                }
+                .nutri-scope .nu-btn-gold:hover {
+                  transform: translateY(-1px);
+                  box-shadow: 0 8px 26px rgba(16,185,129,0.3);
+                }
+                .nutri-scope .nu-btn-ghost-notes {
+                  font-family: 'Barlow Condensed', sans-serif;
+                  letter-spacing: 0.1em;
+                  text-transform: uppercase;
+                  font-weight: 700;
+                  background: transparent;
+                  border: 1px solid var(--nu-gold-soft);
+                  color: var(--nu-gold);
+                  transition: all 0.25s ease;
+                }
+                .nutri-scope .nu-btn-ghost-notes:hover {
+                  background: rgba(201,169,97,0.1);
+                  border-color: var(--nu-gold);
+                }
+                .nutri-scope .nu-chip {
+                  font-family: 'Barlow Condensed', sans-serif;
+                  letter-spacing: 0.12em;
+                }
+              `}</style>
+
+              {/* ---------- Summary Cards ---------- */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="p-4 bg-white/[0.03] border border-white/8 rounded-xl hover:border-white/15 transition-colors duration-200">
-                  <p className="text-[10px] uppercase text-white/40 font-bold tracking-wider">Total Requests</p>
-                  <p className="text-2xl sm:text-3xl font-black text-white mt-1" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
+                <div className="nu-stat-card p-4 sm:p-5">
+                  <p className="text-[10px] uppercase text-white/40 font-bold tracking-[0.18em]">Total Requests</p>
+                  <p className="nu-serif text-white mt-1.5" style={{ fontSize: '1.9rem', fontWeight: 500 }}>
                     {nutrition.length}
                   </p>
                 </div>
-                <div className="p-4 bg-white/[0.03] border border-white/8 rounded-xl hover:border-white/15 transition-colors duration-200">
-                  <p className="text-[10px] uppercase text-white/40 font-bold tracking-wider">Pending Review</p>
-                  <p className="text-2xl sm:text-3xl font-black text-amber-400 mt-1" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
+                <div className="nu-stat-card p-4 sm:p-5">
+                  <p className="text-[10px] uppercase text-white/40 font-bold tracking-[0.18em]">Pending Review</p>
+                  <p className="nu-serif text-amber-400 mt-1.5" style={{ fontSize: '1.9rem', fontWeight: 500 }}>
                     {nutritionStatusCounts.pending}
                   </p>
                 </div>
-                <div className="p-4 bg-white/[0.03] border border-white/8 rounded-xl hover:border-white/15 transition-colors duration-200">
-                  <p className="text-[10px] uppercase text-white/40 font-bold tracking-wider">Completed</p>
-                  <p className="text-2xl sm:text-3xl font-black text-emerald-400 mt-1" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
+                <div className="nu-stat-card p-4 sm:p-5">
+                  <p className="text-[10px] uppercase text-white/40 font-bold tracking-[0.18em]">Completed</p>
+                  <p className="nu-serif mt-1.5" style={{ fontSize: '1.9rem', fontWeight: 500, color: 'var(--nu-emerald)' }}>
                     {nutritionStatusCounts.completed}
                   </p>
                 </div>
-                <div className="p-4 bg-white/[0.03] border border-white/8 rounded-xl hover:border-white/15 transition-colors duration-200">
-                  <p className="text-[10px] uppercase text-white/40 font-bold tracking-wider">Cancelled</p>
-                  <p className="text-2xl sm:text-3xl font-black text-red-400 mt-1" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
+                <div className="nu-stat-card p-4 sm:p-5">
+                  <p className="text-[10px] uppercase text-white/40 font-bold tracking-[0.18em]">Cancelled</p>
+                  <p className="nu-serif text-red-400 mt-1.5" style={{ fontSize: '1.9rem', fontWeight: 500 }}>
                     {nutritionStatusCounts.cancelled}
                   </p>
                 </div>
               </div>
 
-              {/* Search + Status Filter Bar */}
-              <div className="flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between p-3 bg-white/[0.03] border border-white/8 rounded-xl">
+              {/* ---------- Search + Status Filter Bar ---------- */}
+              <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between p-4 nu-card">
                 <div className="relative flex-1 sm:max-w-xs">
-                  <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
+                  <Search size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30" />
                   <input
                     type="text"
                     value={nutritionSearch}
                     onChange={(e) => setNutritionSearch(e.target.value)}
                     placeholder="Search name, email, or goal..."
-                    className="w-full pl-8 pr-3 py-2 text-xs text-white bg-black border border-white/10 focus:border-emerald-500 outline-none rounded-lg"
+                    className="nu-field w-full pl-9 pr-3 py-2.5 text-xs text-white outline-none"
                   />
                 </div>
                 <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide">
-                  <Filter size={12} className="text-white/30 shrink-0" />
+                  <Filter size={12} className="text-[var(--nu-gold)] shrink-0" />
                   {(['', 'pending', 'completed', 'cancelled'] as const).map((s) => (
                     <button
                       key={s || 'all'}
                       onClick={() => setNutritionStatusFilter(s)}
-                      className={`px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wide rounded-lg whitespace-nowrap transition-colors cursor-pointer border ${
+                      className={`nu-chip px-3 py-1.5 text-[10px] font-bold uppercase rounded-full whitespace-nowrap transition-colors cursor-pointer border ${
                         nutritionStatusFilter === s
                           ? 'bg-emerald-500 text-black border-emerald-500'
                           : 'text-white/50 border-white/10 hover:text-white hover:border-white/25'
                       }`}
                     >
                       {s === '' ? 'All' : s}
-                      {s !== '' && (
-                        <span className="ml-1 opacity-70">({nutritionStatusCounts[s] || 0})</span>
-                      )}
+                      {s !== '' && <span className="ml-1 opacity-70">({nutritionStatusCounts[s] || 0})</span>}
                     </button>
                   ))}
                 </div>
               </div>
 
-              {/* Requests List */}
+              {/* ---------- Requests List ---------- */}
               {nutrition.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-14 sm:py-20 text-center gap-2.5">
-                  <ClipboardCheck size={28} className="text-white/15" />
-                  <p className="text-xs text-white/30 italic">No nutrition consultations requested.</p>
+                <div className="flex flex-col items-center justify-center py-16 sm:py-24 text-center gap-3 nu-card">
+                  <Leaf size={30} className="text-[var(--nu-gold)]/40" />
+                  <p className="nu-serif text-white/50 text-sm">No nutrition consultations requested yet.</p>
                 </div>
               ) : filteredNutrition.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-14 sm:py-20 text-center gap-2.5">
+                <div className="flex flex-col items-center justify-center py-16 sm:py-24 text-center gap-3 nu-card">
                   <Search size={28} className="text-white/15" />
                   <p className="text-xs text-white/30 italic">No requests match your search or filter.</p>
                   <button
@@ -1921,37 +2012,35 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, onCatal
                   </button>
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {filteredNutrition.map((req) => {
                     const dotColor = NUTRITION_STATUS_COLORS[req.status] || '#6B7280';
                     return (
-                      <div
-                        key={req.id}
-                        className="p-4 sm:p-5 bg-white/[0.03] border border-white/8 rounded-xl hover:border-white/15 transition-colors duration-200 space-y-4 text-xs"
-                      >
+                      <div key={req.id} className="nu-card p-4 sm:p-6 space-y-5 text-xs">
                         {/* Header row */}
-                        <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-white/5">
-                          <div className="flex items-center gap-3 min-w-0">
-                            <div
-                              className="w-9 h-9 rounded-full flex items-center justify-center font-black text-[11px] text-black shrink-0"
-                              style={{ background: dotColor }}
-                            >
-                              {getInitials(req.name)}
+                        <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-white/5">
+                          <div className="flex items-center gap-3.5 min-w-0">
+                            <div className="nu-avatar w-11 h-11 shrink-0">
+                              <div className="nu-avatar-inner">
+                                <span className="nu-serif text-white text-[13px]" style={{ fontWeight: 500 }}>
+                                  {getInitials(req.name)}
+                                </span>
+                              </div>
                             </div>
                             <div className="min-w-0">
                               <div className="flex items-center gap-2 flex-wrap">
-                                <span className="font-black text-white text-sm truncate" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
+                                <span className="nu-serif text-white truncate" style={{ fontSize: '1.05rem', fontWeight: 500 }}>
                                   {req.name}
                                 </span>
                                 <span
-                                  className="px-2 py-0.5 rounded-full text-[9px] uppercase font-bold border"
+                                  className="nu-chip px-2 py-0.5 rounded-full text-[9px] uppercase font-bold border"
                                   style={{ color: dotColor, borderColor: `${dotColor}40`, background: `${dotColor}1A` }}
                                 >
                                   {req.status === 'pending' ? 'Pending Review' : req.status}
                                 </span>
                               </div>
-                              <div className="flex items-center gap-1.5 text-white/40 mt-0.5">
-                                <Mail size={10} className="shrink-0" />
+                              <div className="flex items-center gap-1.5 text-white/40 mt-1">
+                                <Mail size={10} className="shrink-0 text-[var(--nu-gold)]" />
                                 <span className="truncate">{req.email}</span>
                               </div>
                             </div>
@@ -1964,7 +2053,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, onCatal
                                   href={buildGmailComposeUrl(req)}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide bg-emerald-500 text-black hover:bg-emerald-400 transition-colors cursor-pointer"
+                                  className="nu-btn-gold flex items-center gap-1.5 px-3.5 py-2 text-[10px] cursor-pointer rounded-l-lg"
                                   title={`Compose email to ${req.name} in Gmail`}
                                 >
                                   <Send size={12} /> Reply via Email
@@ -1972,7 +2061,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, onCatal
                                 <button
                                   type="button"
                                   onClick={() => setEmailMenuOpenId((prev) => (prev === req.id ? null : req.id))}
-                                  className="flex items-center px-1.5 bg-emerald-500 text-black hover:bg-emerald-400 transition-colors cursor-pointer border-l border-black/15"
+                                  className="nu-btn-gold flex items-center px-1.5 border-l border-black/15 cursor-pointer rounded-r-lg"
                                   title="More email options"
                                 >
                                   <ChevronDown size={13} className={`transition-transform ${emailMenuOpenId === req.id ? 'rotate-180' : ''}`} />
@@ -1982,42 +2071,42 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, onCatal
                               {emailMenuOpenId === req.id && (
                                 <>
                                   <div className="fixed inset-0 z-10" onClick={() => setEmailMenuOpenId(null)} />
-                                  <div className="absolute right-0 mt-1.5 w-56 bg-[#0c0c0c] border border-white/10 rounded-lg shadow-xl z-20 overflow-hidden py-1">
+                                  <div className="absolute right-0 mt-1.5 w-56 bg-[#0a0f0c] border border-emerald-500/20 rounded-lg shadow-2xl z-20 overflow-hidden py-1">
                                     <a
                                       href={buildGmailComposeUrl(req)}
                                       target="_blank"
                                       rel="noopener noreferrer"
                                       onClick={() => setEmailMenuOpenId(null)}
-                                      className="flex items-center gap-2 px-3 py-2 text-[11px] text-white/80 hover:bg-white/5 hover:text-white cursor-pointer"
+                                      className="flex items-center gap-2 px-3 py-2 text-[11px] text-white/80 hover:bg-emerald-500/5 hover:text-white cursor-pointer"
                                     >
-                                      <ExternalLink size={12} className="text-emerald-400 shrink-0" /> Open in Gmail
+                                      <ExternalLink size={12} className="text-[var(--nu-gold)] shrink-0" /> Open in Gmail
                                     </a>
                                     <a
                                       href={buildOutlookComposeUrl(req)}
                                       target="_blank"
                                       rel="noopener noreferrer"
                                       onClick={() => setEmailMenuOpenId(null)}
-                                      className="flex items-center gap-2 px-3 py-2 text-[11px] text-white/80 hover:bg-white/5 hover:text-white cursor-pointer"
+                                      className="flex items-center gap-2 px-3 py-2 text-[11px] text-white/80 hover:bg-emerald-500/5 hover:text-white cursor-pointer"
                                     >
-                                      <ExternalLink size={12} className="text-emerald-400 shrink-0" /> Open in Outlook Web
+                                      <ExternalLink size={12} className="text-[var(--nu-gold)] shrink-0" /> Open in Outlook Web
                                     </a>
                                     <a
                                       href={buildMailtoUrl(req)}
                                       onClick={() => setEmailMenuOpenId(null)}
-                                      className="flex items-center gap-2 px-3 py-2 text-[11px] text-white/80 hover:bg-white/5 hover:text-white cursor-pointer"
+                                      className="flex items-center gap-2 px-3 py-2 text-[11px] text-white/80 hover:bg-emerald-500/5 hover:text-white cursor-pointer"
                                     >
-                                      <Mail size={12} className="text-emerald-400 shrink-0" /> Open in Default Mail App
+                                      <Mail size={12} className="text-[var(--nu-gold)] shrink-0" /> Open in Default Mail App
                                     </a>
                                     <div className="border-t border-white/5 my-1" />
                                     <button
                                       type="button"
                                       onClick={() => { handleCopyEmail(req.email); setEmailMenuOpenId(null); }}
-                                      className="w-full flex items-center gap-2 px-3 py-2 text-[11px] text-white/80 hover:bg-white/5 hover:text-white cursor-pointer text-left"
+                                      className="w-full flex items-center gap-2 px-3 py-2 text-[11px] text-white/80 hover:bg-emerald-500/5 hover:text-white cursor-pointer text-left"
                                     >
                                       {copiedEmail === req.email ? (
                                         <Check size={12} className="text-emerald-400 shrink-0" />
                                       ) : (
-                                        <Copy size={12} className="text-emerald-400 shrink-0" />
+                                        <Copy size={12} className="text-[var(--nu-gold)] shrink-0" />
                                       )}
                                       Copy Email Address
                                     </button>
@@ -2028,66 +2117,65 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, onCatal
                             <select
                               value={req.status}
                               onChange={(e) => handleUpdateNutritionStatus(req.id, e.target.value as any)}
-                              className="bg-black border border-white/10 hover:border-white/25 px-2.5 py-1.5 text-[11px] font-semibold text-white outline-none rounded-lg cursor-pointer"
+                              className="nu-field px-2.5 py-2 text-[11px] font-semibold text-white outline-none cursor-pointer"
                             >
                               <option value="pending">Pending Review</option>
                               <option value="completed">Completed</option>
                               <option value="cancelled">Cancelled</option>
-
                             </select>
                           </div>
                         </div>
 
                         {/* Profile stat grid */}
                         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-                          <div className="p-2.5 bg-black/30 rounded-lg border border-white/5">
-                            <p className="text-[9px] uppercase text-white/40 font-bold mb-1 flex items-center gap-1"><Phone size={10} /> Phone</p>
+                          <div className="nu-field p-2.5">
+                            <p className="text-[9px] uppercase text-[var(--nu-gold)]/80 font-bold mb-1 flex items-center gap-1"><Phone size={10} /> Phone</p>
                             <p className="text-white font-semibold truncate">{req.phone || 'N/A'}</p>
                           </div>
-                          <div className="p-2.5 bg-black/30 rounded-lg border border-white/5">
-                            <p className="text-[9px] uppercase text-white/40 font-bold mb-1 flex items-center gap-1"><Cake size={10} /> Age / Gender</p>
+                          <div className="nu-field p-2.5">
+                            <p className="text-[9px] uppercase text-[var(--nu-gold)]/80 font-bold mb-1 flex items-center gap-1"><Cake size={10} /> Age / Gender</p>
                             <p className="text-white font-semibold">{req.age || 'N/A'} yrs · {req.gender || 'N/A'}</p>
                           </div>
-                          <div className="p-2.5 bg-black/30 rounded-lg border border-white/5">
-                            <p className="text-[9px] uppercase text-white/40 font-bold mb-1 flex items-center gap-1"><Scale size={10} /> Weight / Height</p>
+                          <div className="nu-field p-2.5">
+                            <p className="text-[9px] uppercase text-[var(--nu-gold)]/80 font-bold mb-1 flex items-center gap-1"><Scale size={10} /> Weight / Height</p>
                             <p className="text-white font-semibold">{req.weight || 'N/A'} kg · {req.height || 'N/A'} cm</p>
                           </div>
-                          <div className="p-2.5 bg-black/30 rounded-lg border border-white/5">
-                            <p className="text-[9px] uppercase text-white/40 font-bold mb-1 flex items-center gap-1"><Utensils size={10} /> Diet Pref.</p>
-                            <p className="text-emerald-400 font-semibold truncate">{req.diet_preference || 'N/A'}</p>
+                          <div className="nu-field p-2.5">
+                            <p className="text-[9px] uppercase text-[var(--nu-gold)]/80 font-bold mb-1 flex items-center gap-1"><Utensils size={10} /> Diet Pref.</p>
+                            <p className="font-semibold truncate" style={{ color: 'var(--nu-emerald)' }}>{req.diet_preference || 'N/A'}</p>
                           </div>
-                          <div className="p-2.5 bg-black/30 rounded-lg border border-white/5">
-                            <p className="text-[9px] uppercase text-white/40 font-bold mb-1 flex items-center gap-1"><Award size={10} /> Fitness Goal</p>
-                            <p className="text-emerald-400 font-semibold truncate">{req.goal || 'N/A'}</p>
+                          <div className="nu-field p-2.5">
+                            <p className="text-[9px] uppercase text-[var(--nu-gold)]/80 font-bold mb-1 flex items-center gap-1"><Award size={10} /> Fitness Goal</p>
+                            <p className="font-semibold truncate" style={{ color: 'var(--nu-emerald)' }}>{req.goal || 'N/A'}</p>
                           </div>
-                          <div className="p-2.5 bg-black/30 rounded-lg border border-white/5">
-                            <p className="text-[9px] uppercase text-white/40 font-bold mb-1 flex items-center gap-1"><Activity size={10} /> Activity</p>
+                          <div className="nu-field p-2.5">
+                            <p className="text-[9px] uppercase text-[var(--nu-gold)]/80 font-bold mb-1 flex items-center gap-1"><Activity size={10} /> Activity</p>
                             <p className="text-white font-semibold truncate">{req.activity_level || 'N/A'}</p>
                           </div>
                         </div>
 
                         {/* Medical conditions callout */}
-                        <div className={`p-2.5 rounded-lg border flex items-start gap-2 ${
-                          req.medical_conditions ? 'bg-red-500/5 border-red-500/20' : 'bg-black/30 border-white/5'
+                        <div className={`p-3 rounded-lg border flex items-start gap-2.5 ${
+                          req.medical_conditions ? 'bg-red-500/5 border-red-500/20' : 'bg-white/[0.02] border-white/5'
                         }`}>
-                          <AlertTriangle size={12} className={`shrink-0 mt-0.5 ${req.medical_conditions ? 'text-red-400' : 'text-white/30'}`} />
+                          <AlertTriangle size={13} className={`shrink-0 mt-0.5 ${req.medical_conditions ? 'text-red-400' : 'text-white/25'}`} />
                           <div>
-                            <p className="text-[9px] uppercase text-white/40 font-bold mb-0.5">Medical Conditions</p>
-                            <p className={`whitespace-pre-wrap ${req.medical_conditions ? 'text-red-400/90' : 'text-white/40'}`}>
+                            <p className="text-[9px] uppercase text-white/40 font-bold mb-0.5 tracking-wider">Medical Conditions</p>
+                            <p className={`whitespace-pre-wrap ${req.medical_conditions ? 'text-red-400/90' : 'text-white/35'}`}>
                               {req.medical_conditions || 'None stated'}
                             </p>
                           </div>
                         </div>
 
                         {req.notes && (
-                          <div className="space-y-1 pl-3 border-l-2 border-white/10">
-                            <p className="text-[9px] uppercase text-white/40 font-bold">Customer Additional Notes</p>
-                            <p className="text-white/70 leading-relaxed font-light whitespace-pre-wrap">{req.notes}</p>
+                          <div className="space-y-1 pl-3.5" style={{ borderLeft: '2px solid var(--nu-gold-soft)' }}>
+                            <p className="text-[9px] uppercase text-[var(--nu-gold)] font-bold tracking-wider">Customer Additional Notes</p>
+                            <p className="text-white/65 leading-relaxed font-light whitespace-pre-wrap">{req.notes}</p>
                           </div>
                         )}
 
                         <div className="pt-1">
-                          <label className="block text-[9px] uppercase text-white/40 font-bold mb-1">Advisor Notes (Admin Only)</label>
+                          <label className="block text-[9px] uppercase text-white/40 font-bold mb-1.5 tracking-wider">Advisor Notes (Admin Only)</label>
                           <div className="flex gap-2">
                             <input
                               type="text"
@@ -2095,14 +2183,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, onCatal
                               defaultValue={req.admin_notes || ''}
                               onBlur={(e) => handleSaveNutritionNotes(req.id, e.target.value)}
                               placeholder="e.g. Recommended Whey + Creatine cycle plan..."
-                              className="flex-1 px-3 py-2 text-xs text-white bg-black border border-white/10 focus:border-emerald-500 outline-none rounded-lg"
+                              className="nu-field nu-input-notes flex-1 px-3.5 py-2.5 text-xs text-white outline-none"
                             />
                             <button
                               onClick={(e) => {
                                 const input = e.currentTarget.previousElementSibling as HTMLInputElement;
                                 handleSaveNutritionNotes(req.id, input.value);
                               }}
-                              className="px-3 py-2 bg-white/10 hover:bg-white/20 text-white text-[11px] font-bold uppercase rounded-lg cursor-pointer whitespace-nowrap"
+                              className="nu-btn-ghost-notes px-4 py-2.5 text-[10px] rounded-lg cursor-pointer whitespace-nowrap"
                             >
                               Save Notes
                             </button>
