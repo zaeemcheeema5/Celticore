@@ -4,6 +4,7 @@ import { Product, Category as CategoryType } from "../types";
 import { productsService } from "../api/products";
 import { useCart } from "../context/CartContext";
 import { useWishlist } from "../context/WishlistContext";
+import { ReviewsSection } from "../components/product/ReviewsSection";
 
 interface ProductPageProps {
   productId: string;
@@ -11,6 +12,9 @@ interface ProductPageProps {
   categories: CategoryType[];
   onNavigate: (page: string) => void;
   onOpenDetails: (product: Product) => void;
+  // Opens the site's auth modal — ReviewsSection needs this to prompt
+  // sign-in before letting a visitor write a review or mark one helpful.
+  onRequireAuth: () => void;
 }
 
 export const ProductPage: React.FC<ProductPageProps> = ({
@@ -18,6 +22,7 @@ export const ProductPage: React.FC<ProductPageProps> = ({
   products,
   categories,
   onNavigate,
+  onRequireAuth,
 }) => {
   const { addToCart } = useCart();
   const { isInWishlist, toggleWishlist } = useWishlist();
@@ -76,7 +81,9 @@ export const ProductPage: React.FC<ProductPageProps> = ({
           products.find(
             (p) =>
               String(p.id) ===
-              String(productId)
+                String(productId) ||
+              (p as any).slug ===
+                productId
           );
 
         if (existingProduct) {
@@ -390,7 +397,7 @@ export const ProductPage: React.FC<ProductPageProps> = ({
 
               url:
                 `${window.location.origin}/product/${encodeURIComponent(
-                  String(product.id)
+                  String((product as any).slug || product.id)
                 )}`,
 
               priceCurrency:
@@ -432,7 +439,7 @@ export const ProductPage: React.FC<ProductPageProps> = ({
           BREADCRUMB
           ==================================================== */}
 
-      <div className="max-w-7xl mx-auto px-5 sm:px-8 pt-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-14 lg:px-20 pt-20 sm:pt-24">
 
         <nav
           aria-label="Breadcrumb"
@@ -480,7 +487,7 @@ export const ProductPage: React.FC<ProductPageProps> = ({
           PRODUCT CONTENT
           ==================================================== */}
 
-      <section className="max-w-7xl mx-auto px-5 sm:px-8 py-8 sm:py-12">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 md:px-14 lg:px-20 py-8 sm:py-12">
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16">
 
@@ -908,6 +915,24 @@ export const ProductPage: React.FC<ProductPageProps> = ({
 
           </div>
 
+        </div>
+
+
+        {/* ==================================================
+            CUSTOMER REVIEWS
+            Sits full-width below the image/info grid. Capped at
+            max-w-3xl on lg+ screens so review text stays readable on
+            wide laptop/desktop viewports; expands to the full section
+            width on mobile and tablet where there's less horizontal
+            room to spare.
+            ================================================== */}
+
+        <div className="mt-10 sm:mt-14 lg:mt-16 max-w-3xl lg:mx-0">
+          <ReviewsSection
+            productId={product.id}
+            accent={accent}
+            onRequireAuth={onRequireAuth}
+          />
         </div>
 
       </section>

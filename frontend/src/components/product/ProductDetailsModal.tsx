@@ -11,6 +11,7 @@ interface ProductDetailsModalProps {
   onClose: () => void;
   accent: string;
   onRequireAuth?: () => void;
+  onViewFullPage?: (product: Product) => void;
 }
 
 export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
@@ -19,6 +20,7 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
   onClose,
   accent,
   onRequireAuth,
+  onViewFullPage,
 }) => {
   const { addToCart } = useCart();
   const { isInWishlist, toggleWishlist } = useWishlist();
@@ -111,6 +113,15 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
               {product.name}
             </h2>
             <p className="text-xs sm:text-[0.8rem] font-semibold tracking-wide mt-1" style={{ color: accent }}>{product.subtitle}</p>
+            {onViewFullPage && (
+              <button
+                onClick={() => onViewFullPage(product)}
+                className="text-[10px] font-semibold tracking-widest uppercase text-white/35 hover:text-white transition-colors cursor-pointer mt-2"
+                style={{ fontFamily: "'DM Sans', sans-serif" }}
+              >
+                View Full Product Page →
+              </button>
+            )}
           </div>
 
           {/* Description */}

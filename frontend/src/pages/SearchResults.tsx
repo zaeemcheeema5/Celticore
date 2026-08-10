@@ -9,7 +9,6 @@ interface SearchResultsProps {
   categories: CategoryType[];
   onNavigate: (page: string) => void;
   onOpenDetails: (product: Product) => void;
-  onProductNavigate: (product: Product) => void;
   /** Optional: called when the user clicks a "did you mean" suggestion. */
   onSearch?: (query: string) => void;
 }
@@ -70,7 +69,6 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
   categories,
   onNavigate,
   onOpenDetails,
-  onProductNavigate,
   onSearch,
 }) => {
   const [sortBy, setSortBy] = useState<"popular" | "price-low" | "price-high" | "rating">("popular");
@@ -494,7 +492,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
               {sortedProducts.map((p) => (
-                <ProductCard key={p.id} product={p} accent={ACCENT} onOpenDetails={onOpenDetails} onProductNavigate={onProductNavigate} />
+                <ProductCard key={p.id} product={p} accent={ACCENT} onOpenDetails={onOpenDetails} />
               ))}
             </div>
           )}

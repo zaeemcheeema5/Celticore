@@ -9,7 +9,6 @@ interface CategoryProps {
   products: Product[];
   onNavigate: (page: string) => void;
   onOpenDetails: (product: Product) => void;
-  onProductNavigate: (product: Product) => void;
 }
 
 // Special pageId that renders every active product instead of a single category
@@ -43,7 +42,6 @@ export const Category: React.FC<CategoryProps> = ({
   products,
   onNavigate,
   onOpenDetails,
-  onProductNavigate,
 }) => {
   const isAllProducts = pageId === ALL_PRODUCTS_PAGE_ID;
   const cat = categories.find((c) => String(c.id) === String(pageId) || c.slug === pageId);
@@ -218,7 +216,6 @@ export const Category: React.FC<CategoryProps> = ({
                 product={p}
                 accent={accent}
                 onOpenDetails={onOpenDetails}
-                onProductNavigate={onProductNavigate}
               />
             ))}
           </div>

@@ -53,7 +53,6 @@ interface HomeProps {
   categories: Category[];
   products: Product[];
   onOpenDetails: (product: Product) => void;
-  onProductNavigate: (product: Product) => void;
 }
 
 function CardEffect({ effect, color }: { effect: string; color: string }) {
@@ -124,7 +123,7 @@ const getCategoryIcon = (id: string) => {
   }
 };
 
-export const Home: React.FC<HomeProps> = ({ onNavigate, categories, products, onOpenDetails, onProductNavigate }) => {
+export const Home: React.FC<HomeProps> = ({ onNavigate, categories, products, onOpenDetails }) => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [hoveredCard, setHoveredCard] = useState<string | null>(null);
 
@@ -464,7 +463,6 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, categories, products, on
                       product={p}
                       accent={accent}
                       onOpenDetails={onOpenDetails}
-                      onProductNavigate={onProductNavigate}
                     />
                   ))}
                 </div>
