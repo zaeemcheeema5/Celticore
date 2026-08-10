@@ -1919,9 +1919,26 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, onCatal
                   transition: all 0.25s ease;
                 }
                 .nutri-scope .nu-field:hover { border-color: rgba(16,185,129,0.28); }
-                .nutri-scope .nu-input-notes:focus {
-                  border-color: var(--nu-gold) !important;
+                .nutri-scope .nu-notes-panel {
+                  background: rgba(16,185,129,0.03);
+                  border: 1px solid rgba(16,185,129,0.16);
+                  border-radius: 12px;
+                  overflow: hidden;
+                  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+                }
+                .nutri-scope .nu-notes-panel:focus-within {
+                  border-color: var(--nu-gold);
                   box-shadow: 0 0 0 3px rgba(201,169,97,0.1);
+                }
+                .nutri-scope .nu-notes-textarea {
+                  background: transparent;
+                  border: none;
+                  font-family: 'DM Sans', sans-serif;
+                }
+                .nutri-scope .nu-notes-textarea::placeholder { color: rgba(255,255,255,0.22); }
+                .nutri-scope .nu-notes-footer {
+                  background: rgba(0,0,0,0.22);
+                  border-top: 1px solid rgba(255,255,255,0.05);
                 }
                 .nutri-scope .nu-btn-gold {
                   font-family: 'Barlow Condensed', sans-serif;
@@ -2203,26 +2220,32 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, onCatal
                           </div>
                         )}
 
-                        <div className="pt-1">
-                          <label className="block text-[9px] uppercase text-white/40 font-bold mb-1.5 tracking-wider">Advisor Notes (Admin Only)</label>
-                          <div className="flex gap-2">
-                            <input
-                              type="text"
+                        <div className="pt-1 nu-notes-block">
+                          <label className="flex items-center gap-1.5 text-[9px] uppercase text-[var(--nu-gold)] font-bold mb-2 tracking-wider">
+                            <Edit2 size={10} /> Advisor Notes (Admin Only)
+                          </label>
+                          <div className="nu-notes-panel">
+                            <textarea
+                              rows={3}
                               key={`${req.id}-${req.admin_notes}`}
                               defaultValue={req.admin_notes || ''}
                               onBlur={(e) => handleSaveNutritionNotes(req.id, e.target.value)}
-                              placeholder="e.g. Recommended Whey + Creatine cycle plan..."
-                              className="nu-field nu-input-notes flex-1 px-3.5 py-2.5 text-xs text-white outline-none"
+                              placeholder="e.g. Recommended Whey + Creatine cycle, daily calorie target, macro split..."
+                              className="nu-notes-textarea w-full px-3.5 py-3 text-xs text-white/85 outline-none resize-none leading-relaxed"
                             />
-                            <button
-                              onClick={(e) => {
-                                const input = e.currentTarget.previousElementSibling as HTMLInputElement;
-                                handleSaveNutritionNotes(req.id, input.value);
-                              }}
-                              className="nu-btn-ghost-notes px-4 py-2.5 text-[10px] rounded-lg cursor-pointer whitespace-nowrap"
-                            >
-                              Save Notes
-                            </button>
+                            <div className="nu-notes-footer flex items-center justify-between px-3.5 py-2">
+                              <span className="text-[9px] text-white/25 italic">Saves automatically when you click away</span>
+                              <button
+                                onClick={(e) => {
+                                  const wrapper = e.currentTarget.closest('.nu-notes-block');
+                                  const textarea = wrapper?.querySelector('textarea');
+                                  if (textarea) handleSaveNutritionNotes(req.id, textarea.value);
+                                }}
+                                className="nu-btn-ghost-notes px-4 py-1.5 text-[10px] rounded-md cursor-pointer whitespace-nowrap"
+                              >
+                                Save Notes
+                              </button>
+                            </div>
                           </div>
                         </div>
                       </div>
