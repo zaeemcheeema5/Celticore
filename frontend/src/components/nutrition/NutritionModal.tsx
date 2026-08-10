@@ -507,7 +507,7 @@ export const NutritionModal: React.FC<NutritionModalProps> = ({ isOpen = true, o
       </section>
 
       {/* ================= ASSESSMENT ================= */}
-      <section ref={formTopRef} className="relative px-6 sm:px-10 lg:px-20 py-24 sm:py-28" style={{ background: '#ffffff' }}>
+      <section ref={formTopRef} className="relative px-6 sm:px-10 lg:px-20 py-24 sm:py-28" style={{ background: '#E5F0EC' }}>
         <div className="max-w-3xl mx-auto mb-14">
           <div className="flex items-center gap-3 sm:gap-4 mb-3">
             <div className="h-px flex-1" style={{ background: 'linear-gradient(to right, transparent, rgba(16,185,129,0.5))' }} />
