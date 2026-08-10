@@ -765,6 +765,99 @@ exports.getMyOrders = (req, res) => {
 };
 
 // ==========================
+// Track Order (public, guest — no auth)
+// ==========================
+// Checkout never offers account creation, and "My Orders" above requires a
+// login it never gave the shopper a way to get — so a guest who just paid
+// had no way to ever look their order up again. This is that path: the
+// Order ID plus the email it was placed under is enough to prove you
+// placed it, without needing an account.
+//
+// Requiring BOTH (not just the id) matters: order ids are sequential, so
+// id alone would let anyone page through ?orderId=1,2,3... and read out
+// other customers' names/addresses. The email match is the actual "prove
+// you placed this order" check. On a miss, the response is identical
+// whether the id doesn't exist or just doesn't match that email — telling
+// them apart would confirm an order with that id exists at all.
+exports.trackOrder = (req, res) => {
+
+    const { orderId, email } = req.body;
+
+    if (!orderId || !email) {
+        return res.status(400).json({
+            error: "Both an Order ID and the email used at checkout are required."
+        });
+    }
+
+    db.get(
+        `
+        SELECT
+            id,
+            customer_name,
+            email,
+            address,
+            city,
+            postal_code,
+            country,
+            payment_status,
+            total,
+            status,
+            created_at
+        FROM orders
+        WHERE id = ? AND LOWER(email) = LOWER(?)
+        `,
+        [orderId, email],
+        (err, order) => {
+
+            if (err) {
+                return res.status(500).json({ error: err.message });
+            }
+
+            if (!order) {
+                return res.status(404).json({
+                    error: "We couldn't find an order matching that Order ID and email."
+                });
+            }
+
+            db.all(
+                `
+                SELECT product_name AS name, quantity, price, flavour
+                FROM order_items
+                WHERE order_id = ?
+                `,
+                [order.id],
+                (itemsErr, items) => {
+
+                    if (itemsErr) {
+                        return res.status(500).json({ error: itemsErr.message });
+                    }
+
+                    res.json({
+                        success: true,
+                        order: {
+                            id: order.id,
+                            status: order.status,
+                            paymentStatus: order.payment_status,
+                            total: order.total,
+                            createdAt: order.created_at,
+                            customerName: order.customer_name,
+                            address: order.address,
+                            city: order.city,
+                            postalCode: order.postal_code,
+                            country: order.country,
+                            items: items || []
+                        }
+                    });
+
+                }
+            );
+
+        }
+    );
+
+};
+
+// ==========================
 // Delete Order
 // ==========================
 

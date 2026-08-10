@@ -99,14 +99,25 @@ exports.createPaymentIntent = async (req, res) => {
             amount,
             currency: (currency || process.env.STORE_CURRENCY || "gbp").toLowerCase(),
             receipt_email: receipt_email || undefined,
-            // Lets Stripe automatically surface every payment method enabled
-            // in the Stripe Dashboard for this account/currency (card,
-            // Google Pay, Apple Pay, Link, and any local methods you turn
-            // on) inside the same embedded <PaymentElement/> on the
-            // frontend — instead of being hard-locked to card-only, which
-            // is what previously forced separate (simulated) GPay/Apple Pay
-            // buttons outside of Stripe entirely.
-            automatic_payment_methods: { enabled: true },
+            // Lets Stripe automatically surface payment methods enabled in
+            // the Stripe Dashboard inside the same embedded
+            // <PaymentElement/> on the frontend — card, Google Pay, Apple
+            // Pay, and Link all "just work" here regardless of the
+            // customer's country.
+            //
+            // `allow_redirects: "never"` restricts that to methods that
+            // settle inline, without a redirect. This deliberately EXCLUDES
+            // country-locked local methods such as Bancontact (Belgium
+            // only), Satispay (Italy only) or MB WAY (Portugal only) — they
+            // all require a redirect. Without this flag, Stripe could offer
+            // e.g. Bancontact to a shopper whose shipping country isn't
+            // even Belgium, which is exactly the "7 countries can check
+            // out but the payment methods don't match any of them" bug.
+            // Card + wallets work for every country in the shipping list,
+            // so this is what makes checkout genuinely worldwide instead
+            // of quietly favouring whichever few countries have a matching
+            // local method turned on in the Dashboard.
+            automatic_payment_methods: { enabled: true, allow_redirects: "never" },
             metadata: {
                 subtotal: subtotal.toFixed(2),
                 discount: discount.toFixed(2),

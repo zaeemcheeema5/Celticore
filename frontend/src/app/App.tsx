@@ -38,7 +38,16 @@ const NutritionModal = lazy(() => import("../components/nutrition/NutritionModal
 const WishlistDrawer = lazy(() => import("../components/wishlist/WishlistDrawer").then((m) => ({ default: m.WishlistDrawer })));
 const AdminDashboard = lazy(() => import("../components/admin/AdminDashboard").then((m) => ({ default: m.AdminDashboard })));
 const ProductDetailsModal = lazy(() => import("../components/product/ProductDetailsModal").then((m) => ({ default: m.ProductDetailsModal })));
-const CheckoutModal = lazy(() => import("../components/cart/CheckoutModal").then((m) => ({ default: m.CheckoutModal })));
+// CheckoutModal is now CheckoutPage — a real routed page (like Nutrition
+// above), not a modal that stays mounted in the background at all times.
+// Two bugs came directly from it always being mounted with isOpen=false:
+// (1) its create-PaymentIntent effect fired on every cart change anywhere
+// on the site, even before checkout was ever opened, and (2) the URL never
+// changed when checkout opened, since a modal isn't a navigation. Making
+// it page-shaped and only rendering it for currentPage === "checkout"
+// fixes both structurally.
+const CheckoutPage = lazy(() => import("../components/cart/CheckoutPage").then((m) => ({ default: m.CheckoutPage })));
+const TrackOrderPage = lazy(() => import("../pages/MyOrders").then((m) => ({ default: m.MyOrders })));
 const PrivacyPolicyModal = lazy(() => import("../components/common/PrivacyPolicyModal").then((m) => ({ default: m.PrivacyPolicyModal })));
 
 // ── HISTORY / URL HELPERS ───────────────────────────────────────────────
@@ -96,7 +105,6 @@ function MainAppLayout() {
   // Modal / Drawer Toggles
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [isWishlistOpen, setIsWishlistOpen] = useState(false);
   const [isPrivacyOpen, setIsPrivacyOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -409,6 +417,10 @@ function MainAppLayout() {
               <MyOrders onNavigate={handleNavigate} />
             ) : currentPage === "nutrition" ? (
               <NutritionModal onClose={() => handleNavigate("home")} />
+            ) : currentPage === "checkout" ? (
+              <CheckoutPage onNavigate={handleNavigate} />
+            ) : currentPage === "track-order" ? (
+              <TrackOrderPage onNavigate={handleNavigate} />
             ) : currentPage === "product" ? (
               <ProductPage
                 productId={productSlug}
@@ -465,7 +477,7 @@ function MainAppLayout() {
         <CartDrawer
           isOpen={isCartOpen}
           onClose={() => setIsCartOpen(false)}
-          onOpenCheckout={() => setIsCheckoutOpen(true)}
+          onOpenCheckout={() => { setIsCartOpen(false); handleNavigate("checkout"); }}
           onOpenDetails={handleOpenProductDetails}
         />
       </Suspense>
@@ -476,13 +488,6 @@ function MainAppLayout() {
           onOpenDetails={handleOpenProductDetails}
         />
       </Suspense>
-      <Suspense fallback={null}>
-        <CheckoutModal
-          isOpen={isCheckoutOpen}
-          onClose={() => setIsCheckoutOpen(false)}
-        />
-      </Suspense>
-
       <Suspense fallback={null}>
         <ProductDetailsModal
           product={selectedProduct}

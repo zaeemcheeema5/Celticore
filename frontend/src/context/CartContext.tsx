@@ -100,10 +100,25 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setCoupon(null);
   };
 
+  // NOTE: if this call itself 404s, the fix is server-side — mount
+  // server/routes/couponRoutes.js at app.use("/api/coupons", couponRoutes)
+  // so POST /api/coupons/apply actually resolves to a handler. The
+  // defensive check below only covers the case where the request
+  // "succeeds" but doesn't actually carry a coupon back.
   const applyCouponCode = async (code: string) => {
     try {
       // Backend needs the current subtotal to validate/calculate the discount
       const result = await couponsService.applyCoupon(code, subtotal);
+
+      // Defensive: if the request "succeeds" (e.g. the api client doesn't
+      // throw on a non-2xx status) but the response has no coupon on it,
+      // treat that as a failure rather than silently setting coupon to
+      // undefined — that's exactly the "hit Apply, nothing happens, no
+      // error shown" bug. Always surface *something* to the shopper.
+      if (!result || !result.coupon) {
+        throw new Error(result?.error || "That coupon code isn't valid.");
+      }
+
       const appliedCoupon: Coupon = result.coupon;
       setCoupon(appliedCoupon);
 

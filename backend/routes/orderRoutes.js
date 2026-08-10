@@ -10,6 +10,7 @@ const {
     placeOrder,
     getOrders,
     getMyOrders,
+    trackOrder,
     updateOrderStatus,
     deleteOrder
 } = require('../controllers/orderController');
@@ -37,6 +38,17 @@ router.get('/', adminAuthMiddleware, getOrders);
  *     tags: [Orders]
  */
 router.get('/mine', authMiddleware, getMyOrders);
+
+/**
+ * @swagger
+ * /api/orders/track:
+ *   post:
+ *     summary: Track an order as a guest (public — Order ID + email, no login)
+ *     tags: [Orders]
+ */
+// Public — no auth. Kept above the "/:id" PUT/DELETE routes below so a
+// future GET/POST "/:id" route could never end up shadowing "/track".
+router.post('/track', trackOrder);
 
 /**
  * @swagger
