@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { ArrowLeft, Star, Check } from 'lucide-react';
+import { ArrowLeft, Star, Check, SearchX } from 'lucide-react';
 import { Category as CategoryType, Product } from '../types';
 import { ProductCard } from '../components/product/ProductCard';
 
@@ -9,9 +9,60 @@ interface SearchResultsProps {
   categories: CategoryType[];
   onNavigate: (page: string) => void;
   onOpenDetails: (product: Product) => void;
+  onProductNavigate: (product: Product) => void;
+  /** Optional: called when the user clicks a "did you mean" suggestion. */
+  onSearch?: (query: string) => void;
 }
 
 const ACCENT = "#10B981";
+
+// ---------- Fuzzy matching helpers ----------
+
+/** Classic Levenshtein edit distance between two strings. */
+const levenshtein = (a: string, b: string): number => {
+  const m = a.length;
+  const n = b.length;
+  if (m === 0) return n;
+  if (n === 0) return m;
+
+  const dp: number[][] = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      dp[i][j] =
+        a[i - 1] === b[j - 1]
+          ? dp[i - 1][j - 1]
+          : 1 + Math.min(dp[i - 1][j - 1], dp[i - 1][j], dp[i][j - 1]);
+    }
+  }
+  return dp[m][n];
+};
+
+/** How many typos we tolerate, scaled to word length. */
+const maxDistance = (len: number): number => (len <= 4 ? 1 : len <= 8 ? 2 : 3);
+
+/** Split a string into lowercase alphanumeric tokens. */
+const tokenize = (s: string): string[] =>
+  s
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean);
+
+/** True if a query word "reasonably" matches a product token (substring or fuzzy). */
+const wordMatches = (qWord: string, token: string): { matches: boolean; distance: number } => {
+  if (token.includes(qWord) || qWord.includes(token)) {
+    return { matches: true, distance: 0 };
+  }
+  const d = levenshtein(qWord, token);
+  return { matches: d <= maxDistance(qWord.length), distance: d };
+};
+
+const productHaystackTokens = (p: Product): string[] =>
+  tokenize([p.name, p.subtitle, p.brand, p.category].filter(Boolean).join(' '));
+
+// ---------------------------------------------
 
 export const SearchResults: React.FC<SearchResultsProps> = ({
   query,
@@ -19,6 +70,8 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
   categories,
   onNavigate,
   onOpenDetails,
+  onProductNavigate,
+  onSearch,
 }) => {
   const [sortBy, setSortBy] = useState<"popular" | "price-low" | "price-high" | "rating">("popular");
   const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
@@ -37,18 +90,71 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
     setMaxPrice(null);
   }, [query]);
 
-  // Products that textually match the query — same logic as the navbar dropdown
+  // Products that match the query — exact substring OR fuzzy (typo-tolerant), sorted by relevance
   const matchedProducts = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return [];
-    return products.filter((p) => {
-      const haystack = [p.name, p.subtitle, p.brand, p.category]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase();
-      return haystack.includes(q) && p.isActive !== false;
-    });
+    const qWords = tokenize(query);
+    if (qWords.length === 0) return [];
+
+    const scored: { product: Product; score: number }[] = [];
+
+    for (const p of products) {
+      if (p.isActive === false) continue;
+      const tokens = productHaystackTokens(p);
+      let totalScore = 0;
+      let allWordsMatch = true;
+
+      for (const qWord of qWords) {
+        let bestDistance = Infinity;
+        for (const token of tokens) {
+          const { matches, distance } = wordMatches(qWord, token);
+          if (matches && distance < bestDistance) {
+            bestDistance = distance;
+            if (bestDistance === 0) break;
+          }
+        }
+        if (bestDistance === Infinity) {
+          allWordsMatch = false;
+          break;
+        }
+        totalScore += bestDistance;
+      }
+
+      if (allWordsMatch) {
+        scored.push({ product: p, score: totalScore });
+      }
+    }
+
+    scored.sort((a, b) => a.score - b.score);
+    return scored.map((s) => s.product);
   }, [query, products]);
+
+  // If nothing matched at all, find the closest known term across the whole catalog
+  const suggestion = useMemo(() => {
+    if (matchedProducts.length > 0) return null;
+    const qWords = tokenize(query);
+    if (qWords.length === 0) return null;
+
+    const catalogTokens = new Set<string>();
+    products.forEach((p) => {
+      productHaystackTokens(p).forEach((t) => catalogTokens.add(t));
+    });
+
+    let bestWord = '';
+    let bestDistance = Infinity;
+
+    qWords.forEach((qWord) => {
+      catalogTokens.forEach((token) => {
+        const d = levenshtein(qWord, token);
+        // Slightly looser than the match threshold so we can still suggest something
+        if (d < bestDistance && d <= maxDistance(qWord.length) + 1 && d > 0) {
+          bestDistance = d;
+          bestWord = token;
+        }
+      });
+    });
+
+    return bestWord || null;
+  }, [matchedProducts, query, products]);
 
   const availableBrands = useMemo(
     () => Array.from(new Set(matchedProducts.map((p) => p.brand).filter(Boolean))) as string[],
@@ -81,7 +187,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
     if (sortBy === "price-low") return list.sort((a, b) => a.price - b.price);
     if (sortBy === "price-high") return list.sort((a, b) => b.price - a.price);
     if (sortBy === "rating") return list.sort((a, b) => b.rating - a.rating);
-    return list.sort((a, b) => b.reviews - a.reviews);
+    return list; // "popular" — keep relevance order from matching
   }, [filteredProducts, sortBy]);
 
   const toggleBrand = (brand: string) => {
@@ -167,6 +273,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
       {/* Body: Filters + Results */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-14 lg:px-20 py-8 sm:py-12 flex flex-col lg:flex-row gap-8">
         {/* Filters Sidebar */}
+        {matchedProducts.length > 0 && (
         <aside className="w-full lg:w-64 shrink-0">
           <div className="flex items-center justify-between mb-4">
             <h2
@@ -323,10 +430,12 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
             </span>
           </label>
         </aside>
+        )}
 
         {/* Results */}
         <div className="flex-1">
           {/* Sort Bar */}
+          {matchedProducts.length > 0 && (
           <div className="flex items-center justify-end gap-2 flex-wrap mb-6">
             <span className="text-[10px] text-white/30 uppercase tracking-widest">Sort:</span>
             <div className="flex gap-1 flex-wrap">
@@ -346,17 +455,46 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
               ))}
             </div>
           </div>
+          )}
 
           {sortedProducts.length === 0 ? (
-            <div className="py-20 text-center text-white/45 italic text-sm">
-              {matchedProducts.length === 0
-                ? `No products found for "${query}".`
-                : "No products match the selected filters."}
+            <div className="py-20 flex flex-col items-center text-center gap-3">
+              <SearchX size={32} className="text-white/20" />
+              {matchedProducts.length === 0 ? (
+                <>
+                  <p className="text-white/45 italic text-sm">
+                    No products found for "{query}".
+                  </p>
+                  {suggestion && (
+                    <p className="text-sm">
+                      <span className="text-white/40">Did you mean </span>
+                      {onSearch ? (
+                        <button
+                          onClick={() => onSearch(suggestion)}
+                          className="font-bold underline cursor-pointer"
+                          style={{ color: ACCENT }}
+                        >
+                          "{suggestion}"
+                        </button>
+                      ) : (
+                        <span className="font-bold" style={{ color: ACCENT }}>
+                          "{suggestion}"
+                        </span>
+                      )}
+                      <span className="text-white/40">?</span>
+                    </p>
+                  )}
+                </>
+              ) : (
+                <p className="text-white/45 italic text-sm">
+                  No products match the selected filters.
+                </p>
+              )}
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
               {sortedProducts.map((p) => (
-                <ProductCard key={p.id} product={p} accent={ACCENT} onOpenDetails={onOpenDetails} />
+                <ProductCard key={p.id} product={p} accent={ACCENT} onOpenDetails={onOpenDetails} onProductNavigate={onProductNavigate} />
               ))}
             </div>
           )}

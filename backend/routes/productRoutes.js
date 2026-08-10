@@ -40,15 +40,11 @@ router.get("/", getProducts);
  *   get:
  *     summary: Get active products only
  *     tags: [Products]
+ *     responses:
+ *       200:
+ *         description: Active product list
  */
-router.get('/active', getActiveProducts);
-
-// ==========================
-// Everything below mutates the catalog or exposes internal stock
-// data — admin only. These previously had NO auth check at all,
-// meaning anyone could create/edit/delete products or read low-stock
-// inventory levels without logging in.
-// ==========================
+router.get("/active", getActiveProducts);
 
 /**
  * @swagger
@@ -58,8 +54,39 @@ router.get('/active', getActiveProducts);
  *     tags: [Products]
  *     security:
  *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Low stock product list
  */
-router.get('/low-stock', adminAuthMiddleware, getLowStockProducts);
+router.get(
+    "/low-stock",
+    adminAuthMiddleware,
+    getLowStockProducts
+);
+
+/**
+ * @swagger
+ * /api/products/{id}:
+ *   get:
+ *     summary: Get a single product
+ *     tags: [Products]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Product details
+ *       404:
+ *         description: Product not found
+ */
+router.get("/:id", getProduct);
+
+// ======================================
+// ADMIN ROUTES
+// ======================================
 
 /**
  * @swagger
@@ -71,9 +98,13 @@ router.get('/low-stock', adminAuthMiddleware, getLowStockProducts);
  *       - BearerAuth: []
  *     responses:
  *       200:
- *         description: Product created
+ *         description: Product created successfully
  */
-router.post("/", adminAuthMiddleware, addProduct);
+router.post(
+    "/",
+    adminAuthMiddleware,
+    addProduct
+);
 
 /**
  * @swagger
@@ -83,8 +114,21 @@ router.post("/", adminAuthMiddleware, addProduct);
  *     tags: [Products]
  *     security:
  *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Product updated successfully
  */
-router.put('/:id', adminAuthMiddleware, updateProduct);
+router.put(
+    "/:id",
+    adminAuthMiddleware,
+    updateProduct
+);
 
 /**
  * @swagger
@@ -94,8 +138,21 @@ router.put('/:id', adminAuthMiddleware, updateProduct);
  *     tags: [Products]
  *     security:
  *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Stock updated successfully
  */
-router.put('/:id/stock', adminAuthMiddleware, updateStock);
+router.put(
+    "/:id/stock",
+    adminAuthMiddleware,
+    updateStock
+);
 
 /**
  * @swagger
@@ -109,10 +166,16 @@ router.put('/:id/stock', adminAuthMiddleware, updateStock);
  *       - in: path
  *         name: id
  *         required: true
+ *         schema:
+ *           type: string
  *     responses:
  *       200:
- *         description: Product deleted
+ *         description: Product deleted successfully
  */
-router.delete("/:id", adminAuthMiddleware, deleteProduct);
+router.delete(
+    "/:id",
+    adminAuthMiddleware,
+    deleteProduct
+);
 
 module.exports = router;
