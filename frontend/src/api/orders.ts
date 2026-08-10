@@ -43,5 +43,8 @@ export const ordersService = {
     const res = await api.put(`/api/orders/${id}`, updateData);
     const saved = res && res.order ? res.order : res;
     return mapOrderFromBackend(saved);
+  },
+  deleteOrder: async (id: number | string): Promise<{ success: boolean; message: string }> => {
+    return api.delete(`/api/orders/${id}`);
   }
 };

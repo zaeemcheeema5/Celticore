@@ -678,6 +678,28 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, onCatal
     }
   };
 
+  const handleDeleteOrder = async (id: number | string) => {
+    if (!window.confirm("Are you sure you want to delete this order? This action is permanent and cannot be undone.")) return;
+    try {
+      await ordersService.deleteOrder(id);
+      toast.success("Order deleted.");
+      setOrders(prev => prev.filter(o => o.id !== id));
+    } catch (err: any) {
+      toast.error("Failed to delete order: " + err.message);
+    }
+  };
+
+  const handleDeleteNutrition = async (id: number) => {
+    if (!window.confirm("Are you sure you want to delete this nutrition request? This action is permanent and cannot be undone.")) return;
+    try {
+      await nutritionService.deleteRequest(id);
+      toast.success("Nutrition request deleted.");
+      setNutrition(prev => prev.filter(n => n.id !== id));
+    } catch (err: any) {
+      toast.error("Failed to delete request: " + err.message);
+    }
+  };
+
   const handleCreateAdminProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!createUsername.trim() || !createEmail.trim() || !createPassword.trim()) {
@@ -2123,6 +2145,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, onCatal
                               <option value="completed">Completed</option>
                               <option value="cancelled">Cancelled</option>
                             </select>
+                            <button
+                              onClick={() => handleDeleteNutrition(req.id)}
+                              className="p-2 text-white/30 hover:text-red-400 hover:bg-red-500/10 rounded-lg cursor-pointer transition-colors"
+                              title="Delete Request"
+                            >
+                              <Trash2 size={14} />
+                            </button>
                           </div>
                         </div>
 
@@ -2328,6 +2357,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, onCatal
                               <option value="delivered">Delivered</option>
                               <option value="cancelled">Cancelled</option>
                             </select>
+                            <button
+                              onClick={() => handleDeleteOrder(order.id)}
+                              className="p-1.5 text-white/30 hover:text-red-400 hover:bg-red-500/10 rounded-lg cursor-pointer transition-colors"
+                              title="Delete Order"
+                            >
+                              <Trash2 size={14} />
+                            </button>
                           </div>
                         </div>
 

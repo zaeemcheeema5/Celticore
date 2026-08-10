@@ -11,5 +11,7 @@ export const nutritionService = {
   updateStatus: (id: number | string, status: 'pending' | 'completed' | 'cancelled'): Promise<NutritionRequest> => 
     api.put(`/api/nutrition/${id}/status`, { status }),
   addNotes: (id: number | string, admin_notes: string): Promise<NutritionRequest> => 
-    api.put(`/api/nutrition/${id}/notes`, { admin_notes })
+    api.put(`/api/nutrition/${id}/notes`, { admin_notes }),
+  deleteRequest: (id: number | string): Promise<{ success: boolean; message: string }> =>
+    api.delete(`/api/nutrition/${id}`)
 };
