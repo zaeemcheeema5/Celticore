@@ -180,6 +180,21 @@ export const Navbar: React.FC<NavbarProps> = ({
     setMobileMenuOpen(false);
   };
 
+  // These two open overlays (not `page` navigations), so they were never
+  // routed through `handleNavigate` — which meant the mobile drawer stayed
+  // open underneath the Nutrition / Admin overlay until manually closed.
+  // Close the drawer first, then trigger the overlay, same as every other
+  // drawer item does.
+  const handleMobileNutritionClick = () => {
+    setMobileMenuOpen(false);
+    onOpenNutrition();
+  };
+
+  const handleMobileAdminClick = () => {
+    setMobileMenuOpen(false);
+    onOpenAdmin();
+  };
+
   // ── Shop Dropdown Hover Handling ──────────────────────────────
   // Keeps the menu open while the cursor is over the button, the
   // invisible hover bridge, or the dropdown itself, and only closes
@@ -732,7 +747,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             <div className="flex flex-col gap-1">
               {[
-                { icon: Leaf, label: 'Nutrition Consultation', onClick: onOpenNutrition },
+                { icon: Leaf, label: 'Nutrition Consultation', onClick: handleMobileNutritionClick },
                 {
                   icon: MessageCircle,
                   label: 'Contact',
@@ -746,7 +761,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 ...(isAuthenticated
                   ? [
                       { icon: Package, label: 'My Orders', onClick: () => handleNavigate('my-orders') },
-                      ...(isAdmin ? [{ icon: Settings, label: 'Admin Dashboard', onClick: onOpenAdmin }] : []),
+                      ...(isAdmin ? [{ icon: Settings, label: 'Admin Dashboard', onClick: handleMobileAdminClick }] : []),
                     ]
                   : []),
               ].map((item, i) => {
