@@ -189,3 +189,38 @@ exports.addAdminNotes = (req,res)=>{
         }
     );
 };
+
+
+// DELETE REQUEST
+
+exports.deleteNutritionRequest = (req,res)=>{
+
+    db.run(
+        `
+        DELETE FROM nutrition_requests
+        WHERE id = ?
+        `,
+        [req.params.id],
+        function(err){
+
+            if(err){
+
+                return res.status(500).json({
+                    error:err.message
+                });
+            }
+
+            if(this.changes === 0){
+
+                return res.status(404).json({
+                    error:'Request not found'
+                });
+            }
+
+            res.json({
+                success:true,
+                message:'Request deleted'
+            });
+        }
+    );
+};

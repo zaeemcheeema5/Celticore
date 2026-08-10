@@ -770,18 +770,29 @@ exports.getMyOrders = (req, res) => {
 
 exports.deleteOrder = (req, res) => {
 
+    const orderId = req.params.id;
+
+    // Child rows must go before the parent — `order_items` (and any
+    // `reviews` left on this order) hold a foreign key on orders.id, so the
+    // database rejects deleting the order row while they still point at it.
+    // This previously deleted `orders` first and `order_items` second
+    // (backwards), and never checked whether the order_items delete even
+    // succeeded — which is exactly what produced the
+    // "Cannot delete or update a parent row: a foreign key constraint
+    // fails" error. Reviews are deleted here too since a review can't
+    // meaningfully exist once its order is gone.
     db.run(
         `
-        DELETE FROM orders
-        WHERE id = ?
+        DELETE FROM reviews
+        WHERE order_id = ?
         `,
-        req.params.id,
-        function (err) {
+        orderId,
+        function (reviewsErr) {
 
-            if (err) {
+            if (reviewsErr) {
 
                 return res.status(500).json({
-                    error: err.message
+                    error: reviewsErr.message
                 });
 
             }
@@ -791,12 +802,49 @@ exports.deleteOrder = (req, res) => {
                 DELETE FROM order_items
                 WHERE order_id = ?
                 `,
-                req.params.id
-            );
+                orderId,
+                function (itemsErr) {
 
-            res.json({
-                message: "Order deleted"
-            });
+                    if (itemsErr) {
+
+                        return res.status(500).json({
+                            error: itemsErr.message
+                        });
+
+                    }
+
+                    db.run(
+                        `
+                        DELETE FROM orders
+                        WHERE id = ?
+                        `,
+                        orderId,
+                        function (orderErr) {
+
+                            if (orderErr) {
+
+                                return res.status(500).json({
+                                    error: orderErr.message
+                                });
+
+                            }
+
+                            if (this.changes === 0) {
+                                return res.status(404).json({
+                                    error: "Order not found"
+                                });
+                            }
+
+                            res.json({
+                                success: true,
+                                message: "Order deleted"
+                            });
+
+                        }
+                    );
+
+                }
+            );
 
         }
     );

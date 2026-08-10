@@ -56,6 +56,14 @@ const validateNutrition = require('../middleware/validateNutrition');
  *     tags: [Nutrition]
  */
 
+/**
+ * @swagger
+ * /api/nutrition/{id}:
+ *   delete:
+ *     summary: Delete nutrition request
+ *     tags: [Nutrition]
+ */
+
 router.post(
     '/',
     validateNutrition,
@@ -84,6 +92,12 @@ router.put(
     '/:id/notes',
     adminAuthMiddleware,
     nutritionController.addAdminNotes
+);
+
+router.delete(
+    '/:id',
+    adminAuthMiddleware,
+    nutritionController.deleteNutritionRequest
 );
 
 module.exports = router;
