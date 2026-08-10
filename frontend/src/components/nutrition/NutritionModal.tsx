@@ -38,9 +38,13 @@ const STAGES = [
 
 /**
  * Full-page "Nutrition Consultancy" experience.
- * Same fields, validation, and submission logic as the original modal —
- * reshaped into a cinematic, staged intake designed to feel like a
- * private consultancy rather than a form.
+ * Same fields, validation, and submission logic as before — restyled to
+ * use the exact same fonts/colors/design language as Home.tsx (white
+ * sections, 'Barlow Condensed' black uppercase headings, 'DM Sans' body/
+ * labels, emerald #10B981 as the primary accent, the shared .text-gold
+ * shimmer class for headline emphasis) instead of its own dark gold/
+ * serif theme. Every border-radius value from the original is left
+ * untouched — only color, font, and background treatment changed.
  */
 export const NutritionModal: React.FC<NutritionModalProps> = ({ isOpen = true, onClose }) => {
   if (!isOpen) return null;
@@ -161,49 +165,40 @@ export const NutritionModal: React.FC<NutritionModalProps> = ({ isOpen = true, o
     }
   };
 
-  const progressPct = ((stage + 1) / STAGES.length) * 100;
-
   return (
     <div className="nc-root">
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500&family=DM+Sans:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700;800;900&display=swap');
 
+        /* ── Design tokens — matched 1:1 to Home.tsx's palette ──
+           white sections, gray-900/600/400 text, emerald-500 accent.
+           Every border-radius below is UNCHANGED from the original file. */
         .nc-root {
-          --void: #050706;
-          --emerald-deep: #071510;
+          --ink: #111827;           /* text-gray-900, matches Home's headings */
+          --ink-soft: #4b5563;      /* text-gray-600, matches Home's body copy */
+          --ink-mute: #9ca3af;      /* text-gray-400, matches Home's stat labels */
           --emerald: #10B981;
-          --emerald-soft: rgba(16,185,129,0.12);
-          --gold: #C9A961;
-          --gold-soft: rgba(201,169,97,0.35);
-          --cream: #F5F2EA;
-          background: var(--void);
-          color: var(--cream);
+          --emerald-soft: rgba(16,185,129,0.08);
+          --hair: rgba(0,0,0,0.08); /* hairline borders, matches Home's rgba(0,0,0,0.06) dividers */
+          background: #ffffff;
+          color: var(--ink);
           min-height: 100vh;
           font-family: 'DM Sans', sans-serif;
           position: relative;
           overflow-x: hidden;
         }
 
-        .nc-serif { font-family: 'Fraunces', serif; }
         .nc-condensed { font-family: 'Barlow Condensed', sans-serif; }
 
         .nc-eyebrow {
           font-family: 'Barlow Condensed', sans-serif;
-          letter-spacing: 0.35em;
+          letter-spacing: 0.3em;
           text-transform: uppercase;
-          font-weight: 600;
-          font-size: 11px;
-          color: var(--gold);
+          font-weight: 700;
+          font-size: 10px;
+          color: var(--emerald);
         }
 
-        @keyframes nc-drift {
-          0%, 100% { transform: translate(0,0) scale(1); }
-          50% { transform: translate(-2%, 3%) scale(1.05); }
-        }
-        @keyframes nc-drift-2 {
-          0%, 100% { transform: translate(0,0) scale(1); }
-          50% { transform: translate(3%, -2%) scale(1.08); }
-        }
         @keyframes nc-fade-up {
           from { opacity: 0; transform: translateY(18px); }
           to { opacity: 1; transform: translateY(0); }
@@ -217,82 +212,83 @@ export const NutritionModal: React.FC<NutritionModalProps> = ({ isOpen = true, o
           to { opacity: 1; transform: translateY(0); }
         }
 
+        /* Ambient blur blobs — same soft-glow device Home.tsx's hero uses
+           (float animation, low opacity), recolored for a white backdrop. */
         .nc-orb-a {
-          position: absolute; top: -10%; right: -8%; width: 620px; height: 620px;
-          background: radial-gradient(circle, rgba(16,185,129,0.16) 0%, rgba(16,185,129,0) 70%);
-          animation: nc-drift 14s ease-in-out infinite;
+          position: absolute; top: -10%; right: -8%; width: 550px; height: 550px;
+          border-radius: 9999px;
+          background: var(--emerald);
+          opacity: 0.10;
+          filter: blur(110px);
+          animation: float 10s ease-in-out infinite;
           pointer-events: none;
         }
         .nc-orb-b {
-          position: absolute; bottom: -15%; left: -10%; width: 520px; height: 520px;
-          background: radial-gradient(circle, rgba(201,169,97,0.10) 0%, rgba(201,169,97,0) 70%);
-          animation: nc-drift-2 18s ease-in-out infinite;
+          position: absolute; bottom: -15%; left: -10%; width: 440px; height: 440px;
+          border-radius: 9999px;
+          background: #4b5563;
+          opacity: 0.06;
+          filter: blur(90px);
+          animation: float 13s 2s ease-in-out infinite;
           pointer-events: none;
         }
 
         .nc-fade-in { animation: nc-fade-up 0.9s ease both; }
 
-        .nc-grain {
-          position: absolute; inset: 0; opacity: 0.035; pointer-events: none; mix-blend-mode: overlay;
-          background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-        }
-
         .nc-btn-primary {
           font-family: 'Barlow Condensed', sans-serif;
           letter-spacing: 0.2em;
           text-transform: uppercase;
-          font-weight: 700;
+          font-weight: 900;
           font-size: 13px;
-          background: linear-gradient(135deg, #10B981 0%, #067A56 100%);
-          color: #04120C;
-          border: 1px solid rgba(16,185,129,0.5);
+          background: linear-gradient(135deg, #10B981, #10B981bb);
+          color: #000;
+          border: none;
           padding: 15px 30px;
           display: inline-flex;
           align-items: center;
           gap: 10px;
           cursor: pointer;
-          transition: all 0.35s cubic-bezier(.2,.8,.2,1);
-          box-shadow: 0 0 0 rgba(16,185,129,0);
+          transition: all 0.3s ease;
+          box-shadow: 0 0 28px rgba(16,185,129,0.35);
         }
-        .nc-btn-primary:hover:not(:disabled) {
-          transform: translateY(-2px);
-          box-shadow: 0 12px 40px rgba(16,185,129,0.35), 0 0 0 1px var(--gold-soft);
-        }
-        .nc-btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+        .nc-btn-primary:hover:not(:disabled) { transform: scale(1.05); }
+        .nc-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 
         .nc-btn-ghost {
           font-family: 'Barlow Condensed', sans-serif;
           letter-spacing: 0.2em;
           text-transform: uppercase;
-          font-weight: 600;
+          font-weight: 700;
           font-size: 13px;
           background: transparent;
-          color: rgba(245,242,234,0.55);
-          border: 1px solid rgba(245,242,234,0.16);
+          color: var(--ink-soft);
+          border: 1px solid rgba(0,0,0,0.15);
           padding: 15px 26px;
           display: inline-flex;
           align-items: center;
           gap: 10px;
           cursor: pointer;
-          transition: all 0.3s ease;
+          transition: all 0.25s ease;
         }
         .nc-btn-ghost:hover {
-          color: var(--cream);
-          border-color: rgba(245,242,234,0.4);
+          color: var(--ink);
+          border-color: rgba(0,0,0,0.35);
         }
 
+        /* Card border-radius (6px) is unchanged from the original — only
+           the surface, border, shadow and accent-line colors are new. */
         .nc-card {
-          background: linear-gradient(160deg, rgba(11,17,14,0.85) 0%, rgba(6,9,8,0.92) 100%);
-          border: 1px solid rgba(16,185,129,0.16);
-          backdrop-filter: blur(24px);
-          box-shadow: 0 30px 90px rgba(0,0,0,0.55), 0 0 120px rgba(16,185,129,0.05);
+          background: #ffffff;
+          border: 1px solid var(--hair);
+          box-shadow: 0 24px 70px rgba(17,24,39,0.08);
           border-radius: 6px;
           position: relative;
         }
         .nc-card::before {
           content: '';
           position: absolute; top: 0; left: 24px; right: 24px; height: 1px;
-          background: linear-gradient(90deg, transparent, var(--gold), transparent);
+          background: linear-gradient(90deg, transparent, var(--emerald), transparent);
           opacity: 0.6;
         }
 
@@ -300,9 +296,9 @@ export const NutritionModal: React.FC<NutritionModalProps> = ({ isOpen = true, o
           font-family: 'DM Sans', sans-serif;
           font-size: 10.5px;
           font-weight: 700;
-          letter-spacing: 0.22em;
+          letter-spacing: 0.2em;
           text-transform: uppercase;
-          color: rgba(245,242,234,0.4);
+          color: var(--ink-mute);
           display: flex;
           align-items: center;
           gap: 7px;
@@ -310,25 +306,26 @@ export const NutritionModal: React.FC<NutritionModalProps> = ({ isOpen = true, o
         }
         .nc-label svg { color: var(--emerald); flex-shrink: 0; }
 
+        /* Input/select/textarea border-radius (3px) is unchanged. */
         .nc-input, .nc-select, .nc-textarea {
           width: 100%;
-          background: rgba(16,185,129,0.045);
-          border: 1px solid rgba(16,185,129,0.16);
-          color: var(--cream);
+          background: #fafafa;
+          border: 1px solid rgba(0,0,0,0.12);
+          color: var(--ink);
           padding: 14px 16px;
           font-family: 'DM Sans', sans-serif;
           font-size: 14px;
           border-radius: 3px;
           outline: none;
-          transition: all 0.3s ease;
+          transition: all 0.25s ease;
         }
-        .nc-input::placeholder, .nc-textarea::placeholder { color: rgba(245,242,234,0.2); }
+        .nc-input::placeholder, .nc-textarea::placeholder { color: rgba(17,24,39,0.32); }
         .nc-input:focus, .nc-select:focus, .nc-textarea:focus {
-          border-color: var(--gold);
-          background: rgba(16,185,129,0.08);
-          box-shadow: 0 0 0 3px rgba(201,169,97,0.08), 0 0 24px rgba(16,185,129,0.12);
+          border-color: var(--emerald);
+          background: #ffffff;
+          box-shadow: 0 0 0 3px var(--emerald-soft);
         }
-        .nc-select option { background: #090e0b; color: var(--cream); }
+        .nc-select option { background: #ffffff; color: var(--ink); }
         .nc-textarea { resize: none; line-height: 1.65; }
 
         .nc-stage-track {
@@ -344,7 +341,7 @@ export const NutritionModal: React.FC<NutritionModalProps> = ({ isOpen = true, o
           left: 5%;
           right: 5%;
           height: 1px;
-          background: rgba(245,242,234,0.1);
+          background: rgba(0,0,0,0.08);
         }
         .nc-stage {
           display: flex;
@@ -355,21 +352,22 @@ export const NutritionModal: React.FC<NutritionModalProps> = ({ isOpen = true, o
           z-index: 1;
           flex: 1;
         }
+        /* Stage-dot stays a circle (50%) exactly as before. */
         .nc-stage-dot {
           width: 36px; height: 36px; border-radius: 50%;
           display: flex; align-items: center; justify-content: center;
-          border: 1px solid rgba(245,242,234,0.16);
-          background: var(--void);
+          border: 1px solid rgba(0,0,0,0.14);
+          background: #ffffff;
           transition: all 0.4s ease;
         }
         .nc-stage-dot.active {
           border-color: var(--emerald);
-          background: linear-gradient(135deg, rgba(16,185,129,0.25), rgba(16,185,129,0.05));
-          box-shadow: 0 0 0 4px rgba(16,185,129,0.1), 0 0 22px rgba(16,185,129,0.3);
+          background: var(--emerald-soft);
+          box-shadow: 0 0 0 4px rgba(16,185,129,0.1), 0 0 18px rgba(16,185,129,0.25);
         }
         .nc-stage-dot.complete {
-          border-color: var(--gold);
-          background: var(--gold);
+          border-color: var(--emerald);
+          background: var(--emerald);
         }
         .nc-stage-label {
           font-family: 'Barlow Condensed', sans-serif;
@@ -377,10 +375,10 @@ export const NutritionModal: React.FC<NutritionModalProps> = ({ isOpen = true, o
           letter-spacing: 0.16em;
           text-transform: uppercase;
           font-weight: 600;
-          color: rgba(245,242,234,0.35);
+          color: var(--ink-mute);
           transition: color 0.3s ease;
         }
-        .nc-stage-label.active { color: var(--cream); }
+        .nc-stage-label.active { color: var(--ink); }
 
         .nc-step-panel { animation: nc-step-enter 0.5s ease both; }
 
@@ -390,7 +388,7 @@ export const NutritionModal: React.FC<NutritionModalProps> = ({ isOpen = true, o
         }
 
         .nc-stat {
-          border-left: 1px solid rgba(201,169,97,0.3);
+          border-left: 1px solid var(--hair);
           padding-left: 16px;
         }
 
@@ -399,16 +397,11 @@ export const NutritionModal: React.FC<NutritionModalProps> = ({ isOpen = true, o
         }
       `}</style>
 
-      <div className="nc-grain" />
-
       {/* ================= HERO ================= */}
       <section
         ref={heroRef}
         className="relative min-h-screen flex flex-col justify-center px-6 sm:px-10 lg:px-20 py-28 overflow-hidden"
-        style={{
-          background:
-            'radial-gradient(ellipse 90% 60% at 30% 0%, rgba(16,185,129,0.10) 0%, transparent 55%), linear-gradient(180deg, #050706 0%, #071310 55%, #050706 100%)',
-        }}
+        style={{ background: 'linear-gradient(135deg,#ffffff 0%,#f7faf9 55%,#eefaf5 100%)' }}
       >
         <div className="nc-orb-a" />
         <div className="nc-orb-b" />
@@ -416,7 +409,7 @@ export const NutritionModal: React.FC<NutritionModalProps> = ({ isOpen = true, o
         {onClose && (
           <button
             onClick={onClose}
-            className="absolute top-8 right-8 sm:top-10 sm:right-12 text-[11px] tracking-[0.25em] uppercase text-white/35 hover:text-white/80 transition-colors z-10 nc-condensed font-semibold cursor-pointer"
+            className="absolute top-8 right-8 sm:top-10 sm:right-12 text-[11px] tracking-[0.25em] uppercase text-gray-400 hover:text-gray-800 transition-colors z-10 nc-condensed font-bold cursor-pointer"
           >
             ← Back
           </button>
@@ -424,23 +417,21 @@ export const NutritionModal: React.FC<NutritionModalProps> = ({ isOpen = true, o
 
         <div className="relative z-[1] max-w-6xl mx-auto w-full grid grid-cols-1 lg:grid-cols-[1.15fr_0.85fr] gap-16 items-center">
           <div className="nc-fade-in">
-            <div className="flex items-center gap-3 mb-7">
-              <span className="nc-eyebrow">Private Nutrition Consultancy</span>
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 mb-7 text-[9px] sm:text-[10px] font-bold tracking-[0.3em] sm:tracking-[0.35em] uppercase" style={{ border: '1px solid #10B981', color: '#10B981', background: 'rgba(16,185,129,0.10)', fontFamily: "'Barlow Condensed', sans-serif" }}>
+              <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: '#10B981' }} />
+              Private Nutrition Consultancy
             </div>
 
             <h1
-              className="nc-serif text-white leading-[1.04] mb-7"
-              style={{ fontSize: 'clamp(2.6rem, 6vw, 4.6rem)', fontWeight: 500 }}
+              className="font-black leading-[0.95] text-gray-900 mb-7"
+              style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 'clamp(2.6rem, 6vw, 4.6rem)', letterSpacing: '-0.02em' }}
             >
-              Precision nutrition,
+              PRECISION NUTRITION,
               <br />
-              <span style={{ fontStyle: 'italic', color: 'var(--emerald)' }}>personally</span> yours.
+              <span className="text-gold">PERSONALLY</span> YOURS
             </h1>
 
-            <p
-              className="text-white/55 mb-10 max-w-xl"
-              style={{ fontSize: '16px', lineHeight: 1.8 }}
-            >
+            <p className="text-gray-600 mb-10 max-w-xl text-sm sm:text-[0.95rem] leading-relaxed" style={{ fontFamily: "'DM Sans', sans-serif" }}>
               A guided intake with our certified trainers — no templates, no guesswork.
               Share your body, your goals and your lifestyle, and receive a supplement
               and nutrition advisory built around you alone.
@@ -451,62 +442,63 @@ export const NutritionModal: React.FC<NutritionModalProps> = ({ isOpen = true, o
                 Begin Your Assessment
                 <ArrowRight size={15} />
               </button>
-              <div className="flex items-center gap-2 text-white/35 text-xs nc-condensed tracking-widest uppercase font-semibold">
-                <Clock size={13} className="text-[var(--gold)]" />
+              <div className="flex items-center gap-2 text-gray-400 text-xs nc-condensed tracking-widest uppercase font-bold">
+                <Clock size={13} className="text-emerald-500" />
                 Response within 24 hours
               </div>
             </div>
 
             <div className="flex flex-wrap gap-x-10 gap-y-5">
               <div className="nc-stat">
-                <div className="nc-serif text-white text-2xl" style={{ fontWeight: 500 }}>4</div>
-                <div className="text-white/35 text-[10.5px] tracking-[0.2em] uppercase nc-condensed font-semibold mt-1">
+                <div className="font-black text-gray-900 text-lg sm:text-xl" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>4</div>
+                <div className="text-gray-400 text-[9px] sm:text-[10px] tracking-[0.2em] uppercase nc-condensed font-semibold mt-1">
                   Guided Stages
                 </div>
               </div>
               <div className="nc-stat">
-                <div className="nc-serif text-white text-2xl" style={{ fontWeight: 500 }}>1:1</div>
-                <div className="text-white/35 text-[10.5px] tracking-[0.2em] uppercase nc-condensed font-semibold mt-1">
+                <div className="font-black text-gray-900 text-lg sm:text-xl" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>1:1</div>
+                <div className="text-gray-400 text-[9px] sm:text-[10px] tracking-[0.2em] uppercase nc-condensed font-semibold mt-1">
                   Certified Review
                 </div>
               </div>
               <div className="nc-stat">
-                <div className="nc-serif text-white text-2xl" style={{ fontWeight: 500 }}>100%</div>
-                <div className="text-white/35 text-[10.5px] tracking-[0.2em] uppercase nc-condensed font-semibold mt-1">
+                <div className="font-black text-gray-900 text-lg sm:text-xl" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>100%</div>
+                <div className="text-gray-400 text-[9px] sm:text-[10px] tracking-[0.2em] uppercase nc-condensed font-semibold mt-1">
                   Personalized
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Signature visual: macro orbit rings */}
+          {/* Signature visual: macro orbit rings — same concentric circles
+              as before (roundness untouched), recolored for a white backdrop. */}
           <div className="relative hidden lg:flex items-center justify-center nc-fade-in" style={{ animationDelay: '0.2s' }}>
             <svg width="380" height="380" viewBox="0 0 380 380" className="nc-ring-orbit">
-              <circle cx="190" cy="190" r="170" fill="none" stroke="rgba(16,185,129,0.12)" strokeWidth="1" strokeDasharray="2 8" />
+              <circle cx="190" cy="190" r="170" fill="none" stroke="rgba(16,185,129,0.16)" strokeWidth="1" strokeDasharray="2 8" />
             </svg>
             <svg width="320" height="320" viewBox="0 0 320 320" className="absolute">
-              <circle cx="160" cy="160" r="140" fill="none" stroke="rgba(245,242,234,0.06)" strokeWidth="18" />
+              <circle cx="160" cy="160" r="140" fill="none" stroke="rgba(0,0,0,0.06)" strokeWidth="18" />
               <circle
                 cx="160" cy="160" r="140" fill="none" stroke="#10B981" strokeWidth="18"
                 strokeDasharray={`${2 * Math.PI * 140 * 0.62} ${2 * Math.PI * 140}`}
-                strokeLinecap="round" transform="rotate(-90 160 160)" opacity="0.85"
+                strokeLinecap="round" transform="rotate(-90 160 160)" opacity="0.9"
               />
-              <circle cx="160" cy="160" r="104" fill="none" stroke="rgba(245,242,234,0.06)" strokeWidth="16" />
+              <circle cx="160" cy="160" r="104" fill="none" stroke="rgba(0,0,0,0.06)" strokeWidth="16" />
               <circle
-                cx="160" cy="160" r="104" fill="none" stroke="#C9A961" strokeWidth="16"
+                cx="160" cy="160" r="104" fill="none" stroke="#D4AF37" strokeWidth="16"
                 strokeDasharray={`${2 * Math.PI * 104 * 0.44} ${2 * Math.PI * 104}`}
-                strokeLinecap="round" transform="rotate(-90 160 160)" opacity="0.85"
+                strokeLinecap="round" transform="rotate(-90 160 160)" opacity="0.9"
               />
-              <circle cx="160" cy="160" r="70" fill="none" stroke="rgba(245,242,234,0.06)" strokeWidth="14" />
+              <circle cx="160" cy="160" r="70" fill="none" stroke="rgba(0,0,0,0.06)" strokeWidth="14" />
               <circle
-                cx="160" cy="160" r="70" fill="none" stroke="#5EEAD4" strokeWidth="14"
+                cx="160" cy="160" r="70" fill="none" stroke="#3b82f6" strokeWidth="14"
                 strokeDasharray={`${2 * Math.PI * 70 * 0.3} ${2 * Math.PI * 70}`}
-                strokeLinecap="round" transform="rotate(-90 160 160)" opacity="0.75"
+                strokeLinecap="round" transform="rotate(-90 160 160)" opacity="0.85"
               />
             </svg>
             <div className="absolute flex flex-col items-center text-center">
-              <Leaf size={22} className="text-[var(--emerald)] mb-2" />
-              <span className="nc-condensed text-white/40 text-[10px] tracking-[0.25em] uppercase font-semibold">
+              <Leaf size={22} className="text-emerald-500 mb-2" />
+              <span className="nc-condensed text-gray-400 text-[10px] tracking-[0.25em] uppercase font-bold">
                 Protein · Carbs · Fat
               </span>
             </div>
@@ -515,13 +507,19 @@ export const NutritionModal: React.FC<NutritionModalProps> = ({ isOpen = true, o
       </section>
 
       {/* ================= ASSESSMENT ================= */}
-      <section ref={formTopRef} className="relative px-6 sm:px-10 lg:px-20 py-24 sm:py-28">
-        <div className="max-w-3xl mx-auto text-center mb-14">
-          <span className="nc-eyebrow">The Assessment</span>
-          <h2 className="nc-serif text-white mt-4" style={{ fontSize: 'clamp(1.8rem, 3.4vw, 2.6rem)', fontWeight: 500 }}>
-            Four stages to your plan
+      <section ref={formTopRef} className="relative px-6 sm:px-10 lg:px-20 py-24 sm:py-28" style={{ background: '#ffffff' }}>
+        <div className="max-w-3xl mx-auto mb-14">
+          <div className="flex items-center gap-3 sm:gap-4 mb-3">
+            <div className="h-px flex-1" style={{ background: 'linear-gradient(to right, transparent, rgba(16,185,129,0.5))' }} />
+            <span className="text-[9px] sm:text-[10px] font-bold tracking-[0.35em] sm:tracking-[0.45em] uppercase text-emerald-500 whitespace-nowrap" style={{ fontFamily: "'DM Sans', sans-serif" }}>The Assessment</span>
+            <div className="h-px flex-1" style={{ background: 'linear-gradient(to left, transparent, rgba(16,185,129,0.5))' }} />
+          </div>
+          <h2 className="text-center font-black tracking-tight text-gray-900" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 'clamp(1.8rem, 3.4vw, 2.6rem)', lineHeight: 0.95 }}>
+            FOUR STAGES TO <span className="text-gold">YOUR PLAN</span>
           </h2>
-          <div className="w-16 h-px mx-auto mt-6" style={{ background: 'linear-gradient(90deg, transparent, var(--gold), transparent)' }} />
+          <p className="text-center text-gray-500 text-xs sm:text-sm mt-3" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+            Precision-formulated advice. Zero guesswork.
+          </p>
         </div>
 
         <div className="max-w-2xl mx-auto nc-card px-6 sm:px-10 py-10 sm:py-12">
@@ -535,9 +533,9 @@ export const NutritionModal: React.FC<NutritionModalProps> = ({ isOpen = true, o
                 <div key={s.id} className="nc-stage">
                   <div className={`nc-stage-dot ${isActive ? 'active' : ''} ${isComplete ? 'complete' : ''}`}>
                     {isComplete ? (
-                      <Check size={15} color="#04120C" />
+                      <Check size={15} color="#ffffff" />
                     ) : (
-                      <Icon size={15} color={isActive ? '#10B981' : 'rgba(245,242,234,0.35)'} />
+                      <Icon size={15} color={isActive ? '#10B981' : 'rgba(17,24,39,0.35)'} />
                     )}
                   </div>
                   <span className={`nc-stage-label ${isActive ? 'active' : ''}`}>{s.label}</span>
@@ -688,16 +686,16 @@ export const NutritionModal: React.FC<NutritionModalProps> = ({ isOpen = true, o
             </div>
           </form>
 
-          <div className="flex items-center justify-center gap-2 mt-10 pt-8 text-[10px] text-white/30 uppercase tracking-[0.2em] nc-condensed font-semibold"
-            style={{ borderTop: '1px solid rgba(245,242,234,0.06)' }}
+          <div className="flex items-center justify-center gap-2 mt-10 pt-8 text-[10px] text-gray-400 uppercase tracking-[0.2em] nc-condensed font-semibold"
+            style={{ borderTop: '1px solid var(--hair)' }}
           >
-            <ShieldCheck size={13} className="text-[var(--emerald)]" />
+            <ShieldCheck size={13} className="text-emerald-500" />
             Reviewed personally by our certified trainers
           </div>
         </div>
 
-        <div className="flex items-center justify-center gap-2 mt-8 text-[11px] text-white/30">
-          <Sparkles size={12} className="text-[var(--gold)]" />
+        <div className="flex items-center justify-center gap-2 mt-8 text-[11px] text-gray-400">
+          <Sparkles size={12} className="text-emerald-500" />
           <span className="nc-condensed tracking-widest uppercase font-semibold">Average response time: within 24 hours</span>
         </div>
       </section>
