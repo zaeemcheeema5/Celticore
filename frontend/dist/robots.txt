@@ -1,6 +1,3 @@
 User-agent: *
 Allow: /
-Disallow: /admin
-Disallow: /my-orders
-
 Sitemap: https://thecelticore.com/sitemap.xml
