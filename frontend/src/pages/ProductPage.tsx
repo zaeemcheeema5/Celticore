@@ -5,6 +5,7 @@ import { productsService } from "../api/products";
 import { useCart } from "../context/CartContext";
 import { useWishlist } from "../context/WishlistContext";
 import { ReviewsSection } from "../components/product/ReviewsSection";
+import { setNoIndex } from "../utils/seo";
 
 interface ProductPageProps {
   productId: string;
@@ -168,6 +169,20 @@ export const ProductPage: React.FC<ProductPageProps> = ({
     });
 
   }, [productId]);
+
+
+  // ==========================================================
+  // SOFT-404: the SPA fallback returns HTTP 200 for a dead
+  // /product/:id URL just like it does for a real one — tell
+  // crawlers not to index this state while it's showing. See
+  // utils/seo.ts for the full explanation.
+  // ==========================================================
+
+  useEffect(() => {
+    const notFound = !loading && (error || !product);
+    setNoIndex(notFound);
+    return () => setNoIndex(false);
+  }, [loading, error, product]);
 
 
   // ==========================================================

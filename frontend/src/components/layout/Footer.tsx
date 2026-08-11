@@ -150,7 +150,7 @@ export const Footer: React.FC<FooterProps> = ({ onOpenNutrition, onNavigate, onO
                 Free Consultation
                 <ArrowUpRight size={12} className="opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-200" />
               </button>
-              <button onClick={() => onNavigate('my-orders')} className="group flex items-center gap-1.5 hover:text-emerald-400 transition-colors cursor-pointer w-fit text-left">
+              <button onClick={() => onNavigate('track-order')} className="group flex items-center gap-1.5 hover:text-emerald-400 transition-colors cursor-pointer w-fit text-left">
                 Track My Order
                 <ArrowUpRight size={12} className="opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-200" />
               </button>

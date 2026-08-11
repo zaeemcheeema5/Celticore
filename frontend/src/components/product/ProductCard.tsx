@@ -27,6 +27,12 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, accent, onOpe
     product.stockQuantity <= (product.lowStockThreshold ?? 10);
 
   const handleAdd = (e: React.MouseEvent) => {
+    // preventDefault (not just stopPropagation) matters now that the card
+    // is a real <a href>: stopPropagation only stops the click from
+    // bubbling to other React handlers, it does NOT stop the browser's
+    // native link-navigation for the <a> itself. Without preventDefault
+    // here, clicking "Add" would both add to cart AND navigate away.
+    e.preventDefault();
     e.stopPropagation();
     if (isOutOfStock) return;
     addToCart(product, 1, defaultFlavour);
@@ -35,6 +41,10 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, accent, onOpe
   };
 
   const handleWishlist = (e: React.MouseEvent) => {
+    // Same reasoning as handleAdd above — this button also sits inside
+    // the card's <a href>, so its click must be prevented explicitly or
+    // the browser will still navigate.
+    e.preventDefault();
     e.stopPropagation();
     toggleWishlist(product);
   };
@@ -60,8 +70,36 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, accent, onOpe
 
   const dots = swatchPalette(accent).slice(0, Math.min(3, Math.max(product.flavours?.length || 0, 1)));
 
+  // Real URL for this product — matches pathForProduct()/handleNavigateToProduct()
+  // in App.tsx, which key off product.slug (falling back to id) as the
+  // canonical URL segment. Using id alone here would produce a different,
+  // non-canonical URL for any product that has a distinct slug.
+  const productSlug = (product as any).slug || String(product.id);
+  const productUrl = `/product/${encodeURIComponent(productSlug)}`;
+
+  const handleCardClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (
+      e.defaultPrevented ||
+      e.button !== 0 ||
+      e.metaKey ||
+      e.ctrlKey ||
+      e.shiftKey ||
+      e.altKey
+    ) {
+      // Let the browser handle modified clicks itself (new tab, new window).
+      return;
+    }
+    e.preventDefault();
+    onOpenDetails(product);
+  };
+
   return (
-    <div onClick={() => onOpenDetails(product)} className="group flex flex-col cursor-pointer">
+    <a
+      href={productUrl}
+      onClick={handleCardClick}
+      className="group flex flex-col cursor-pointer"
+      aria-label={`View ${product.name}`}
+    >
       {/* Image Tile */}
       <div
         className="relative rounded-2xl overflow-hidden transition-transform duration-300 group-hover:-translate-y-1"
@@ -177,6 +215,6 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, accent, onOpe
           </div>
         </div>
       </div>
-    </div>
+    </a>
   );
 };

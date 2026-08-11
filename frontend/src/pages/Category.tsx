@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ArrowLeft, ChevronRight, Shield, Zap, Droplets, Sun, Leaf, LayoutGrid } from 'lucide-react';
 import { Category as CategoryType, Product } from '../types';
 import { ProductCard } from '../components/product/ProductCard';
+import { setNoIndex } from '../utils/seo';
 
 interface CategoryProps {
   pageId: string;
@@ -52,7 +53,17 @@ export const Category: React.FC<CategoryProps> = ({
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, [pageId]);
 
-  if (!isAllProducts && !cat) {
+  const notFound = !isAllProducts && !cat;
+
+  // The SPA fallback serves this page with a 200 status regardless of
+  // whether the category actually exists — tell crawlers not to index the
+  // not-found state (see utils/seo.ts for why).
+  useEffect(() => {
+    setNoIndex(notFound);
+    return () => setNoIndex(false);
+  }, [notFound]);
+
+  if (notFound) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#050505] text-white/50 text-sm">
         Category not found.

@@ -149,11 +149,16 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, onOpenC
                   </div>
                 </div>
 
-                {/* Remove button */}
+                {/* Remove button — always at least dimly visible on desktop
+                    now (not opacity-0), and full-opacity on hover OR
+                    keyboard focus. Pure hover-to-reveal was unusable for
+                    anyone on a touch-only laptop/desktop or navigating by
+                    keyboard, since neither triggers a CSS :hover state. */}
                 <button
                   onClick={() => removeFromCart(item.product.id, item.flavour)}
-                  className="absolute top-2 right-2 p-1.5 sm:p-1 text-white/30 sm:text-white/20 hover:text-red-400 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all cursor-pointer"
+                  className="absolute top-2 right-2 p-1.5 sm:p-1 text-white/30 sm:text-white/25 hover:text-red-400 focus-visible:text-red-400 opacity-100 sm:opacity-40 sm:group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline focus-visible:outline-1 focus-visible:outline-red-400/60 transition-all cursor-pointer"
                   title="Remove Item"
+                  aria-label={`Remove ${item.product.name} from cart`}
                 >
                   <Trash2 size={13} className="sm:hidden" />
                   <Trash2 size={12} className="hidden sm:block" />

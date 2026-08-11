@@ -1,39 +1,108 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<urlset
-  xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://thecelticore.com/</loc>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
   </url>
-
   <url>
     <loc>https://thecelticore.com/products</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
   </url>
-
   <url>
-    <loc>https://thecelticore.com/protein</loc>
+    <loc>https://thecelticore.com/wellbeing</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
   </url>
-<url>
-    <loc>https://thecelticore.com/categories</loc>
+  <url>
+    <loc>https://thecelticore.com/multivitamins-&amp;-minerals</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://thecelticore.com/eaa/bcaa-&amp;-hydration</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://thecelticore.com/pre-workout</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
   </url>
   <url>
     <loc>https://thecelticore.com/creatine</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
   </url>
-
   <url>
-    <loc>https://thecelticore.com/eaa-bcaa</loc>
+    <loc>https://thecelticore.com/protein</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
   </url>
-
   <url>
-    <loc>https://thecelticore.com/vitamins</loc>
+    <loc>https://thecelticore.com/product/tongkat-ali</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
   </url>
-
   <url>
-    <loc>https://thecelticore.com/pre-workout</loc>
+    <loc>https://thecelticore.com/product/testosterone-booster</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
   </url>
-
   <url>
-    <loc>https://thecelticore.com/wellbeing</loc>
+    <loc>https://thecelticore.com/product/night-time-fat-burner</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
   </url>
-
+  <url>
+    <loc>https://thecelticore.com/product/thavage-pre-workout</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://thecelticore.com/product/pre-workout-pump-non-stim</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://thecelticore.com/product/ultimate-pre-workout</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://thecelticore.com/product/intra-workout-gains-quencher</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://thecelticore.com/product/amino-hydrate</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://thecelticore.com/product/multivitamin-for-men</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://thecelticore.com/product/highly-dosed-multivitamin</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://thecelticore.com/product/creatine-monohydrate</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://thecelticore.com/product/micronised-creatine-powde</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://thecelticore.com/product/protein</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
 </urlset>

@@ -19,6 +19,23 @@ interface AdminDashboardProps {
   onCatalogChange?: () => void;
 }
 
+// Mirrors the server-side slugify in backend/controllers/productController.js
+// so the admin sees the real ID they're about to get *before* submitting,
+// instead of finding out afterwards that the server sanitized it
+// differently than what was typed. The server remains the source of truth
+// (this is just a preview) — it re-derives and validates the id itself
+// regardless of what's sent here.
+function slugifyPreview(value: string): string {
+  return String(value || '')
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .replace(/-{2,}/g, '-');
+}
+
 type TabType = 'stats' | 'orders' | 'products' | 'categories' | 'reviews' | 'coupons' | 'contact' | 'nutrition' | 'admins';
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, onCatalogChange }) => {
@@ -311,7 +328,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, onCatal
 
     try {
       const productPayload = {
-        id: editingProduct ? editingProduct.id : (prodId || prodName.toLowerCase().replace(/\s+/g, '-')),
+        id: editingProduct ? editingProduct.id : (slugifyPreview(prodId) || slugifyPreview(prodName)),
         name: prodName,
         subtitle: prodSubtitle,
         brand: prodBrand,
@@ -1194,6 +1211,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, onCatal
                       value={prodId} onChange={e => setProdId(e.target.value)}
                       className="w-full px-3 py-2 text-white bg-black border border-white/10 focus:border-emerald-500 outline-none"
                     />
+                    <p className="mt-1 text-[9px] text-white/30">
+                      Will be saved as:{' '}
+                      <span className="text-emerald-400 font-mono">
+                        {slugifyPreview(prodId) || slugifyPreview(prodName) || '(enter a name or ID)'}
+                      </span>
+                      {' '}— letters, numbers and hyphens only, enforced by the server either way.
+                    </p>
                   </div>
                 )}
                 

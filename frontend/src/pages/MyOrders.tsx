@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowLeft, Package, Star, Loader2, CreditCard } from 'lucide-react';
+import { ArrowLeft, Package, Star, Loader2, CreditCard, Search, LogIn, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../context/AuthContext';
 import { ordersService } from '../api/orders';
@@ -8,6 +8,14 @@ import { Order, OrderItem } from '../types';
 
 interface MyOrdersProps {
   onNavigate: (page: string) => void;
+  // 'mine'  -> the logged-in customer's full order history (GET /api/orders/mine)
+  // 'track' -> guest order lookup by Order ID + email (POST /api/orders/track),
+  //            no login required. Defaults to 'mine' so existing callers
+  //            (e.g. Footer's old link) keep working unchanged.
+  mode?: 'mine' | 'track';
+  // Opens the sign-in modal. Optional so this component doesn't break if a
+  // caller doesn't wire it up — the "Sign In" button just won't render.
+  onOpenAuth?: () => void;
 }
 
 const ACCENT = '#10B981';
@@ -53,12 +61,93 @@ interface ReviewFormState {
   review: string;
 }
 
-export const MyOrders: React.FC<MyOrdersProps> = ({ onNavigate }) => {
+// Shared order card — used both for the authenticated "My Orders" list and
+// for the single result of a guest order-tracking lookup. Review actions
+// only render when `onReview` is passed (the guest tracking flow has no
+// concept of "your account's reviews", so it's simply omitted there).
+function OrderCard({
+  order,
+  onReview,
+}: {
+  order: Order;
+  onReview?: (order: Order, item: OrderItem) => void;
+}) {
+  return (
+    <div className="p-4 bg-white/[0.03] border border-white/8 rounded-xl space-y-4 text-xs">
+      <div className="flex flex-wrap justify-between items-center gap-2 pb-2 border-b border-white/5">
+        <div>
+          <span className="font-bold text-white">Order #{order.id}</span>
+          <span className="text-white/40 ml-2">({new Date(order.createdAt).toLocaleDateString()})</span>
+        </div>
+        <span className={`px-2 py-0.5 rounded-full text-[9px] uppercase font-bold ${statusStyle(order.status)}`}>
+          {order.status}
+        </span>
+      </div>
+
+      <div className="flex items-center gap-1.5 text-[10px] text-white/40">
+        <CreditCard size={12} />
+        <span>{paymentMethodLabel(order.paymentMethod)}</span>
+        <span className="text-white/20">•</span>
+        <span className={`font-bold uppercase ${paymentStatusStyle(order.paymentStatus)}`}>
+          {order.paymentStatus || 'unknown'}
+        </span>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        {order.items.map((item, idx) => (
+          <div key={idx} className="flex flex-wrap items-center justify-between gap-2 py-1.5">
+            <div>
+              <p className="text-white/80 font-semibold">{item.name}</p>
+              <p className="text-white/35">
+                Qty {item.quantity} {item.flavour ? `• ${item.flavour}` : ''} • €{item.price.toFixed(2)}
+              </p>
+            </div>
+            {onReview && order.canReview && (
+              item.review ? (
+                <button
+                  onClick={() => onReview(order, item)}
+                  className="flex items-center gap-1 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide border border-white/15 text-white/60 hover:text-white cursor-pointer"
+                >
+                  <Star size={11} /> Edit Review ({item.review.status})
+                </button>
+              ) : (
+                <button
+                  onClick={() => onReview(order, item)}
+                  className="flex items-center gap-1 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide cursor-pointer"
+                  style={{ border: `1px solid ${ACCENT}`, color: ACCENT, background: `${ACCENT}0c` }}
+                >
+                  <Star size={11} /> Write a Review
+                </button>
+              )
+            )}
+          </div>
+        ))}
+      </div>
+
+      {(order.address || order.city) && (
+        <div className="pt-2 border-t border-white/5 text-[10px] text-white/40">
+          Shipping to: {[order.address, order.city, order.postalCode, order.country].filter(Boolean).join(', ')}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export const MyOrders: React.FC<MyOrdersProps> = ({ onNavigate, mode = 'mine', onOpenAuth }) => {
   const { isAuthenticated, loading: authLoading } = useAuth();
+
+  // ── "My Orders" (authenticated) state ──────────────────────────────
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [formState, setFormState] = useState<ReviewFormState | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  // ── Guest order-tracking state ──────────────────────────────────────
+  const [trackOrderId, setTrackOrderId] = useState('');
+  const [trackEmail, setTrackEmail] = useState('');
+  const [trackedOrder, setTrackedOrder] = useState<Order | null>(null);
+  const [trackLoading, setTrackLoading] = useState(false);
+  const [trackError, setTrackError] = useState<string | null>(null);
 
   const loadOrders = async () => {
     setLoading(true);
@@ -73,12 +162,34 @@ export const MyOrders: React.FC<MyOrdersProps> = ({ onNavigate }) => {
   };
 
   useEffect(() => {
+    if (mode !== 'mine') return;
     if (isAuthenticated) {
       loadOrders();
     } else {
       setLoading(false);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, mode]);
+
+  const handleTrackOrder = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!trackOrderId.trim() || !trackEmail.trim()) {
+      setTrackError('Enter both your Order ID and the email used at checkout.');
+      return;
+    }
+
+    setTrackLoading(true);
+    setTrackError(null);
+    setTrackedOrder(null);
+
+    try {
+      const order = await ordersService.trackOrder(trackOrderId.trim(), trackEmail.trim());
+      setTrackedOrder(order);
+    } catch (err: any) {
+      setTrackError(err.message || "We couldn't find an order matching that Order ID and email.");
+    } finally {
+      setTrackLoading(false);
+    }
+  };
 
   const openReviewForm = (order: Order, item: OrderItem) => {
     if (item.review) {
@@ -140,11 +251,115 @@ export const MyOrders: React.FC<MyOrdersProps> = ({ onNavigate }) => {
     }
   };
 
+  // ────────────────────────────────────────────────────────────────────
+  // GUEST ORDER TRACKING — /track-order, no login required
+  // ────────────────────────────────────────────────────────────────────
+  if (mode === 'track') {
+    return (
+      <div className="max-w-lg mx-auto px-4 sm:px-6 py-10 sm:py-14 text-white">
+        <button
+          onClick={() => onNavigate('home')}
+          className="flex items-center gap-1.5 text-xs text-white/40 hover:text-white mb-6 cursor-pointer"
+        >
+          <ArrowLeft size={14} /> Back to Store
+        </button>
+
+        <h1
+          className="text-2xl sm:text-3xl font-black uppercase tracking-tight mb-2"
+          style={{ fontFamily: "'Barlow Condensed', sans-serif" }}
+        >
+          Track Your Order
+        </h1>
+        <p className="text-xs text-white/40 mb-8">
+          No account needed — enter your Order ID and the email you used at checkout.
+        </p>
+
+        <form onSubmit={handleTrackOrder} noValidate className="space-y-3 mb-8">
+          <div>
+            <label htmlFor="track-order-id" className="block text-[9px] uppercase text-white/50 mb-1">Order ID *</label>
+            <input
+              id="track-order-id"
+              type="text"
+              required
+              placeholder="e.g. 1042"
+              value={trackOrderId}
+              onChange={(e) => setTrackOrderId(e.target.value)}
+              className="w-full px-3 py-2.5 text-sm text-white bg-black border border-white/10 focus:border-emerald-500 outline-none rounded-sm"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="track-email" className="block text-[9px] uppercase text-white/50 mb-1">Email used at checkout *</label>
+            <input
+              id="track-email"
+              type="email"
+              required
+              autoComplete="email"
+              placeholder="you@example.com"
+              value={trackEmail}
+              onChange={(e) => setTrackEmail(e.target.value)}
+              className="w-full px-3 py-2.5 text-sm text-white bg-black border border-white/10 focus:border-emerald-500 outline-none rounded-sm"
+            />
+          </div>
+
+          {trackError && (
+            <p className="text-[11px] text-red-400 flex items-center gap-1.5">
+              <AlertCircle size={12} /> {trackError}
+            </p>
+          )}
+
+          <button
+            type="submit"
+            disabled={trackLoading}
+            className="w-full py-3 flex items-center justify-center gap-2 text-xs font-black uppercase tracking-widest text-black bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 cursor-pointer rounded-sm transition-colors"
+          >
+            {trackLoading ? (
+              <><Loader2 size={14} className="animate-spin" /> Looking Up Order...</>
+            ) : (
+              <><Search size={14} /> Track Order</>
+            )}
+          </button>
+        </form>
+
+        {trackedOrder && <OrderCard order={trackedOrder} />}
+
+        {onOpenAuth && (
+          <button
+            onClick={onOpenAuth}
+            className="mt-8 flex items-center gap-1.5 text-[11px] text-white/40 hover:text-white cursor-pointer"
+          >
+            <LogIn size={12} /> Have an account? Sign in to see your full order history
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  // ────────────────────────────────────────────────────────────────────
+  // MY ORDERS — /my-orders, requires an account
+  // ────────────────────────────────────────────────────────────────────
   if (!authLoading && !isAuthenticated) {
     return (
-      <div className="min-h-[60vh] flex flex-col items-center justify-center gap-3 text-center px-4">
+      <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4 text-center px-4">
         <Package size={32} className="text-white/15" />
         <p className="text-sm text-white/50">Log in to view your order history.</p>
+        <div className="flex items-center gap-3">
+          {onOpenAuth && (
+            <button
+              onClick={onOpenAuth}
+              className="px-5 py-2.5 text-[11px] font-black uppercase tracking-[0.2em] text-black cursor-pointer rounded-sm"
+              style={{ background: ACCENT }}
+            >
+              Sign In
+            </button>
+          )}
+          <button
+            onClick={() => onNavigate('track-order')}
+            className="text-[11px] text-white/40 hover:text-white uppercase tracking-[0.15em] transition-colors cursor-pointer"
+          >
+            Track an order without signing in →
+          </button>
+        </div>
       </div>
     );
   }
@@ -177,57 +392,7 @@ export const MyOrders: React.FC<MyOrdersProps> = ({ onNavigate }) => {
       ) : (
         <div className="flex flex-col gap-4">
           {orders.map((order) => (
-            <div key={order.id} className="p-4 bg-white/[0.03] border border-white/8 rounded-xl space-y-4 text-xs">
-              <div className="flex flex-wrap justify-between items-center gap-2 pb-2 border-b border-white/5">
-                <div>
-                  <span className="font-bold text-white">Order #{order.id}</span>
-                  <span className="text-white/40 ml-2">({new Date(order.createdAt).toLocaleDateString()})</span>
-                </div>
-                <span className={`px-2 py-0.5 rounded-full text-[9px] uppercase font-bold ${statusStyle(order.status)}`}>
-                  {order.status}
-                </span>
-              </div>
-
-              <div className="flex items-center gap-1.5 text-[10px] text-white/40">
-                <CreditCard size={12} />
-                <span>{paymentMethodLabel(order.paymentMethod)}</span>
-                <span className="text-white/20">•</span>
-                <span className={`font-bold uppercase ${paymentStatusStyle(order.paymentStatus)}`}>
-                  {order.paymentStatus || 'unknown'}
-                </span>
-              </div>
-
-              <div className="flex flex-col gap-2">
-                {order.items.map((item, idx) => (
-                  <div key={idx} className="flex flex-wrap items-center justify-between gap-2 py-1.5">
-                    <div>
-                      <p className="text-white/80 font-semibold">{item.name}</p>
-                      <p className="text-white/35">
-                        Qty {item.quantity} {item.flavour ? `• ${item.flavour}` : ''} • €{item.price.toFixed(2)}
-                      </p>
-                    </div>
-                    {order.canReview && (
-                      item.review ? (
-                        <button
-                          onClick={() => openReviewForm(order, item)}
-                          className="flex items-center gap-1 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide border border-white/15 text-white/60 hover:text-white cursor-pointer"
-                        >
-                          <Star size={11} /> Edit Review ({item.review.status})
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => openReviewForm(order, item)}
-                          className="flex items-center gap-1 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide cursor-pointer"
-                          style={{ border: `1px solid ${ACCENT}`, color: ACCENT, background: `${ACCENT}0c` }}
-                        >
-                          <Star size={11} /> Write a Review
-                        </button>
-                      )
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
+            <OrderCard key={order.id} order={order} onReview={openReviewForm} />
           ))}
         </div>
       )}

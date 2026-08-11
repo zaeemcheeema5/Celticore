@@ -34,6 +34,16 @@ export const ordersService = {
     const orders = Array.isArray(res) ? res : [];
     return orders.map(mapOrderFromBackend);
   },
+  // Guest order tracking — no login required. Calls the existing
+  // POST /api/orders/track endpoint (Order ID + the email used at
+  // checkout). The backend already supported this; nothing on the
+  // frontend was calling it, which is why "Track My Order" only ever
+  // showed a login gate for guests.
+  trackOrder: async (orderId: string, email: string): Promise<Order> => {
+    const res = await api.post('/api/orders/track', { orderId, email });
+    const saved = res && res.order ? res.order : res;
+    return mapOrderFromBackend(saved);
+  },
   placeOrder: async (orderData: Omit<Order, 'id' | 'createdAt' | 'status'>): Promise<Order> => {
     const res = await api.post('/api/orders', orderData);
     const saved = res && res.order ? res.order : res;

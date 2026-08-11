@@ -414,13 +414,21 @@ function MainAppLayout() {
                 onOpenDetails={handleOpenProductDetails}
               />
             ) : currentPage === "my-orders" ? (
-              <MyOrders onNavigate={handleNavigate} />
+              <MyOrders
+                onNavigate={handleNavigate}
+                mode="mine"
+                onOpenAuth={() => setIsAuthOpen(true)}
+              />
             ) : currentPage === "nutrition" ? (
               <NutritionModal onClose={() => handleNavigate("home")} />
             ) : currentPage === "checkout" ? (
               <CheckoutPage onNavigate={handleNavigate} />
             ) : currentPage === "track-order" ? (
-              <TrackOrderPage onNavigate={handleNavigate} />
+              <TrackOrderPage
+                onNavigate={handleNavigate}
+                mode="track"
+                onOpenAuth={() => setIsAuthOpen(true)}
+              />
             ) : currentPage === "product" ? (
               <ProductPage
                 productId={productSlug}
