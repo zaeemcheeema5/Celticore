@@ -339,7 +339,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, onCatal
         description: prodDesc,
         badge: prodBadge || undefined,
         flavours: flavoursList,
-        stockQuantity: parseInt(prodStock) || 0,
+        // Math.max(0, ...) matters here: parseInt('-12') is -12, which is
+        // truthy, so the old `parseInt(prodStock) || 0` fallback never
+        // caught a negative value — it only guarded against NaN/empty.
+        // That's how a product ends up with "Stock: -12" in the catalog.
+        stockQuantity: Math.max(0, parseInt(prodStock) || 0),
         lowStockThreshold: parseInt(prodLowStock) || 5,
         isActive: prodIsActive
       };
@@ -1374,7 +1378,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, onCatal
                   <div>
                     <label className="block text-[9px] uppercase text-white/40 mb-1">Stock Quantity</label>
                     <input
-                      type="number" placeholder="100"
+                      type="number" min="0" placeholder="100"
                       value={prodStock} onChange={e => setProdStock(e.target.value)}
                       className="w-full px-3 py-2 text-white bg-black border border-white/10 focus:border-emerald-500 outline-none"
                     />

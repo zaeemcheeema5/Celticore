@@ -37,6 +37,24 @@
     href="https://thecelticore.com/"
   />
 
+  <!--
+    Brand fonts — Barlow Condensed (headings) + DM Sans (body/labels).
+    Every page's inline styles already reference these two families, but
+    until now nothing actually loaded them: NutritionModal.tsx was the
+    only component pulling them in, via its own @import inside a <style>
+    tag scoped to that page. Every other page silently fell back to the
+    browser's default sans-serif, which is why fonts/weights looked
+    inconsistent across the site. Loading them once here, site-wide,
+    fixes every page at once instead of patching component-by-component.
+  -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700;800;900&display=swap"
+  />
+
+
   <!-- Open Graph -->
   <meta
     property="og:type"
@@ -127,8 +145,8 @@
   }
 }
 </script>
-  <script type="module" crossorigin src="/assets/index-CpNKv28W.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/index-0fBI-rI1.css">
+  <script type="module" crossorigin src="/assets/index-CCcnG_VH.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-DcOvjjIa.css">
 </head>
 
 <body>

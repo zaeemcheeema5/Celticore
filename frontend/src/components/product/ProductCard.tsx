@@ -20,7 +20,14 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, accent, onOpe
   const [added, setAdded] = useState(false);
 
   const defaultFlavour = product.flavours[0] || 'Unflavoured';
-  const isOutOfStock = product.stockQuantity === 0;
+  // Negative stock is possible today (an admin can currently type -12 into
+  // "Stock Quantity" with no validation — see AdminDashboard.tsx and
+  // productController.js for the actual fix to that). Whatever the cause,
+  // this display check needs to treat "0 or below" as out of stock, not
+  // just exactly 0 — a strict `=== 0` check let a product with -12 stock
+  // still show as purchasable. `undefined` (stock not tracked for this
+  // product) correctly stays untouched here.
+  const isOutOfStock = product.stockQuantity !== undefined && product.stockQuantity <= 0;
   const isLowStock =
     product.stockQuantity !== undefined &&
     product.stockQuantity > 0 &&

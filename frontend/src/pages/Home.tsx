@@ -218,8 +218,11 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, categories, products, on
               </div>
             </div>
 
-            {/* Product Rendering */}
-            <div key={`img-${currentSlide}`} className="hero-visual-enter order-1 lg:order-2 flex items-center justify-center h-52 xs:h-64 sm:h-80 md:h-[440px] lg:h-[560px]">
+            {/* Product Rendering — hidden on mobile (matches the Nutrition
+                page's hero, which is text-only below its lg breakpoint),
+                visible from tablet (md) upward. On mobile the grid simply
+                falls back to a single centered text column. */}
+            <div key={`img-${currentSlide}`} className="hidden md:flex hero-visual-enter order-1 lg:order-2 items-center justify-center md:h-[440px] lg:h-[560px]">
               <div 
                 className="relative w-full h-full max-w-lg flex items-center justify-center"
                 style={{
@@ -391,7 +394,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, categories, products, on
             <span className="text-[9px] sm:text-[10px] font-bold tracking-[0.35em] sm:tracking-[0.45em] uppercase text-emerald-500 whitespace-nowrap" style={{ fontFamily: "'DM Sans', sans-serif" }}>Shop By Category</span>
             <div className="h-px flex-1" style={{ background: "linear-gradient(to left, transparent, rgba(16,185,129,0.5))" }}/>
           </div>
-         <h2 className="text-center font-black tracking-tight text-gray-900" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: "clamp(2rem, 8vw, 4.5rem)", lineHeight: 0.95 }}>
+         <h2 className="text-center font-black tracking-tight text-gray-900 whitespace-nowrap sm:whitespace-normal" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: "clamp(1.4rem, 7vw, 4.5rem)", lineHeight: 0.95 }}>
             EXPLORE ALL <span className="text-gold">PRODUCTS</span>
           </h2>
           <p className="text-center text-gray-400 sm:text-white/50 text-xs sm:text-sm mt-3 px-2" style={{ fontFamily: "'DM Sans', sans-serif" }}>Precision-formulated. Clinically dosed. Zero compromise.</p>

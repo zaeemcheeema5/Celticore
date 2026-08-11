@@ -264,12 +264,13 @@ export const ProductPage: React.FC<ProductPageProps> = ({
   // PRODUCT DATA
   // ==========================================================
 
+  // See ProductCard.tsx for why this needs to be `<= 0`, not `=== 0`.
   const isOutOfStock =
-    product.stockQuantity === 0;
+    product.stockQuantity !== undefined && product.stockQuantity <= 0;
 
   const maxStock =
     product.stockQuantity !== undefined
-      ? product.stockQuantity
+      ? Math.max(0, product.stockQuantity)
       : 99;
 
   const isWishlisted =

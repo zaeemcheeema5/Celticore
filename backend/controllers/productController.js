@@ -131,6 +131,10 @@ const {
         });
     }
 
+    // See the matching comment in updateProduct — never persist negative
+    // stock through this endpoint either.
+    const safeStock = Math.max(0, Number(stock_quantity) || 0);
+
     // Slugify whatever id came in (admin-typed or auto-derived from the
     // name on the frontend) — this is the actual enforcement point, since
     // trusting whatever the client sends is what let inconsistent/unsafe
@@ -198,7 +202,7 @@ VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                     JSON.stringify(flavours || []),
                     rating || 0,
                     reviews || 0,
-                    stock_quantity || 0,
+                    safeStock,
                     low_stock_threshold || 5,
                     is_active ?? 1
                 ],
@@ -246,6 +250,15 @@ const {
     is_active
 } = req.body;
 
+    // Never let stock go negative through this endpoint, regardless of
+    // what the client sends. The frontend now also clamps and adds
+    // min="0" to the Stock Quantity field, but that only stops the admin
+    // UI — this is the actual enforcement point, since anything hitting
+    // this API directly (or a future integration) would otherwise bypass
+    // it entirely. This is how a product previously ended up with
+    // "Stock: -12" and the storefront still showing it as in stock.
+    const safeStock = Math.max(0, Number(stock_quantity) || 0);
+
     db.run(
         `
         UPDATE products
@@ -280,7 +293,7 @@ const {
     JSON.stringify(flavours || []),
     rating ?? 0,
     reviews ?? 0,
-    stock_quantity ?? 0,
+    safeStock,
     low_stock_threshold ?? 5,
     is_active ?? 1,
     req.params.id
@@ -308,7 +321,10 @@ UPDATE STOCK ONLY
 */
 exports.updateStock = (req, res) => {
 
-    const { stock_quantity } = req.body;
+    // Same clamp as addProduct/updateProduct — nothing currently calls
+    // this endpoint from the frontend, but it's a real write path and
+    // should never be the one place that's still allowed to go negative.
+    const safeStock = Math.max(0, Number(req.body.stock_quantity) || 0);
 
     db.run(
         `
@@ -317,7 +333,7 @@ exports.updateStock = (req, res) => {
         WHERE id = ?
         `,
         [
-            stock_quantity,
+            safeStock,
             req.params.id
         ],
         function(err) {

@@ -168,7 +168,10 @@ export const NutritionModal: React.FC<NutritionModalProps> = ({ isOpen = true, o
   return (
     <div className="nc-root">
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700;800;900&display=swap');
+        /* Barlow Condensed / DM Sans are now loaded once, site-wide, via
+           index.html — see the comment there. This used to have its own
+           @import for just this page, which meant every other page fell
+           back to the browser's default font the whole time. */
 
         /* ── Design tokens — matched 1:1 to Home.tsx's palette ──
            white sections, gray-900/600/400 text, emerald-500 accent.

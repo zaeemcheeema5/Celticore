@@ -158,7 +158,8 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="text-[10px] font-bold tracking-widest uppercase text-white/30">Quantity</p>
-                {product.stockQuantity === 0 ? (
+                {/* See ProductCard.tsx for why this is `<= 0`, not `=== 0`. */}
+                {product.stockQuantity !== undefined && product.stockQuantity <= 0 ? (
                   <span className="text-xs text-red-500 font-bold mt-1.5 block">Unavailable</span>
                 ) : (
                   <div className="flex items-center gap-1 mt-1.5 border border-white/10 bg-black/40 px-1.5 py-1 rounded-full w-fit">
@@ -170,7 +171,7 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
                     </button>
                     <span className="text-xs font-bold w-6 text-center">{quantity}</span>
                     <button
-                      onClick={() => setQuantity(q => Math.min(product.stockQuantity ?? 999, q + 1))}
+                      onClick={() => setQuantity(q => Math.min(Math.max(product.stockQuantity ?? 999, 1), q + 1))}
                       className="flex items-center justify-center w-7 h-7 rounded-full text-white/50 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
                     >
                       <Plus size={12} />
@@ -209,7 +210,8 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
 
           {/* Action Buttons */}
           <div className="flex gap-3 mb-7 sm:mb-8">
-            {product.stockQuantity === 0 ? (
+            {/* See ProductCard.tsx for why this is `<= 0`, not `=== 0`. */}
+            {product.stockQuantity !== undefined && product.stockQuantity <= 0 ? (
               <button
                 disabled
                 className="flex-1 py-3.5 sm:py-3 text-xs font-black tracking-widest uppercase transition-all duration-250 opacity-40 bg-white/5 border border-white/10 text-white cursor-not-allowed flex items-center justify-center rounded-full"
