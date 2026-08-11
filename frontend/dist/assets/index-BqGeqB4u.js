@@ -1,4 +1,4 @@
-import{c as T,y as f}from"./index-CCcnG_VH.js";/**
+import{c as T,z as f}from"./index-UYGQ3vGQ.js";/**
  * @license lucide-react v0.487.0 - ISC
  *
  * This source code is licensed under the ISC license.

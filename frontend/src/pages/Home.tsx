@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Shield, Star, Leaf, Zap, Droplets, Sun } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Shield, Star, Leaf, Zap, Droplets, Sun, Dumbbell, Flame, Sparkles } from 'lucide-react';
 import { Category, Product } from '../types';
 import { ProductCard } from '../components/product/ProductCard';
+import { CardEffect } from '../components/category/CardEffect';
 import apexWheyImage from "../assets/apex_whey_protein.webp";
 import thunderPreWorkoutImage from "../assets/thunder_pre_workout.webp";
 import celticCreatineImage from "../assets/celtic_creatine.webp";
@@ -55,71 +56,20 @@ interface HomeProps {
   onOpenDetails: (product: Product) => void;
 }
 
-function CardEffect({ effect, color }: { effect: string; color: string }) {
-  if (effect === "lightning") {
-    return (
-      <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 300 200" fill="none" preserveAspectRatio="xMidYMid slice">
-        <defs>
-          <filter id={`gl-${color.replace("#","")}`}>
-            <feGaussianBlur stdDeviation="2.5" result="b"/>
-            <feComposite in="SourceGraphic" in2="b" operator="over"/>
-          </filter>
-        </defs>
-        <polyline points="170,10 145,90 170,90 130,190" stroke={color} strokeWidth="2" filter={`url(#gl-${color.replace("#","")})`} opacity="0.35" className="animate-pulse"/>
-        <polyline points="195,25 175,85 195,85 160,180" stroke={color} strokeWidth="1" opacity="0.15" className="animate-pulse" style={{animationDelay:"0.4s"}}/>
-      </svg>
-    );
-  }
-  if (effect === "ripple") {
-    return (
-      <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 300 200" fill="none">
-        <circle cx="240" cy="140" r="55" stroke={color} strokeWidth="0.75" opacity="0.22" className="animate-ping" style={{animationDuration:"3s"}}/>
-        <circle cx="240" cy="140" r="30" stroke={color} strokeWidth="0.75" opacity="0.18" className="animate-ping" style={{animationDuration:"2s",animationDelay:"0.5s"}}/>
-        <circle cx="240" cy="140" r="10" fill={color} opacity="0.2"/>
-      </svg>
-    );
-  }
-  if (effect === "solar") {
-    return (
-      <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 300 200" fill="none">
-        <circle cx="250" cy="50" r="40" fill={color} opacity="0.08" className="animate-pulse"/>
-        {[0,45,90,135,180,225,270,315].map(a=>(
-          <line key={a} x1={250+42*Math.cos(a*Math.PI/180)} y1={50+42*Math.sin(a*Math.PI/180)} x2={250+58*Math.cos(a*Math.PI/180)} y2={50+58*Math.sin(a*Math.PI/180)} stroke={color} strokeWidth="1" opacity="0.2"/>
-        ))}
-      </svg>
-    );
-  }
-  if (effect === "calm") {
-    return (
-      <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 300 200" fill="none">
-        <path d="M 0 120 Q 75 90 150 120 Q 225 150 300 120" stroke={color} strokeWidth="0.75" opacity="0.2" className="animate-pulse" style={{animationDuration:"4s"}}/>
-        <path d="M 0 145 Q 75 115 150 145 Q 225 175 300 145" stroke={color} strokeWidth="0.75" opacity="0.14" className="animate-pulse" style={{animationDuration:"5s",animationDelay:"1s"}}/>
-      </svg>
-    );
-  }
-  return (
-    <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 300 200" fill="none">
-      <defs>
-        <radialGradient id={`rg-${color.replace("#","")}`} cx="70%" cy="70%">
-          <stop offset="0%" stopColor={color} stopOpacity="0.28"/>
-          <stop offset="100%" stopColor={color} stopOpacity="0"/>
-        </radialGradient>
-      </defs>
-      <ellipse cx="220" cy="150" rx="100" ry="80" fill={`url(#rg-${color.replace("#","")})`}/>
-    </svg>
-  );
-}
 
-// Maps icon name from category string/model to React components
+// Maps icon name from category string/model to React components.
+// Each category gets a genuinely distinct icon — Zap previously showed up
+// on creatine, pre-workout, AND the fallback, which read as repetitive.
+// Now it only appears on pre-workout, where an energy-burst mark actually fits.
 const getCategoryIcon = (id: string) => {
   switch (id) {
-    case 'protein': return Shield;
-    case 'creatine': return Zap;
+    case 'protein': return Dumbbell;
+    case 'creatine': return Flame;
     case 'eaa-bcaa': return Droplets;
     case 'vitamins': return Sun;
     case 'pre-workout': return Zap;
     case 'wellbeing': return Leaf;
-    default: return Zap;
+    default: return Sparkles;
   }
 };
 
@@ -260,7 +210,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, categories, products, on
         <div className="absolute bottom-0 left-0 right-0 h-24 pointer-events-none" style={{ background: "linear-gradient(to bottom, transparent, #ffffff)" }}/>
       </section>
 
-      {/* CATEGORY EXPLORATION — Design 01 "Vivid Tiles" look, background driven by cat.accentColor */}
+      {/* CATEGORY EXPLORATION — Design 01 "Vivid Tiles" look, background driven by cat.accentColor, decorative motion driven by cat.effect (both set from Admin → Category Manager) */}
       <section className="relative py-6 pb-14 sm:pb-20 md:pb-28 px-4 sm:px-6 md:px-14 lg:px-20" style={{ background: "#ffffff" }}>
         <div className="max-w-7xl mx-auto mb-8 sm:mb-12">
           <div className="flex items-center gap-3 sm:gap-4 mb-3">
@@ -278,6 +228,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, categories, products, on
           {categories.map((cat) => {
             const Icon = getCategoryIcon(cat.id);
             const accent = cat.accentColor || cat.accent_color || "#10B981";
+            const cardEffect = cat.effect || "energy";
             const isHovered = hoveredCard === cat.id;
             return (
               <div
@@ -298,6 +249,12 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, categories, products, on
                   className="absolute -top-8 -right-8 sm:-top-10 sm:-right-10 w-28 h-28 sm:w-40 sm:h-40 rounded-full pointer-events-none"
                   style={{ border: "1.5px solid rgba(255,255,255,0.28)" }}
                 />
+
+                {/* Admin-controlled decorative effect layer — this is what
+                    was previously defined but never rendered. Now it
+                    actually reflects the "Animation Effect" chosen per
+                    category in the Admin Dashboard. */}
+                <CardEffect effect={cardEffect} color={accent} />
 
                 {/* Subtle dark-to-transparent wash for text legibility, still shows accent color through */}
                 <div

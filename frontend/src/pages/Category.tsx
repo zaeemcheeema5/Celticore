@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, ChevronRight, Shield, Zap, Droplets, Sun, Leaf, LayoutGrid } from 'lucide-react';
+import { ArrowLeft, ChevronRight, Zap, Droplets, Sun, Leaf, LayoutGrid, Dumbbell, Flame, Sparkles } from 'lucide-react';
 import { Category as CategoryType, Product } from '../types';
 import { ProductCard } from '../components/product/ProductCard';
+import { CardEffect } from '../components/category/CardEffect';
 import { setNoIndex } from '../utils/seo';
 
 interface CategoryProps {
@@ -15,19 +16,26 @@ interface CategoryProps {
 // Special pageId that renders every active product instead of a single category
 const ALL_PRODUCTS_PAGE_ID = 'products';
 
+// Each category gets a genuinely distinct icon — Zap previously showed up
+// on creatine, pre-workout, AND the fallback, which read as repetitive.
+// Mirrors Home.tsx's mapping exactly so the same category always shows the
+// same icon everywhere on the site.
 const getCategoryIcon = (id: string) => {
   switch (id) {
-    case 'protein': return Shield;
-    case 'creatine': return Zap;
+    case 'protein': return Dumbbell;
+    case 'creatine': return Flame;
     case 'eaa-bcaa': return Droplets;
     case 'vitamins': return Sun;
     case 'pre-workout': return Zap;
     case 'wellbeing': return Leaf;
-    default: return Zap;
+    default: return Sparkles;
   }
 };
 
-// Exact colors pulled from the "Vivid Tiles" (Design 01) category mockup
+// Fallback colors, only used for the built-in categories when the admin
+// hasn't set an accent color at all. Kept last in the priority order below
+// so that changing a color in Admin → Category Manager is never silently
+// ignored for these six ids.
 const CATEGORY_COLORS: Record<string, string> = {
   protein: '#E4572E',       // burnt orange-red
   creatine: '#2E6FA7',      // blue
@@ -233,7 +241,10 @@ export const Category: React.FC<CategoryProps> = ({
         )}
       </div>
 
-      {/* More Categories — Design 01 "Vivid Tiles" */}
+      {/* More Categories — Design 01 "Vivid Tiles". Color and decorative
+          effect are both admin-controlled (Admin → Category Manager), same
+          as the Home page category tiles — both pull from the shared
+          CardEffect component so the two stay visually consistent. */}
       <div
         className="px-4 sm:px-6 md:px-14 lg:px-20 py-10 sm:py-12"
         style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}
@@ -251,8 +262,12 @@ export const Category: React.FC<CategoryProps> = ({
               .filter((c) => c.id !== pageId && c.slug !== pageId)
               .map((c) => {
                 const CatIcon = getCategoryIcon(c.id);
+                // Admin's chosen color always wins now — the hardcoded
+                // CATEGORY_COLORS map only fills in when nothing has been
+                // set in Admin → Category Manager yet.
                 const tileColor =
-                  CATEGORY_COLORS[c.id] || c.accentColor || c.accent_color || "#10B981";
+                  c.accentColor || c.accent_color || CATEGORY_COLORS[c.id] || "#10B981";
+                const tileEffect = c.effect || "energy";
                 return (
                   <button
                     key={c.id}
@@ -265,6 +280,10 @@ export const Category: React.FC<CategoryProps> = ({
                       className="absolute -top-8 -right-8 w-28 h-28 rounded-full pointer-events-none"
                       style={{ border: "1.5px solid rgba(255,255,255,0.25)" }}
                     />
+
+                    {/* Admin-controlled decorative effect, same six designs
+                        as the Home page category tiles */}
+                    <CardEffect effect={tileEffect} color={tileColor} />
 
                     <div
                       className="relative w-10 h-10 rounded-full flex items-center justify-center"
