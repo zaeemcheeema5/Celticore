@@ -7,151 +7,201 @@ import React from 'react';
  * tiles. Driven entirely by `cat.effect`, set from the Admin
  * Dashboard's "Animation Effect" dropdown (Category Manager tab).
  *
- * Design intent: each mark reads as an abstract brand signature —
- * fine linework, soft gradient light, asymmetric composition —
- * rather than a literal clip-art icon (a cartoon barbell, a
- * comic-book bolt, a kid's-drawing sun). Slow, quiet motion only;
- * nothing bounces or blinks.
+ * Each mark is built from real, physically-motivated motion —
+ * ripples that actually expand and fade, a weight stack that
+ * settles under its own light, sparks that orbit a core, a sun
+ * that breathes, dust that drifts — using native SVG <animate> /
+ * <animateTransform>, not a flat plane faked into 3D. Layers are
+ * sized, blurred, and timed differently by apparent depth so
+ * nearer elements move faster and brighter than farther ones,
+ * which is what actually reads as depth.
  * ============================================================
  */
 export function CardEffect({ effect, color }: { effect: string; color: string }) {
   const uid = color.replace("#", "");
 
   // -----------------------------------------------------------
-  // STRENGTH — a rising bar cluster (progress, not a barbell),
-  // fine diagonal accent lines, soft light behind.
+  // STRENGTH — a stacked weight-plate silhouette that settles
+  // under its own weight, with a slow glint sweeping the top
+  // plate like light catching polished steel. Protein / Creatine.
   // -----------------------------------------------------------
   if (effect === "strength") {
-    const bars = [
-      { x: 196, h: 34, o: 0.16 },
-      { x: 214, h: 50, o: 0.2 },
-      { x: 232, h: 68, o: 0.24 },
-      { x: 250, h: 90, o: 0.3 },
-      { x: 268, h: 116, o: 0.36 },
-    ];
     return (
       <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 300 200" fill="none" preserveAspectRatio="xMidYMid slice">
         <defs>
-          <radialGradient id={`str-glow-${uid}`} cx="72%" cy="38%">
-            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.22" />
+          <radialGradient id={`str-glow-${uid}`} cx="74%" cy="60%">
+            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.2" />
             <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
           </radialGradient>
+          <linearGradient id={`str-shine-${uid}`} x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor="#ffffff" stopOpacity="0" />
+            <stop offset="50%" stopColor="#ffffff" stopOpacity="0.6" />
+            <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
+          </linearGradient>
         </defs>
-        <circle cx="222" cy="70" r="86" fill={`url(#str-glow-${uid})`} className="animate-pulse" style={{ animationDuration: "5s" }} />
-        {bars.map((b, i) => (
-          <rect
-            key={b.x}
-            x={b.x}
-            y={186 - b.h}
-            width="10"
-            height={b.h}
-            rx="2.5"
-            fill="#ffffff"
-            opacity={b.o}
-            className="animate-pulse"
-            style={{ animationDuration: `${4 + i * 0.4}s`, animationDelay: `${i * 0.25}s` }}
-          />
-        ))}
-        <line x1="150" y1="176" x2="290" y2="176" stroke="#ffffff" strokeWidth="0.75" opacity="0.14" />
-        <line x1="70" y1="40" x2="130" y2="66" stroke="#ffffff" strokeWidth="0.75" opacity="0.1" strokeLinecap="round" />
+
+        <circle cx="230" cy="120" r="88" fill={`url(#str-glow-${uid})`} />
+
+        {/* Stacked plates, back to front, each breathing very slightly
+            out of phase so the stack feels like it's settling. */}
+        <ellipse cx="230" cy="152" rx="72" ry="15" fill="#ffffff" opacity="0.12">
+          <animate attributeName="cy" values="152;149;152" dur="6s" repeatCount="indefinite" />
+        </ellipse>
+        <ellipse cx="230" cy="133" rx="67" ry="14" fill="#ffffff" opacity="0.17">
+          <animate attributeName="cy" values="133;129;133" dur="6s" begin="0.2s" repeatCount="indefinite" />
+        </ellipse>
+        <ellipse cx="230" cy="114" rx="62" ry="13" fill="#ffffff" opacity="0.23">
+          <animate attributeName="cy" values="114;109;114" dur="6s" begin="0.4s" repeatCount="indefinite" />
+        </ellipse>
+        <ellipse cx="230" cy="95" rx="57" ry="12" fill="#ffffff" opacity="0.3">
+          <animate attributeName="cy" values="95;89;95" dur="6s" begin="0.6s" repeatCount="indefinite" />
+        </ellipse>
+
+        {/* Glint sweeping across the top plate */}
+        <ellipse cx="180" cy="95" rx="16" ry="6" fill={`url(#str-shine-${uid})`}>
+          <animate attributeName="cx" values="170;295;170" dur="5.5s" repeatCount="indefinite" />
+        </ellipse>
       </svg>
     );
   }
 
   // -----------------------------------------------------------
-  // LIGHTNING — an abstract faceted shard cluster (a cut-gem
-  // silhouette suggesting charge/voltage), not a literal bolt.
+  // LIGHTNING — a faceted charge core that flickers irregularly,
+  // like a live electrical crackle, with two brief spark pops.
+  // Pre-Workout.
   // -----------------------------------------------------------
   if (effect === "lightning") {
     return (
       <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 300 200" fill="none" preserveAspectRatio="xMidYMid slice">
         <defs>
-          <radialGradient id={`shard-glow-${uid}`} cx="70%" cy="34%">
-            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.26" />
+          <radialGradient id={`shard-glow-${uid}`} cx="70%" cy="32%">
+            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.3" />
             <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
           </radialGradient>
-          <linearGradient id={`shard-edge-${uid}`} x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.5" />
-            <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
-          </linearGradient>
         </defs>
-        <circle cx="228" cy="58" r="82" fill={`url(#shard-glow-${uid})`} className="animate-pulse" style={{ animationDuration: "5.5s" }} />
-        <polygon points="228,14 262,60 228,102 194,60" fill="#ffffff" opacity="0.08" />
-        <polygon points="228,14 262,60 228,60" fill="#ffffff" opacity="0.1" />
-        <polygon points="228,14 262,60 228,102 194,60" stroke={`url(#shard-edge-${uid})`} strokeWidth="1" opacity="0.5" />
-        <line x1="228" y1="14" x2="228" y2="102" stroke="#ffffff" strokeWidth="0.6" opacity="0.16" />
-        <line x1="194" y1="60" x2="262" y2="60" stroke="#ffffff" strokeWidth="0.6" opacity="0.16" />
-        <circle cx="228" cy="58" r="3" fill="#ffffff" opacity="0.4" className="animate-pulse" style={{ animationDuration: "3.4s" }} />
+
+        <circle cx="230" cy="56" r="80" fill={`url(#shard-glow-${uid})`}>
+          <animate attributeName="r" values="76;86;76" dur="3.2s" repeatCount="indefinite" />
+        </circle>
+
+        <polygon points="230,16 264,58 230,100 196,58" fill="#ffffff" opacity="0.08" />
+
+        <polygon points="230,16 264,58 230,100 196,58" fill="none" stroke="#ffffff" strokeWidth="1" opacity="0.5">
+          <animate attributeName="opacity" values="0.18;0.55;0.2;0.5;0.16" keyTimes="0;0.3;0.5;0.75;1" dur="2.6s" repeatCount="indefinite" />
+        </polygon>
+        <line x1="230" y1="16" x2="230" y2="100" stroke="#ffffff" strokeWidth="0.6" opacity="0.16">
+          <animate attributeName="opacity" values="0.1;0.3;0.1" dur="2.1s" begin="0.4s" repeatCount="indefinite" />
+        </line>
+        <line x1="196" y1="58" x2="264" y2="58" stroke="#ffffff" strokeWidth="0.6" opacity="0.16">
+          <animate attributeName="opacity" values="0.3;0.1;0.3" dur="1.9s" begin="0.7s" repeatCount="indefinite" />
+        </line>
+
+        <circle cx="230" cy="56" r="3" fill="#ffffff" opacity="0.4">
+          <animate attributeName="opacity" values="0.25;0.55;0.25" dur="1.6s" repeatCount="indefinite" />
+        </circle>
+
+        {/* Two brief spark pops at the shard's edges */}
+        <circle cx="255" cy="70" r="1.6" fill="#ffffff">
+          <animate attributeName="opacity" values="0;0;0.85;0;0;0" keyTimes="0;0.4;0.46;0.52;0.8;1" dur="3.4s" repeatCount="indefinite" />
+        </circle>
+        <circle cx="206" cy="44" r="1.4" fill="#ffffff">
+          <animate attributeName="opacity" values="0;0;0;0.7;0;0" keyTimes="0;0.55;0.62;0.66;0.75;1" dur="4.1s" begin="0.9s" repeatCount="indefinite" />
+        </circle>
       </svg>
     );
   }
 
   // -----------------------------------------------------------
-  // RIPPLE — quiet partial arcs on an offset orbit, a few fine
-  // scattered points. Reads as tide/current, not a cartoon splash.
+  // RIPPLE — real expanding rings emitted continuously from a
+  // source point, plus a couple of drifting droplets. BCAA /
+  // Hydration.
   // -----------------------------------------------------------
   if (effect === "ripple") {
     return (
       <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 300 200" fill="none" preserveAspectRatio="xMidYMid slice">
         <defs>
-          <radialGradient id={`rip-glow-${uid}`} cx="78%" cy="62%">
+          <radialGradient id={`rip-glow-${uid}`} cx="78%" cy="64%">
             <stop offset="0%" stopColor="#ffffff" stopOpacity="0.16" />
             <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
           </radialGradient>
         </defs>
-        <circle cx="238" cy="126" r="96" fill={`url(#rip-glow-${uid})`} />
-        <path d="M 168 126 A 70 70 0 0 1 300 96" stroke="#ffffff" strokeWidth="1" opacity="0.2" fill="none" className="animate-pulse" style={{ animationDuration: "5s" }} />
-        <path d="M 186 158 A 48 48 0 0 1 286 148" stroke="#ffffff" strokeWidth="1" opacity="0.16" fill="none" className="animate-pulse" style={{ animationDuration: "6s", animationDelay: "0.6s" }} />
-        <path d="M 205 96 A 26 26 0 0 1 264 100" stroke="#ffffff" strokeWidth="1" opacity="0.22" fill="none" className="animate-pulse" style={{ animationDuration: "4.2s", animationDelay: "1.1s" }} />
-        <circle cx="238" cy="126" r="3.5" fill="#ffffff" opacity="0.24" />
-        <circle cx="196" cy="82" r="1.75" fill="#ffffff" opacity="0.22" className="animate-pulse" style={{ animationDuration: "4.4s" }} />
-        <circle cx="272" cy="164" r="1.5" fill="#ffffff" opacity="0.18" className="animate-pulse" style={{ animationDuration: "5.2s", animationDelay: "0.8s" }} />
+
+        <circle cx="236" cy="128" r="100" fill={`url(#rip-glow-${uid})`} />
+
+        {[0, 1.5, 3].map((delay) => (
+          <circle key={delay} cx="236" cy="128" r="8" stroke="#ffffff" strokeWidth="1.1" fill="none">
+            <animate attributeName="r" values="6;92" dur="4.5s" begin={`${delay}s`} repeatCount="indefinite" />
+            <animate attributeName="opacity" values="0.4;0" dur="4.5s" begin={`${delay}s`} repeatCount="indefinite" />
+          </circle>
+        ))}
+
+        <circle cx="236" cy="128" r="3.5" fill="#ffffff" opacity="0.3" />
+
+        {/* Drifting droplets at different depths */}
+        <circle cx="196" cy="150" r="2" fill="#ffffff" opacity="0.22">
+          <animate attributeName="cy" values="150;142;150" dur="3.6s" repeatCount="indefinite" />
+        </circle>
+        <circle cx="268" cy="92" r="1.4" fill="#ffffff" opacity="0.18">
+          <animate attributeName="cy" values="92;86;92" dur="4.4s" begin="0.8s" repeatCount="indefinite" />
+        </circle>
       </svg>
     );
   }
 
   // -----------------------------------------------------------
-  // SOLAR — a quarter-fan dial of fine rays and a bright core,
-  // like a light meter rather than a child's drawing of the sun.
+  // SOLAR — a breathing sun core with individually shimmering
+  // rays, the whole field turning at true sundial pace. Vitamins.
   // -----------------------------------------------------------
   if (effect === "solar") {
-    const rays = Array.from({ length: 9 }, (_, i) => -10 + i * 14);
+    const rays = Array.from({ length: 12 }, (_, i) => i * 30);
     return (
       <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 300 200" fill="none" preserveAspectRatio="xMidYMid slice">
         <defs>
           <radialGradient id={`sun-core-${uid}`} cx="50%" cy="50%">
-            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.5" />
+            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.55" />
             <stop offset="55%" stopColor="#ffffff" stopOpacity="0.1" />
             <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
           </radialGradient>
         </defs>
-        <circle cx="252" cy="48" r="64" fill={`url(#sun-core-${uid})`} className="animate-pulse" style={{ animationDuration: "5s" }} />
-        <circle cx="252" cy="48" r="9" fill="#ffffff" opacity="0.32" />
-        <circle cx="252" cy="48" r="22" stroke="#ffffff" strokeWidth="0.5" opacity="0.14" fill="none" />
-        {rays.map((a, i) => (
-          <line
-            key={a}
-            x1={252 + 28 * Math.cos((a * Math.PI) / 180)}
-            y1={48 + 28 * Math.sin((a * Math.PI) / 180)}
-            x2={252 + (40 + (i % 3) * 5) * Math.cos((a * Math.PI) / 180)}
-            y2={48 + (40 + (i % 3) * 5) * Math.sin((a * Math.PI) / 180)}
-            stroke="#ffffff"
-            strokeWidth="1"
-            strokeLinecap="round"
-            opacity="0.22"
-            className="animate-pulse"
-            style={{ animationDuration: `${4 + (i % 4) * 0.5}s`, animationDelay: `${i * 0.18}s` }}
-          />
-        ))}
+
+        <circle cx="250" cy="50" r="60" fill={`url(#sun-core-${uid})`}>
+          <animate attributeName="r" values="56;66;56" dur="4s" repeatCount="indefinite" />
+        </circle>
+        <circle cx="250" cy="50" r="9" fill="#ffffff" opacity="0.34">
+          <animate attributeName="opacity" values="0.28;0.42;0.28" dur="4s" repeatCount="indefinite" />
+        </circle>
+
+        <g>
+          <animateTransform attributeName="transform" type="rotate" from="0 250 50" to="360 250 50" dur="75s" repeatCount="indefinite" />
+          {rays.map((a, i) => (
+            <line
+              key={a}
+              x1={250 + 26 * Math.cos((a * Math.PI) / 180)}
+              y1={50 + 26 * Math.sin((a * Math.PI) / 180)}
+              x2={250 + (40 + (i % 3) * 5) * Math.cos((a * Math.PI) / 180)}
+              y2={50 + (40 + (i % 3) * 5) * Math.sin((a * Math.PI) / 180)}
+              stroke="#ffffff"
+              strokeWidth="1"
+              strokeLinecap="round"
+              opacity="0.22"
+            >
+              <animate attributeName="opacity" values="0.12;0.32;0.12" dur={`${2.6 + (i % 4) * 0.5}s`} begin={`${i * 0.22}s`} repeatCount="indefinite" />
+            </line>
+          ))}
+        </g>
       </svg>
     );
   }
 
   // -----------------------------------------------------------
-  // CALM — layered silk-like ribbon curves with a soft fade,
-  // a couple of far, quiet points.
+  // CALM — soft waves sliding sideways in an endless loop, with
+  // slow-rising dust motes drifting through. Wellbeing.
   // -----------------------------------------------------------
   if (effect === "calm") {
+    // Two wave humps tiled edge-to-edge (0–150 and 150–300) so a
+    // -150px translate loops seamlessly.
+    const wavePath =
+      "M -10 108 Q 27.5 92 65 108 T 140 108 Q 177.5 92 215 108 T 290 108";
     return (
       <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 300 200" fill="none" preserveAspectRatio="xMidYMid slice">
         <defs>
@@ -159,51 +209,75 @@ export function CardEffect({ effect, color }: { effect: string; color: string })
             <stop offset="0%" stopColor="#ffffff" stopOpacity="0" />
             <stop offset="100%" stopColor="#ffffff" stopOpacity="0.12" />
           </linearGradient>
-          <linearGradient id={`calm-ribbon-${uid}`} x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stopColor="#ffffff" stopOpacity="0" />
-            <stop offset="50%" stopColor="#ffffff" stopOpacity="0.26" />
-            <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
-          </linearGradient>
         </defs>
-        <path d="M -20 104 C 60 76, 120 132, 200 100 S 320 90, 320 90" stroke={`url(#calm-ribbon-${uid})`} strokeWidth="1.25" fill="none" className="animate-pulse" style={{ animationDuration: "6s" }} />
-        <path d="M -20 134 C 60 112, 120 158, 200 132 S 320 122, 320 122" stroke={`url(#calm-ribbon-${uid})`} strokeWidth="1" fill="none" opacity="0.7" className="animate-pulse" style={{ animationDuration: "7s", animationDelay: "1s" }} />
-        <path d="M -20 160 Q 90 138 200 160 T 320 156 L 320 220 L -20 220 Z" fill={`url(#calm-fade-${uid})`} />
-        <circle cx="96" cy="52" r="1.75" fill="#ffffff" opacity="0.2" className="animate-pulse" style={{ animationDuration: "4.6s" }} />
-        <circle cx="250" cy="40" r="1.25" fill="#ffffff" opacity="0.16" className="animate-pulse" style={{ animationDuration: "5.4s", animationDelay: "1.2s" }} />
+
+        <g opacity="0.24">
+          <path d={wavePath} stroke="#ffffff" strokeWidth="1.2" fill="none">
+            <animateTransform attributeName="transform" type="translate" values="0 0; -150 0" dur="9s" repeatCount="indefinite" />
+          </path>
+          <path d={wavePath} stroke="#ffffff" strokeWidth="1.2" fill="none" transform="translate(150 0)">
+            <animateTransform attributeName="transform" type="translate" values="150 0; 0 0" dur="9s" repeatCount="indefinite" />
+          </path>
+        </g>
+
+        <g opacity="0.14">
+          <path d={wavePath} stroke="#ffffff" strokeWidth="1" fill="none" transform="translate(0 28)">
+            <animateTransform attributeName="transform" type="translate" values="0 28; -150 28" dur="13s" repeatCount="indefinite" />
+          </path>
+          <path d={wavePath} stroke="#ffffff" strokeWidth="1" fill="none" transform="translate(150 28)">
+            <animateTransform attributeName="transform" type="translate" values="150 28; 0 28" dur="13s" repeatCount="indefinite" />
+          </path>
+        </g>
+
+        <path d="M -10 150 Q 90 130 190 150 T 310 148 L 310 220 L -10 220 Z" fill={`url(#calm-fade-${uid})`} />
+
+        {/* Slow-rising dust motes */}
+        {[
+          { cx: 90, r: 1.6, dur: "12s", begin: "0s" },
+          { cx: 210, r: 1.2, dur: "15s", begin: "2s" },
+          { cx: 150, r: 1, dur: "18s", begin: "5s" },
+        ].map((d, i) => (
+          <circle key={i} cx={d.cx} cy="190" r={d.r} fill="#ffffff">
+            <animate attributeName="cy" values="190;10" dur={d.dur} begin={d.begin} repeatCount="indefinite" />
+            <animate attributeName="opacity" values="0;0.28;0.28;0" keyTimes="0;0.15;0.8;1" dur={d.dur} begin={d.begin} repeatCount="indefinite" />
+          </circle>
+        ))}
       </svg>
     );
   }
 
   // -----------------------------------------------------------
-  // ENERGY (default) — an asymmetric fan of fine rays off a soft
-  // glow, quieter and less "starburst" than a symmetric spark.
+  // ENERGY (default) — a breathing core with sparks orbiting at
+  // different radii, speeds and brightness, like embers around a
+  // low fire. General / fallback.
   // -----------------------------------------------------------
-  const rays = [-70, -45, -18, 8, 32, 58, 84, 110, 140];
+  const orbits = [
+    { r: 34, dur: "5s", size: 2.4, opacity: 0.4 },
+    { r: 52, dur: "8s", size: 1.8, opacity: 0.3 },
+    { r: 72, dur: "12s", size: 1.3, opacity: 0.2 },
+  ];
   return (
     <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 300 200" fill="none" preserveAspectRatio="xMidYMid slice">
       <defs>
         <radialGradient id={`eng-${uid}`} cx="70%" cy="66%">
-          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.28" />
+          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.3" />
           <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
         </radialGradient>
       </defs>
-      <ellipse cx="226" cy="138" rx="112" ry="86" fill={`url(#eng-${uid})`} className="animate-pulse" style={{ animationDuration: "4.6s" }} />
-      <circle cx="226" cy="138" r="5" fill="#ffffff" opacity="0.3" />
-      <circle cx="226" cy="138" r="34" stroke="#ffffff" strokeWidth="0.5" opacity="0.14" fill="none" />
-      {rays.map((a, i) => (
-        <line
-          key={a}
-          x1={226 + 38 * Math.cos((a * Math.PI) / 180)}
-          y1={138 + 38 * Math.sin((a * Math.PI) / 180)}
-          x2={226 + (50 + (i % 3) * 7) * Math.cos((a * Math.PI) / 180)}
-          y2={138 + (50 + (i % 3) * 7) * Math.sin((a * Math.PI) / 180)}
-          stroke="#ffffff"
-          strokeWidth="1"
-          strokeLinecap="round"
-          opacity="0.2"
-          className="animate-pulse"
-          style={{ animationDuration: `${4 + (i % 3) * 0.6}s`, animationDelay: `${i * 0.2}s` }}
-        />
+
+      <ellipse cx="226" cy="138" rx="108" ry="84" fill={`url(#eng-${uid})`}>
+        <animate attributeName="rx" values="104;114;104" dur="4.6s" repeatCount="indefinite" />
+        <animate attributeName="ry" values="80;88;80" dur="4.6s" repeatCount="indefinite" />
+      </ellipse>
+      <circle cx="226" cy="138" r="5" fill="#ffffff" opacity="0.34" />
+
+      {orbits.map((o, i) => (
+        <g key={i} transform="translate(226 138)">
+          <g>
+            <animateTransform attributeName="transform" type="rotate" from="0" to={i % 2 === 0 ? "360" : "-360"} dur={o.dur} repeatCount="indefinite" />
+            <circle cx={o.r} cy="0" r={o.size} fill="#ffffff" opacity={o.opacity} />
+          </g>
+        </g>
       ))}
     </svg>
   );
