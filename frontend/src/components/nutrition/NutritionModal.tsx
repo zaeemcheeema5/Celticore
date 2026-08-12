@@ -23,6 +23,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { nutritionService } from '../../api/nutrition';
 import { toast } from 'sonner';
+import logoImage from '../../assets/logo.webp';
 
 interface NutritionModalProps {
   isOpen?: boolean;
@@ -390,6 +391,19 @@ export const NutritionModal: React.FC<NutritionModalProps> = ({ isOpen = true, o
           transform-origin: center;
         }
 
+        /* 3D floating motion for the hero logo — gentle perspective tilt
+           + vertical drift, same 'alive but subtle' feel as Home's blobs. */
+        @keyframes nc-logo-float-3d {
+          0%   { transform: perspective(900px) rotateY(-10deg) rotateX(5deg) translateY(0px); }
+          50%  { transform: perspective(900px) rotateY(10deg) rotateX(-5deg) translateY(-16px); }
+          100% { transform: perspective(900px) rotateY(-10deg) rotateX(5deg) translateY(0px); }
+        }
+        .nc-logo-float {
+          animation: nc-logo-float-3d 7s ease-in-out infinite;
+          transform-style: preserve-3d;
+          will-change: transform;
+        }
+
         .nc-stat {
           border-left: 1px solid var(--hair);
           padding-left: 16px;
@@ -471,13 +485,25 @@ export const NutritionModal: React.FC<NutritionModalProps> = ({ isOpen = true, o
             </div>
           </div>
 
-          {/* Signature visual — rings removed per request; leaf + label kept. */}
+          {/* Signature visual — same treatment as Home.tsx's hero product
+              render: masked radial fade, blurred color glow behind, image
+              at object-contain with saturate/contrast filter. Logo adds a
+              subtle 3D perspective float on top. */}
           <div className="relative hidden lg:flex items-center justify-center nc-fade-in" style={{ animationDelay: '0.2s' }}>
-            <div className="flex flex-col items-center text-center">
-              <Leaf size={22} className="text-emerald-500 mb-2" />
-              <span className="nc-condensed text-gray-400 text-[10px] tracking-[0.25em] uppercase font-bold">
-                Protein · Carbs · Fat
-              </span>
+            <div
+              className="relative w-full h-full max-w-[320px] max-h-[320px] flex items-center justify-center"
+              style={{
+                maskImage: 'radial-gradient(ellipse at 50% 50%, black 45%, transparent 78%)',
+                WebkitMaskImage: 'radial-gradient(ellipse at 50% 50%, black 45%, transparent 78%)',
+              }}
+            >
+              <div className="absolute w-[85%] h-[85%] rounded-full blur-[70px] sm:blur-[90px] opacity-30" style={{ background: '#10B981' }} />
+              <img
+                src={logoImage}
+                alt="CeltiCore"
+                className="w-full h-full object-contain relative z-10 nc-logo-float"
+                style={{ filter: 'saturate(1.15) contrast(1.05)' }}
+              />
             </div>
           </div>
         </div>
