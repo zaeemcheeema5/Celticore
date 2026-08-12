@@ -435,9 +435,7 @@ export const NutritionModal: React.FC<NutritionModalProps> = ({ isOpen = true, o
             </h1>
 
             <p className="text-gray-600 mb-10 max-w-xl text-sm sm:text-[0.95rem] leading-relaxed" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-              A guided intake with our certified trainers — no templates, no guesswork.
-              Share your body, your goals and your lifestyle, and receive a supplement
-              and nutrition advisory built around you alone.
+              A guided intake with our certified trainers — no templates, no guesswork. Share your body, your goals and your lifestyle, and receive a supplement and nutrition advisory built around you alone.
             </p>
 
             <div className="flex flex-wrap items-center gap-5 mb-12">
@@ -473,33 +471,9 @@ export const NutritionModal: React.FC<NutritionModalProps> = ({ isOpen = true, o
             </div>
           </div>
 
-          {/* Signature visual: macro orbit rings — same concentric circles
-              as before (roundness untouched), recolored for a white backdrop. */}
+          {/* Signature visual — rings removed per request; leaf + label kept. */}
           <div className="relative hidden lg:flex items-center justify-center nc-fade-in" style={{ animationDelay: '0.2s' }}>
-            <svg width="380" height="380" viewBox="0 0 380 380" className="nc-ring-orbit">
-              <circle cx="190" cy="190" r="170" fill="none" stroke="rgba(16,185,129,0.16)" strokeWidth="1" strokeDasharray="2 8" />
-            </svg>
-            <svg width="320" height="320" viewBox="0 0 320 320" className="absolute">
-              <circle cx="160" cy="160" r="140" fill="none" stroke="rgba(0,0,0,0.06)" strokeWidth="18" />
-              <circle
-                cx="160" cy="160" r="140" fill="none" stroke="#10B981" strokeWidth="18"
-                strokeDasharray={`${2 * Math.PI * 140 * 0.62} ${2 * Math.PI * 140}`}
-                strokeLinecap="round" transform="rotate(-90 160 160)" opacity="0.9"
-              />
-              <circle cx="160" cy="160" r="104" fill="none" stroke="rgba(0,0,0,0.06)" strokeWidth="16" />
-              <circle
-                cx="160" cy="160" r="104" fill="none" stroke="#D4AF37" strokeWidth="16"
-                strokeDasharray={`${2 * Math.PI * 104 * 0.44} ${2 * Math.PI * 104}`}
-                strokeLinecap="round" transform="rotate(-90 160 160)" opacity="0.9"
-              />
-              <circle cx="160" cy="160" r="70" fill="none" stroke="rgba(0,0,0,0.06)" strokeWidth="14" />
-              <circle
-                cx="160" cy="160" r="70" fill="none" stroke="#3b82f6" strokeWidth="14"
-                strokeDasharray={`${2 * Math.PI * 70 * 0.3} ${2 * Math.PI * 70}`}
-                strokeLinecap="round" transform="rotate(-90 160 160)" opacity="0.85"
-              />
-            </svg>
-            <div className="absolute flex flex-col items-center text-center">
+            <div className="flex flex-col items-center text-center">
               <Leaf size={22} className="text-emerald-500 mb-2" />
               <span className="nc-condensed text-gray-400 text-[10px] tracking-[0.25em] uppercase font-bold">
                 Protein · Carbs · Fat
