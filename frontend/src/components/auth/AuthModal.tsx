@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import { X, Eye, EyeOff, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'sonner';
-import axios from 'axios'; // Ensure axios or your custom API instance is used here
+import { authService } from '../../api/auth';
 
-import logoImage from '../../assets/logo.png';
+import logoImage from '../../assets/logo.webp';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -62,13 +62,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
 
     setLoading(true);
     try {
-      const response = await axios.post('http://localhost:5000/api/auth/forgot-password', { email });
-      if (response.data.success) {
-        toast.success(response.data.message);
+      const response: any = await authService.forgotPassword(email);
+      if (response.success) {
+        toast.success(response.message);
         setForgotStep('enter_otp');
       }
     } catch (err: any) {
-      toast.error(err.response?.data?.error || "Failed to send reset code.");
+      toast.error(err.message || "Failed to send reset code.");
     } finally {
       setLoading(false);
     }
@@ -85,14 +85,13 @@ const handleVerifyOtp = async (e: React.FormEvent) => {
 
   setLoading(true);
   try {
-    // UPDATED: Added full backend URL
-    const response = await axios.post('http://localhost:5000/api/auth/verify-otp', { email, otp });
-    if (response.data.success) {
-      toast.success(response.data.message);
+    const response: any = await authService.verifyOtp(email, otp);
+    if (response.success) {
+      toast.success(response.message);
       setForgotStep('new_password');
     }
   } catch (err: any) {
-    toast.error(err.response?.data?.message || err.response?.data?.error || "Invalid or expired OTP.");
+    toast.error(err.message || "Invalid or expired OTP.");
   } finally {
     setLoading(false);
   }
@@ -108,17 +107,16 @@ const handleResetPasswordSubmit = async (e: React.FormEvent) => {
 
   setLoading(true);
   try {
-    // UPDATED: Added full backend URL
-    const response = await axios.post('http://localhost:5000/api/auth/reset-password', { email, otp, password });
-    if (response.data.success) {
-      toast.success(response.data.message);
+    const response: any = await authService.resetPassword(email, otp, password);
+    if (response.success) {
+      toast.success(response.message);
       setAuthMode('login');
       setForgotStep('request_email');
       setOtp('');
       setPassword('');
     }
   } catch (err: any) {
-    toast.error(err.response?.data?.message || err.response?.data?.error || "Failed to reset password.");
+    toast.error(err.message || "Failed to reset password.");
   } finally {
     setLoading(false);
   }
@@ -280,24 +278,11 @@ const handleResetPasswordSubmit = async (e: React.FormEvent) => {
 
               <div className="flex items-center gap-3 my-1">
                 <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.07)" }} />
-                <span className="text-[11px] text-white/25" style={{ fontFamily: "'DM Sans', sans-serif" }}>or continue with</span>
+                <span className="text-[11px] text-white/25" style={{ fontFamily: "'DM Sans', sans-serif" }}>CelticCore</span>
                 <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.07)" }} />
               </div>
 
-              <div className="flex gap-3">
-                {["Google", "Apple"].map(p => (
-                  <button
-                    type="button"
-                    key={p}
-                    className="flex-1 py-2.5 text-[10px] font-bold tracking-[0.15em] uppercase text-white/40 hover:text-white/70 transition-all duration-200 cursor-pointer"
-                    style={{ border: "1px solid rgba(255,255,255,0.09)", fontFamily: "'Barlow Condensed', sans-serif" }}
-                    onMouseEnter={e => e.currentTarget.style.borderColor = "rgba(255,255,255,0.25)"}
-                    onMouseLeave={e => e.currentTarget.style.borderColor = "rgba(255,255,255,0.09)"}
-                  >
-                    {p}
-                  </button>
-                ))}
-              </div>
+         
 
               <p className="text-center text-[11px] text-white/30 mt-1" style={{ fontFamily: "'DM Sans', sans-serif" }}>
                 {authMode === "login" ? "New to Celti Core?" : "Already have an account?"}{" "}

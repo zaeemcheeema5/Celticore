@@ -1,1 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=DM+Sans:wght@300;400;500;600&display=swap');
+/* Barlow Condensed & DM Sans are now loaded via a preconnected <link>
+   in index.html <head> instead of an @import here — this avoids an
+   extra render-blocking round trip (CSS -> @import -> font CSS -> font
+   files) which was hurting mobile load performance. */

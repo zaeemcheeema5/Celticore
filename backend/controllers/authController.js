@@ -14,128 +14,102 @@ const { setAuthCookie, clearAuthCookie } = require("../utils/authCookie");
 // ======================
 
 exports.signup = async (req, res) => {
-
-    const {
-        name,
-        email,
-        password
-    } = req.body;
+    const { name, email, password } = req.body;
 
     if (!name || !email || !password) {
-
         return res.status(400).json({
             success: false,
-            error: 'All fields are required'
+            error: "All fields are required"
         });
-
     }
 
     try {
-
-        const hashedPassword =
-            await bcrypt.hash(password, 10);
+        const hashedPassword = await bcrypt.hash(password, 10);
 
         db.run(
-
             `
-            INSERT INTO users
-            (
-                username,
-                email,
-                password
-            )
-            VALUES
-            (
-                ?, ?, ?
-            )
+            INSERT INTO users (username, email, password)
+            VALUES (?, ?, ?)
             `,
-
-            [
-                name,
-                email,
-                hashedPassword
-            ],
+            [name, email, hashedPassword],
 
             function (err) {
 
                 if (err) {
 
-                    if (err.message.includes('UNIQUE')) {
+                    if (
+                        err.code === "ER_DUP_ENTRY" ||
+                        err.message.includes("Duplicate entry") ||
+                        err.message.includes("UNIQUE")
+                    ) {
 
-                        return res.status(400).json({
+                        if (err.message.toLowerCase().includes("email")) {
+                            return res.status(409).json({
+                                success: false,
+                                error: "Email already exists"
+                            });
+                        }
 
+                        if (
+                            err.message.toLowerCase().includes("username") ||
+                            err.message.toLowerCase().includes("name")
+                        ) {
+                            return res.status(409).json({
+                                success: false,
+                                error: "Username already exists"
+                            });
+                        }
+
+                        return res.status(409).json({
                             success: false,
-                            error: 'Email already exists'
-
+                            error: "Account already exists"
                         });
-
                     }
 
                     return res.status(500).json({
-
                         success: false,
                         error: err.message
-
                     });
-
                 }
 
                 const token = jwt.sign(
-
                     {
                         userId: this.lastID,
                         username: name,
                         email
                     },
-
                     JWT_SECRET,
-
-                    {
-                        expiresIn: '24h'
-                    }
-
+                    { expiresIn: "24h" }
                 );
 
-                // The JWT now lives only in an httpOnly cookie — never in
-                // the response body, so no JS on the page (including a
-                // future XSS payload) can ever read it out.
                 setAuthCookie(res, token);
 
-                res.status(201).json({
+                // Best-effort welcome email — fire-and-forget so a slow or
+                // failed send never delays or breaks account creation.
+                sendEmail.sendWelcomeEmail({ username: name, email })
+                    .catch(emailErr => console.error("Welcome email failed:", emailErr.message));
 
+                return res.status(201).json({
                     success: true,
-
-                    message: 'Account created successfully',
-
+                    message: "Account created successfully",
                     role: "customer",
-
                     user: {
-
                         id: this.lastID,
                         name,
                         email
-
                     }
-
                 });
-
             }
-
         );
 
-    }
+    } catch (err) {
 
-    catch (err) {
-
-        res.status(500).json({
-
+        return res.status(500).json({
             success: false,
             error: err.message
-
         });
 
     }
-
 };
 
 // ======================
@@ -596,11 +570,16 @@ exports.forgotPassword = (req, res) => {
                         });
                     }
 
-                    await sendEmail({
+                    // Fire-and-forget — never let a slow/hung SMTP connection
+                    // block or fail this response. If sendMail() hangs (bad
+                    // SMTP host/port/creds, blocked outbound port, etc.),
+                    // awaiting it here would stall the request until the
+                    // client times out, which is what was happening before.
+                    sendEmail({
 
                         to: user.email,
 
-                        subject: "CeltiCore Password Reset OTP",
+                        subject: "theCeltiCore Password Reset OTP",
 
                         html: passwordResetTemplate({
 
@@ -610,7 +589,9 @@ exports.forgotPassword = (req, res) => {
 
                         })
 
-                    });
+                    }).catch(emailErr =>
+                        console.error("Password reset email failed:", emailErr.message)
+                    );
 
                     res.json({
 

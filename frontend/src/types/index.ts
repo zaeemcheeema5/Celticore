@@ -47,13 +47,28 @@ export interface Category {
 
 export interface Review {
     id: number;
-    product_id: string | number;
-    user_id: number;
-    username?: string;
+    productId: string | number;
+    userId: number;
+    orderId: number;
     rating: number;
-    comment: string;
+    title: string;
+    review: string;
+    images: string[];
+    isVerifiedPurchase: boolean;
     status: 'pending' | 'approved' | 'rejected';
-    created_at?: string;
+    helpfulCount: number;
+    adminReply?: string | null;
+    adminReplyAt?: string | null;
+    createdAt?: string;
+    updatedAt?: string;
+    reviewerName?: string;
+    productName?: string;
+}
+
+export interface ReviewSummary {
+    average: number;
+    total: number;
+    breakdown: { 5: number; 4: number; 3: number; 2: number; 1: number };
 }
 
 export interface OrderItem {
@@ -62,6 +77,7 @@ export interface OrderItem {
   price: number;
   quantity: number;
   flavour: string;
+  review?: Review | null;
 }
 
 export interface Order {
@@ -70,14 +86,18 @@ export interface Order {
   items: OrderItem[];
   total: number;
   discount: number;
-  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
+  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | string;
   createdAt: string;
+  canReview?: boolean;
   customerName: string;
   customerEmail: string;
+  phone?: string;
   address: string;
   city: string;
   postalCode: string;
   country: string;
+  deliveryMethod?: string;
+  deliveryCost?: number;
   paymentMethod: 'card' | 'gpay' | 'applepay';
   paymentStatus: 'paid' | 'unpaid' | 'pending';
   stripePaymentIntentId?: string;

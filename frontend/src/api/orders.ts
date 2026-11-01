@@ -12,11 +12,13 @@ const mapOrderFromBackend = (o: any): Order => ({
   phone: o.phone || '',
   items: typeof o.items === 'string' ? JSON.parse(o.items) : (o.items || []),
   total: o.total || 0,
+  discount: o.discount || 0,
   paymentMethod: o.payment_method || o.paymentMethod || 'card',
   paymentStatus: o.payment_status || o.paymentStatus || 'pending',
   deliveryMethod: o.delivery_method || o.deliveryMethod || 'standard',
   deliveryCost: o.delivery_cost || o.deliveryCost || 0,
   status: o.status || 'pending',
+  canReview: !!o.canReview,
   createdAt: o.created_at || o.createdAt,
   stripePaymentIntentId: o.stripe_payment_intent_id || o.stripePaymentIntentId || ''
 });
@@ -27,6 +29,21 @@ export const ordersService = {
     const orders = Array.isArray(res) ? res : (res && Array.isArray(res.orders) ? res.orders : []);
     return orders.map(mapOrderFromBackend);
   },
+  getMyOrders: async (): Promise<Order[]> => {
+    const res = await api.get('/api/orders/mine');
+    const orders = Array.isArray(res) ? res : [];
+    return orders.map(mapOrderFromBackend);
+  },
+  // Guest order tracking — no login required. Calls the existing
+  // POST /api/orders/track endpoint (Order ID + the email used at
+  // checkout). The backend already supported this; nothing on the
+  // frontend was calling it, which is why "Track My Order" only ever
+  // showed a login gate for guests.
+  trackOrder: async (orderId: string, email: string): Promise<Order> => {
+    const res = await api.post('/api/orders/track', { orderId, email });
+    const saved = res && res.order ? res.order : res;
+    return mapOrderFromBackend(saved);
+  },
   placeOrder: async (orderData: Omit<Order, 'id' | 'createdAt' | 'status'>): Promise<Order> => {
     const res = await api.post('/api/orders', orderData);
     const saved = res && res.order ? res.order : res;
@@ -36,5 +53,8 @@ export const ordersService = {
     const res = await api.put(`/api/orders/${id}`, updateData);
     const saved = res && res.order ? res.order : res;
     return mapOrderFromBackend(saved);
+  },
+  deleteOrder: async (id: number | string): Promise<{ success: boolean; message: string }> => {
+    return api.delete(`/api/orders/${id}`);
   }
 };

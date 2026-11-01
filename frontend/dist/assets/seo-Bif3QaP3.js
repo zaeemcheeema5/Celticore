@@ -1,0 +1,1 @@
+function o(n){const t=document.querySelector('meta[name="robots"][data-dynamic="true"]');if(!n){t==null||t.remove();return}if(t)return;const e=document.createElement("meta");e.setAttribute("name","robots"),e.setAttribute("content","noindex"),e.setAttribute("data-dynamic","true"),document.head.appendChild(e)}export{o as s};

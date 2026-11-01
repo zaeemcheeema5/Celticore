@@ -208,7 +208,7 @@ style="padding:20px;background:#f8f8f8;border-radius:8px;">
 <p>
 
 Thank you for choosing
-<strong>CeltiCore</strong>.
+<strong>theCeltiCore</strong>.
 
 </p>
 
@@ -218,7 +218,7 @@ Regards,
 
 <br>
 
-<b>CeltiCore Team</b>
+<b>theCeltiCore Team</b>
 
 </p>
 
@@ -237,7 +237,7 @@ CeltiCore
 
 <br>
 
-support@celticore.com
+support@thecelticore.com
 
 </td>
 

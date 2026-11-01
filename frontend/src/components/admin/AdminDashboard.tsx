@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { X, ShieldAlert, BarChart3, Database, Award, ClipboardCheck, MessageSquare, Plus, Trash2, CheckCircle2, XCircle, Star, ShoppingBag, Layers, Edit2, Upload, Eye, UserPlus, Key } from 'lucide-react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { X, ShieldAlert, BarChart3, Database, Award, ClipboardCheck, MessageSquare, Plus, Trash2, CheckCircle2, XCircle, Star, ShoppingBag, Layers, Edit2, Upload, Eye, UserPlus, Key, Download, TrendingUp, TrendingDown, Search, Copy, Check, MapPin, Mail, CreditCard, Package, Filter, Phone, Activity, Utensils, AlertTriangle, Send, Cake, Scale, ChevronDown, ExternalLink, Leaf } from 'lucide-react';
+import { AreaChart, Area, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { dashboardService } from '../../api/dashboard';
 import { productsService } from '../../api/products';
 import { reviewsService } from '../../api/reviews';
@@ -14,15 +15,30 @@ import { Product, Category, Review, Coupon, ContactMessage, NutritionRequest, Da
 import { toast } from 'sonner';
 
 interface AdminDashboardProps {
-  isOpen: boolean;
   onClose: () => void;
   onCatalogChange?: () => void;
 }
 
+// Mirrors the server-side slugify in backend/controllers/productController.js
+// so the admin sees the real ID they're about to get *before* submitting,
+// instead of finding out afterwards that the server sanitized it
+// differently than what was typed. The server remains the source of truth
+// (this is just a preview) — it re-derives and validates the id itself
+// regardless of what's sent here.
+function slugifyPreview(value: string): string {
+  return String(value || '')
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .replace(/-{2,}/g, '-');
+}
+
 type TabType = 'stats' | 'orders' | 'products' | 'categories' | 'reviews' | 'coupons' | 'contact' | 'nutrition' | 'admins';
 
-export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose, onCatalogChange }) => {
-  if (!isOpen) return null;
+export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, onCatalogChange }) => {
 
   const { user } = useAuth();
   const isMainAdmin = user?.role === 'main_admin';
@@ -32,6 +48,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
   // Data States
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [trendRange, setTrendRange] = useState<'7d' | '30d' | '90d'>('7d');
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -86,12 +103,34 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
   const [createEmail, setCreateEmail] = useState('');
   const [createPassword, setCreatePassword] = useState('');
 
+  // Order Manager UI States
+  const [orderSearch, setOrderSearch] = useState('');
+  const [orderStatusFilter, setOrderStatusFilter] = useState('');
+  const [copiedTxId, setCopiedTxId] = useState<string | null>(null);
+
+  // Nutrition Requests UI States
+  const [nutritionSearch, setNutritionSearch] = useState('');
+  const [nutritionStatusFilter, setNutritionStatusFilter] = useState('');
+
   // Load Admin Data depending on active tab
   const loadData = async () => {
     try {
       if (activeTab === 'stats') {
-        const data = await dashboardService.getStats();
-        setStats(data);
+        try {
+          const data = await dashboardService.getStats();
+          setStats(data);
+        } catch (statsErr: any) {
+          console.error("Failed to load dashboard stats", statsErr);
+          toast.error("Failed to load stats: " + statsErr.message);
+        }
+        try {
+          const allOrders = await ordersService.getAllOrders();
+          setOrders(allOrders.sort((a, b) => b.id - a.id));
+        } catch (ordersErr: any) {
+          console.error("Failed to load orders for analytics", ordersErr);
+          toast.error("Revenue trend & order breakdown unavailable: " + ordersErr.message);
+          setOrders([]);
+        }
       } else if (activeTab === 'orders') {
         const data = await ordersService.getAllOrders();
         setOrders(data.sort((a, b) => b.id - a.id));
@@ -111,9 +150,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
       } else if (activeTab === 'categories') {
         const cats = await productsService.getCategories();
         setCategories(cats);
-      } else if (activeTab === 'reviews') {
-        const data = await reviewsService.getAllReviews();
-        setReviews(data);
       } else if (activeTab === 'coupons') {
         const data = await couponsService.getCoupons();
         setCoupons(data);
@@ -133,6 +169,131 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
   useEffect(() => {
     loadData();
   }, [activeTab]);
+
+  // ---- Analytics derived from real order data (Stats tab) ----
+  const rangeDays = trendRange === '7d' ? 7 : trendRange === '30d' ? 30 : 90;
+
+  const dailyRevenueMap = useMemo(() => {
+    const map = new Map<string, number>();
+    orders.forEach((o) => {
+      const key = (o.createdAt || '').slice(0, 10);
+      if (!key) return;
+      map.set(key, (map.get(key) || 0) + (Number(o.total) || 0));
+    });
+    return map;
+  }, [orders]);
+
+  const buildDayRange = (daysBack: number, offsetDays: number) => {
+    const today = new Date();
+    const out: { date: string; label: string; revenue: number }[] = [];
+    for (let i = daysBack - 1; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i - offsetDays);
+      const key = d.toISOString().slice(0, 10);
+      out.push({
+        date: key,
+        label: d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }),
+        revenue: dailyRevenueMap.get(key) || 0,
+      });
+    }
+    return out;
+  };
+
+  const revenueTrend = useMemo(() => buildDayRange(rangeDays, 0), [dailyRevenueMap, rangeDays]);
+  const previousTrend = useMemo(() => buildDayRange(rangeDays, rangeDays), [dailyRevenueMap, rangeDays]);
+
+  const currentRangeRevenue = revenueTrend.reduce((s, d) => s + d.revenue, 0);
+  const previousRangeRevenue = previousTrend.reduce((s, d) => s + d.revenue, 0);
+  const revenueChangePct = previousRangeRevenue > 0
+    ? ((currentRangeRevenue - previousRangeRevenue) / previousRangeRevenue) * 100
+    : (currentRangeRevenue > 0 ? 100 : 0);
+
+  const rangeCutoff = Date.now() - rangeDays * 86400000;
+  const prevRangeCutoff = Date.now() - rangeDays * 2 * 86400000;
+  const currentRangeOrders = orders.filter((o) => new Date(o.createdAt).getTime() >= rangeCutoff);
+  const previousRangeOrders = orders.filter((o) => {
+    const t = new Date(o.createdAt).getTime();
+    return t >= prevRangeCutoff && t < rangeCutoff;
+  });
+  const ordersChangePct = previousRangeOrders.length > 0
+    ? ((currentRangeOrders.length - previousRangeOrders.length) / previousRangeOrders.length) * 100
+    : (currentRangeOrders.length > 0 ? 100 : 0);
+
+  const avgOrderValue = currentRangeOrders.length > 0 ? currentRangeRevenue / currentRangeOrders.length : 0;
+  const prevAvgOrderValue = previousRangeOrders.length > 0 ? previousRangeRevenue / previousRangeOrders.length : 0;
+  const aovChangePct = prevAvgOrderValue > 0
+    ? ((avgOrderValue - prevAvgOrderValue) / prevAvgOrderValue) * 100
+    : (avgOrderValue > 0 ? 100 : 0);
+
+  const peakDay = revenueTrend.reduce(
+    (max, d) => (d.revenue > max.revenue ? d : max),
+    revenueTrend[0] || { label: '', revenue: 0, date: '' }
+  );
+
+  const STATUS_COLORS: Record<string, string> = {
+    pending: '#F59E0B',
+    processing: '#3B82F6',
+    shipped: '#A78BFA',
+    delivered: '#10B981',
+    cancelled: '#EF4444',
+  };
+
+  const statusBreakdown = useMemo(() => {
+    const source = currentRangeOrders.length > 0 ? currentRangeOrders : orders;
+    const counts: Record<string, number> = {};
+    source.forEach((o) => {
+      counts[o.status] = (counts[o.status] || 0) + 1;
+    });
+    const total = source.length || 1;
+    return Object.entries(counts)
+      .map(([status, count]) => ({ status, count, pct: (count / total) * 100 }))
+      .sort((a, b) => b.count - a.count);
+  }, [currentRangeOrders, orders]);
+
+  const topStatus = statusBreakdown[0];
+
+  const handleExportCSV = () => {
+    if (orders.length === 0) {
+      toast.error('No orders to export yet');
+      return;
+    }
+    const header = ['Order ID', 'Date', 'Customer', 'Email', 'Status', 'Payment Status', 'Total (€)'];
+    const rows = orders.map((o) => [
+      o.id,
+      o.createdAt,
+      o.customerName,
+      o.customerEmail,
+      o.status,
+      o.paymentStatus,
+      Number(o.total || 0).toFixed(2),
+    ]);
+    const csv = [header, ...rows]
+      .map((r) => r.map((v) => `"${String(v ?? '').replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `celticore-orders-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success('Orders exported to CSV');
+  };
+
+  function RevenueTooltip({ active, payload, label }: any) {
+    if (!active || !payload || !payload.length) return null;
+    return (
+      <div className="px-3 py-2 rounded-lg border border-emerald-500/30 bg-[#0a0a0a] shadow-xl">
+        <p className="text-[10px] text-white/40 uppercase tracking-wider mb-0.5">{label}</p>
+        <p className="text-sm font-black text-emerald-400" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
+          €{Number(payload[0].value).toFixed(2)}
+        </p>
+      </div>
+    );
+  }
+
 
   // Product Actions
   const handleProductImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -167,7 +328,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
 
     try {
       const productPayload = {
-        id: editingProduct ? editingProduct.id : (prodId || prodName.toLowerCase().replace(/\s+/g, '-')),
+        id: editingProduct ? editingProduct.id : (slugifyPreview(prodId) || slugifyPreview(prodName)),
         name: prodName,
         subtitle: prodSubtitle,
         brand: prodBrand,
@@ -178,7 +339,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
         description: prodDesc,
         badge: prodBadge || undefined,
         flavours: flavoursList,
-        stockQuantity: parseInt(prodStock) || 0,
+        // Math.max(0, ...) matters here: parseInt('-12') is -12, which is
+        // truthy, so the old `parseInt(prodStock) || 0` fallback never
+        // caught a negative value — it only guarded against NaN/empty.
+        // That's how a product ends up with "Stock: -12" in the catalog.
+        stockQuantity: Math.max(0, parseInt(prodStock) || 0),
         lowStockThreshold: parseInt(prodLowStock) || 5,
         isActive: prodIsActive
       };
@@ -389,9 +554,34 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
   };
 
   // Review Actions
+  const [reviewFilters, setReviewFilters] = useState<{ productId: string; rating: string; status: string }>({
+    productId: '', rating: '', status: ''
+  });
+  const [replyDrafts, setReplyDrafts] = useState<Record<number, string>>({});
+
+  const loadReviews = async () => {
+    try {
+      const filters: any = {};
+      if (reviewFilters.productId) filters.productId = reviewFilters.productId;
+      if (reviewFilters.rating) filters.rating = Number(reviewFilters.rating);
+      if (reviewFilters.status) filters.status = reviewFilters.status;
+      const data = await reviewsService.getAllReviews(filters);
+      setReviews(data);
+    } catch (err: any) {
+      toast.error("Failed to load reviews: " + err.message);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'reviews') {
+      loadReviews();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reviewFilters, activeTab]);
+
   const handleApproveReview = async (id: number) => {
     try {
-      await reviewsService.approveReview(id);
+      await reviewsService.updateReviewStatus(id, 'approved');
       toast.success("Review approved.");
       setReviews(prev => prev.map(r => r.id === id ? { ...r, status: 'approved' } : r));
     } catch (err: any) {
@@ -401,7 +591,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
 
   const handleRejectReview = async (id: number) => {
     try {
-      await reviewsService.rejectReview(id);
+      await reviewsService.updateReviewStatus(id, 'rejected');
       toast.success("Review rejected.");
       setReviews(prev => prev.map(r => r.id === id ? { ...r, status: 'rejected' } : r));
     } catch (err: any) {
@@ -416,6 +606,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
       setReviews(prev => prev.filter(r => r.id !== id));
     } catch (err: any) {
       toast.error("Failed to delete review: " + err.message);
+    }
+  };
+
+  const handleReplyToReview = async (id: number) => {
+    const reply = (replyDrafts[id] || '').trim();
+    if (!reply) {
+      toast.error("Write a reply before sending.");
+      return;
+    }
+    try {
+      await reviewsService.replyToReview(id, reply);
+      toast.success("Reply posted.");
+      setReviews(prev => prev.map(r => r.id === id ? { ...r, adminReply: reply, adminReplyAt: new Date().toISOString() } : r));
+      setReplyDrafts(prev => ({ ...prev, [id]: '' }));
+    } catch (err: any) {
+      toast.error("Failed to post reply: " + err.message);
     }
   };
 
@@ -493,6 +699,28 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
     }
   };
 
+  const handleDeleteOrder = async (id: number | string) => {
+    if (!window.confirm("Are you sure you want to delete this order? This action is permanent and cannot be undone.")) return;
+    try {
+      await ordersService.deleteOrder(id);
+      toast.success("Order deleted.");
+      setOrders(prev => prev.filter(o => o.id !== id));
+    } catch (err: any) {
+      toast.error("Failed to delete order: " + err.message);
+    }
+  };
+
+  const handleDeleteNutrition = async (id: number) => {
+    if (!window.confirm("Are you sure you want to delete this nutrition request? This action is permanent and cannot be undone.")) return;
+    try {
+      await nutritionService.deleteRequest(id);
+      toast.success("Nutrition request deleted.");
+      setNutrition(prev => prev.filter(n => n.id !== id));
+    } catch (err: any) {
+      toast.error("Failed to delete request: " + err.message);
+    }
+  };
+
   const handleCreateAdminProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!createUsername.trim() || !createEmail.trim() || !createPassword.trim()) {
@@ -563,112 +791,382 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
     }
   };
 
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 overflow-y-auto bg-black/90 backdrop-blur-md"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-    >
-      <div
-        className="relative w-full max-w-5xl sm:rounded border border-white/10 bg-[#090909] text-white flex flex-col md:flex-row h-screen sm:h-[85vh] overflow-hidden"
-        style={{ boxShadow: "0 0 50px rgba(16,185,129,0.15)" }}
-      >
-        {/* Sidebar Navigation */}
-        <div className="w-full md:w-56 bg-[#0c0c0c] border-b md:border-b-0 md:border-r border-white/5 flex flex-col justify-between shrink-0 p-3 md:p-4">
-          <div className="md:space-y-6">
-            <div className="flex items-center justify-between md:justify-start gap-2 text-emerald-400 mb-2 md:mb-0">
-              <div className="flex items-center gap-2">
-                <ShieldAlert size={18} />
-                <span className="text-sm font-black uppercase tracking-wider" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>Admin Control</span>
-              </div>
-              <button
-                onClick={onClose}
-                className="md:hidden p-1.5 text-white/40 hover:text-white rounded hover:bg-white/5 cursor-pointer"
-              >
-                <X size={18} />
-              </button>
-            </div>
+  // ---- Order Manager derived data ----
+  const orderStatusCounts = useMemo(() => {
+    const counts: Record<string, number> = { pending: 0, processing: 0, shipped: 0, delivered: 0, cancelled: 0 };
+    orders.forEach((o) => {
+      counts[o.status] = (counts[o.status] || 0) + 1;
+    });
+    return counts;
+  }, [orders]);
 
-            {/* Nav Tabs */}
-            <div className="flex md:flex-col gap-1 text-xs overflow-x-auto md:overflow-visible scrollbar-hide -mx-3 px-3 md:mx-0 md:px-0 pb-1 md:pb-0">
-              {(
-                [
-                  { id: 'stats', label: 'Dashboard Stats', icon: BarChart3 },
-                  { id: 'orders', label: 'Order Manager', icon: ShoppingBag },
-                  { id: 'products', label: 'Product Manager', icon: Database },
-                  { id: 'categories', label: 'Category Manager', icon: Layers },
-                  { id: 'reviews', label: 'Review Moderation', icon: MessageSquare },
-                  { id: 'coupons', label: 'Coupon Codes', icon: Award },
-                  { id: 'nutrition', label: 'Nutrition Requests', icon: ClipboardCheck },
-                  { id: 'contact', label: 'Customer Queries', icon: MessageSquare },
-                  { id: 'admins', label: 'Admins & Users', icon: ShieldAlert },
-                ] as const
-              ).map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-1.5 md:gap-2.5 px-3 py-2.5 text-left rounded-sm font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 md:shrink md:whitespace-normal ${
-                    activeTab === tab.id
-                      ? 'bg-emerald-500 text-black shadow-lg shadow-emerald-500/10'
-                      : 'text-white/50 hover:text-white hover:bg-white/5'
-                  }`}
-                >
-                  <tab.icon size={14} />
-                  {tab.label}
-                </button>
-              ))}
+  const ordersTotalRevenue = useMemo(
+    () => orders.reduce((s, o) => s + (Number(o.total) || 0), 0),
+    [orders]
+  );
+
+  const unpaidOrdersCount = useMemo(
+    () => orders.filter((o) => o.paymentStatus !== 'paid').length,
+    [orders]
+  );
+
+  const filteredOrders = useMemo(() => {
+    return orders.filter((o) => {
+      if (orderStatusFilter && o.status !== orderStatusFilter) return false;
+      if (orderSearch.trim()) {
+        const q = orderSearch.trim().toLowerCase();
+        const haystack = `${o.id} ${o.customerName || ''} ${o.customerEmail || ''}`.toLowerCase();
+        if (!haystack.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [orders, orderSearch, orderStatusFilter]);
+
+  const handleCopyTxId = (txId: string) => {
+    navigator.clipboard.writeText(txId).then(() => {
+      setCopiedTxId(txId);
+      toast.success('Transaction ID copied');
+      window.setTimeout(() => setCopiedTxId((prev) => (prev === txId ? null : prev)), 1800);
+    }).catch(() => {
+      toast.error('Could not copy transaction ID');
+    });
+  };
+
+  const paymentMethodLabel = (method?: string) => {
+    if (method === 'gpay') return 'Google Pay';
+    if (method === 'applepay') return 'Apple Pay';
+    return 'Credit Card';
+  };
+
+  // ---- Nutrition Requests derived data ----
+  const NUTRITION_STATUS_COLORS: Record<string, string> = {
+    pending: '#F59E0B',
+    completed: '#10B981',
+    cancelled: '#EF4444',
+  };
+
+  const nutritionStatusCounts = useMemo(() => {
+    const counts: Record<string, number> = { pending: 0, completed: 0, cancelled: 0 };
+    nutrition.forEach((n) => {
+      counts[n.status] = (counts[n.status] || 0) + 1;
+    });
+    return counts;
+  }, [nutrition]);
+
+  const filteredNutrition = useMemo(() => {
+    return nutrition.filter((n) => {
+      if (nutritionStatusFilter && n.status !== nutritionStatusFilter) return false;
+      if (nutritionSearch.trim()) {
+        const q = nutritionSearch.trim().toLowerCase();
+        const haystack = `${n.name || ''} ${n.email || ''} ${n.goal || ''}`.toLowerCase();
+        if (!haystack.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [nutrition, nutritionSearch, nutritionStatusFilter]);
+
+  const getInitials = (name?: string) => {
+    if (!name) return '?';
+    const parts = name.trim().split(/\s+/);
+    return ((parts[0]?.[0] || '') + (parts[1]?.[0] || '')).toUpperCase() || name[0]?.toUpperCase() || '?';
+  };
+
+  const buildNutritionMailto = (req: NutritionRequest) => {
+    const subject = `Your CeltiCore Nutrition Plan${req.goal ? ` — ${req.goal}` : ''}`;
+    const body =
+      `Hi ${req.name || ''},\n\n` +
+      `Thanks for submitting your nutrition consultation request. `+
+      `Here is a summary of what you shared with us:\n\n` +
+      `Goal: ${req.goal || 'N/A'}\n` +
+      `Diet Preference: ${req.diet_preference || 'N/A'}\n` +
+      `Activity Level: ${req.activity_level || 'N/A'}\n\n` +
+      (req.admin_notes ? `Our recommendation:\n${req.admin_notes}\n\n` : '') +
+      `Best regards,\nCeltiCore Nutrition Team`;
+    return { subject, body, to: req.email };
+  };
+
+  const buildGmailComposeUrl = (req: NutritionRequest) => {
+    const { subject, body, to } = buildNutritionMailto(req);
+    return `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(to)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  };
+
+  const buildOutlookComposeUrl = (req: NutritionRequest) => {
+    const { subject, body, to } = buildNutritionMailto(req);
+    return `https://outlook.office.com/mail/deeplink/compose?to=${encodeURIComponent(to)}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  };
+
+  const buildMailtoUrl = (req: NutritionRequest) => {
+    const { subject, body, to } = buildNutritionMailto(req);
+    return `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  };
+
+  const [emailMenuOpenId, setEmailMenuOpenId] = useState<number | null>(null);
+  const [copiedEmail, setCopiedEmail] = useState<string | null>(null);
+
+  const handleCopyEmail = (email: string) => {
+    navigator.clipboard.writeText(email).then(() => {
+      setCopiedEmail(email);
+      toast.success('Email address copied');
+      window.setTimeout(() => setCopiedEmail((prev) => (prev === email ? null : prev)), 1800);
+    }).catch(() => {
+      toast.error('Could not copy email address');
+    });
+  };
+
+  return (
+    <div className="min-h-screen w-full bg-[#090909] text-white flex flex-col md:flex-row">
+      {/* Sidebar Navigation */}
+      <div className="w-full md:w-56 bg-[#0c0c0c] border-b md:border-b-0 md:border-r border-white/8 flex flex-col justify-between shrink-0 p-3 md:p-4 shadow-md shadow-black/30 md:shadow-none md:sticky md:top-0 md:h-screen md:overflow-y-auto">
+        <div className="md:space-y-6">
+          <div className="flex items-center justify-between md:justify-start gap-2 text-emerald-400 mb-2 md:mb-0">
+            <div className="flex items-center gap-2">
+              <ShieldAlert size={18} />
+              <span className="text-sm font-black uppercase tracking-wider" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>Admin Control</span>
             </div>
+            <button
+              onClick={onClose}
+              className="md:hidden p-1.5 text-white/40 hover:text-white rounded hover:bg-white/5 cursor-pointer"
+              title="Exit to store"
+            >
+              <X size={18} />
+            </button>
           </div>
 
-          <button
-            onClick={onClose}
-            className="hidden md:block w-full py-2.5 text-center text-xs font-black uppercase border border-white/10 hover:border-white/30 text-white/50 hover:text-white transition-all cursor-pointer"
-            style={{ fontFamily: "'Barlow Condensed', sans-serif" }}
-          >
-            Close Dashboard
-          </button>
+          {/* Nav Tabs */}
+          <div className="flex md:flex-col gap-1 text-xs overflow-x-auto md:overflow-visible scrollbar-hide -mx-3 px-3 md:mx-0 md:px-0 pb-1 md:pb-0">
+            {(
+              [
+                { id: 'stats', label: 'Dashboard Stats', icon: BarChart3 },
+                { id: 'orders', label: 'Order Manager', icon: ShoppingBag },
+                { id: 'products', label: 'Product Manager', icon: Database },
+                { id: 'categories', label: 'Category Manager', icon: Layers },
+                { id: 'reviews', label: 'Review Moderation', icon: MessageSquare },
+                { id: 'coupons', label: 'Coupon Codes', icon: Award },
+                { id: 'nutrition', label: 'Nutrition Requests', icon: ClipboardCheck },
+                { id: 'contact', label: 'Customer Queries', icon: MessageSquare },
+                { id: 'admins', label: 'Admins & Users', icon: ShieldAlert },
+              ] as const
+            ).map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-1.5 md:gap-2.5 px-3.5 py-2.5 text-left rounded-lg font-semibold transition-all duration-200 cursor-pointer whitespace-nowrap shrink-0 md:shrink md:whitespace-normal active:scale-[0.97] ${
+                  activeTab === tab.id
+                    ? 'bg-emerald-500 text-black shadow-lg shadow-emerald-500/20'
+                    : 'text-white/50 hover:text-white hover:bg-white/8'
+                }`}
+              >
+                <tab.icon size={14} />
+                {tab.label}
+              </button>
+            ))}
+          </div>
         </div>
 
-        {/* Content Panel */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 bg-[#070707] flex flex-col">
-          <div className="flex items-center justify-between pb-3 sm:pb-4 border-b border-white/5 mb-4 sm:mb-6">
-            <h2 className="text-base sm:text-xl font-black uppercase tracking-wider text-white" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
-              {activeTab === 'stats' && 'Sales & Store Statistics'}
-              {activeTab === 'orders' && 'Customer Order Management'}
+        <button
+          onClick={onClose}
+          className="hidden md:block w-full py-2.5 text-center text-xs font-black uppercase rounded-lg border border-white/10 hover:border-white/30 hover:bg-white/5 text-white/50 hover:text-white transition-all cursor-pointer"
+          style={{ fontFamily: "'Barlow Condensed', sans-serif" }}
+        >
+          Exit to Store
+        </button>
+      </div>
+
+      {/* Content Panel */}
+      <div className="flex-1 p-4 sm:p-6 md:p-8 bg-[#070707] flex flex-col">
+        <div className="flex items-center justify-between pb-3 sm:pb-4 border-b border-white/8 mb-4 sm:mb-6 shrink-0">
+          <h2 className="text-base sm:text-xl font-black uppercase tracking-wider text-white" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
+            {activeTab === 'stats' && 'Sales & Store Statistics'}
+            {activeTab === 'orders' && 'Customer Order Management'}
               {activeTab === 'products' && 'Product Sourcing / Uploads'}
               {activeTab === 'categories' && 'Category Management Console'}
               {activeTab === 'reviews' && 'Reviews Moderation Portal'}
               {activeTab === 'coupons' && 'Discount Coupon Generator'}
               {activeTab === 'nutrition' && 'Nutrition Consulting Submissions'}
               {activeTab === 'contact' && 'Contact Box Messages'}
+              {activeTab === 'admins' && 'Admins & Registered Users'}
             </h2>
           </div>
 
           {/* TAB CONTENT: STATS */}
           {activeTab === 'stats' && stats && (
             <div className="space-y-6">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="p-4 bg-white/5 border border-white/5 rounded">
+              {/* Action Bar */}
+              <div className="flex items-center justify-end">
+                <button
+                  onClick={handleExportCSV}
+                  className="flex items-center gap-1.5 px-3.5 py-2 text-[10px] sm:text-xs font-black uppercase tracking-widest rounded-lg bg-emerald-500 text-black hover:bg-emerald-400 transition-colors cursor-pointer"
+                  style={{ fontFamily: "'Barlow Condensed', sans-serif" }}
+                >
+                  <Download size={13} /> Export Orders CSV
+                </button>
+              </div>
+
+              {/* Stat Cards with period-over-period deltas */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="p-4 bg-white/[0.03] border border-white/8 rounded-xl hover:border-white/15 transition-colors duration-200">
                   <p className="text-[10px] uppercase text-white/40 font-bold tracking-wider">Total Sales Revenue</p>
                   <p className="text-2xl sm:text-3xl font-black text-emerald-400 mt-1" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
                     €{stats.totalRevenue.toFixed(2)}
                   </p>
                 </div>
-                <div className="p-4 bg-white/5 border border-white/5 rounded">
-                  <p className="text-[10px] uppercase text-white/40 font-bold tracking-wider">Orders Processed</p>
-                  <p className="text-2xl sm:text-3xl font-black text-white mt-1" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
-                    {stats.totalOrders}
-                  </p>
+                <div className="p-4 bg-white/[0.03] border border-white/8 rounded-xl hover:border-white/15 transition-colors duration-200">
+                  <p className="text-[10px] uppercase text-white/40 font-bold tracking-wider">Revenue ({trendRange})</p>
+                  <div className="flex items-end justify-between mt-1">
+                    <p className="text-2xl sm:text-3xl font-black text-white" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
+                      €{currentRangeRevenue.toFixed(2)}
+                    </p>
+                    <span className={`flex items-center gap-0.5 text-[10px] font-bold mb-1 ${revenueChangePct >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {revenueChangePct >= 0 ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
+                      {Math.abs(revenueChangePct).toFixed(1)}%
+                    </span>
+                  </div>
                 </div>
-                <div className="p-4 bg-white/5 border border-white/5 rounded">
-                  <p className="text-[10px] uppercase text-white/40 font-bold tracking-wider">Pending Reviews</p>
-                  <p className="text-2xl sm:text-3xl font-black text-amber-500 mt-1" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
-                    {stats.pendingReviews}
+                <div className="p-4 bg-white/[0.03] border border-white/8 rounded-xl hover:border-white/15 transition-colors duration-200">
+                  <p className="text-[10px] uppercase text-white/40 font-bold tracking-wider">Orders ({trendRange})</p>
+                  <div className="flex items-end justify-between mt-1">
+                    <p className="text-2xl sm:text-3xl font-black text-white" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
+                      {currentRangeOrders.length}
+                    </p>
+                    <span className={`flex items-center gap-0.5 text-[10px] font-bold mb-1 ${ordersChangePct >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {ordersChangePct >= 0 ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
+                      {Math.abs(ordersChangePct).toFixed(1)}%
+                    </span>
+                  </div>
+                </div>
+                <div className="p-4 bg-white/[0.03] border border-white/8 rounded-xl hover:border-white/15 transition-colors duration-200">
+                  <p className="text-[10px] uppercase text-white/40 font-bold tracking-wider">Avg Order Value</p>
+                  <div className="flex items-end justify-between mt-1">
+                    <p className="text-2xl sm:text-3xl font-black text-white" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
+                      €{avgOrderValue.toFixed(2)}
+                    </p>
+                    <span className={`flex items-center gap-0.5 text-[10px] font-bold mb-1 ${aovChangePct >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {aovChangePct >= 0 ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
+                      {Math.abs(aovChangePct).toFixed(1)}%
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Revenue Trend + Order Status Breakdown */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                {/* Revenue Trend Chart */}
+                <div className="lg:col-span-2 p-4 sm:p-5 bg-white/[0.03] border border-white/8 rounded-xl">
+                  <div className="flex items-start justify-between mb-1 gap-2 flex-wrap">
+                    <div>
+                      <p className="text-sm font-bold text-white">Revenue Trend</p>
+                      <p className="text-[10px] text-white/40 mt-0.5">Daily revenue from real customer orders.</p>
+                    </div>
+                    <div className="flex items-center gap-1 bg-black/40 border border-white/8 rounded-lg p-0.5">
+                      {(['7d', '30d', '90d'] as const).map((r) => (
+                        <button
+                          key={r}
+                          onClick={() => setTrendRange(r)}
+                          className={`px-2.5 py-1 text-[10px] font-bold uppercase rounded-md transition-colors cursor-pointer ${
+                            trendRange === r ? 'bg-emerald-500 text-black' : 'text-white/40 hover:text-white'
+                          }`}
+                        >
+                          {r === '7d' ? '1W' : r === '30d' ? '1M' : '3M'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="relative mt-4" style={{ height: 220 }}>
+                    {peakDay.revenue > 0 && (
+                      <div className="absolute top-0 right-0 z-10 px-3 py-1.5 rounded-lg bg-black/70 border border-emerald-500/20 text-right">
+                        <p className="text-[9px] uppercase text-white/40 tracking-wider">Peak Day</p>
+                        <p className="text-xs font-black text-emerald-400">€{peakDay.revenue.toFixed(2)} <span className="text-white/30 font-normal">· {peakDay.label}</span></p>
+                      </div>
+                    )}
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={revenueTrend} margin={{ top: 8, right: 0, left: 0, bottom: 0 }}>
+                        <defs>
+                          <linearGradient id="celtiRevenueGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#10B981" stopOpacity={0.35} />
+                            <stop offset="100%" stopColor="#10B981" stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                        <XAxis
+                          dataKey="label"
+                          tick={{ fontSize: 10, fill: 'rgba(255,255,255,0.35)' }}
+                          axisLine={false}
+                          tickLine={false}
+                          interval={trendRange === '7d' ? 0 : Math.ceil(rangeDays / 6)}
+                        />
+                        <YAxis hide />
+                        <Tooltip content={<RevenueTooltip />} />
+                        <Area type="monotone" dataKey="revenue" stroke="#10B981" strokeWidth={2} fill="url(#celtiRevenueGradient)" />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                {/* Order Status Breakdown Donut */}
+                <div className="p-4 sm:p-5 bg-white/[0.03] border border-white/8 rounded-xl flex flex-col">
+                  <p className="text-sm font-bold text-white">Order Status Breakdown</p>
+                  <p className="text-[10px] text-white/40 mt-0.5 mb-2">
+                    {currentRangeOrders.length > 0 ? `Orders in the last ${trendRange === '7d' ? '7 days' : trendRange === '30d' ? '30 days' : '90 days'}.` : 'All orders (none in range).'}
                   </p>
+
+                  <div className="relative flex-1 min-h-[160px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={statusBreakdown}
+                          dataKey="count"
+                          nameKey="status"
+                          innerRadius="62%"
+                          outerRadius="85%"
+                          paddingAngle={statusBreakdown.length > 1 ? 3 : 0}
+                          stroke="none"
+                        >
+                          {statusBreakdown.map((entry, i) => (
+                            <Cell key={i} fill={STATUS_COLORS[entry.status] || '#6B7280'} />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          content={({ active, payload }: any) =>
+                            active && payload && payload.length ? (
+                              <div className="px-3 py-2 rounded-lg border border-white/10 bg-[#0a0a0a] shadow-xl">
+                                <p className="text-xs font-bold text-white capitalize">{payload[0].payload.status}</p>
+                                <p className="text-[10px] text-white/50">{payload[0].payload.count} orders · {payload[0].payload.pct.toFixed(1)}%</p>
+                              </div>
+                            ) : null
+                          }
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    {topStatus && (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                        <p className="text-xl font-black text-white" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
+                          {topStatus.pct.toFixed(0)}%
+                        </p>
+                        <p className="text-[9px] uppercase text-white/40 tracking-wider capitalize">{topStatus.status}</p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="mt-3 space-y-1.5">
+                    {statusBreakdown.map((entry, i) => (
+                      <div key={i} className="flex items-center justify-between text-[11px]">
+                        <span className="flex items-center gap-1.5 text-white/60 capitalize">
+                          <span className="w-2 h-2 rounded-full shrink-0" style={{ background: STATUS_COLORS[entry.status] || '#6B7280' }} />
+                          {entry.status}
+                        </span>
+                        <span className="font-semibold text-white/80">{entry.pct.toFixed(1)}%</span>
+                      </div>
+                    ))}
+                    {statusBreakdown.length === 0 && (
+                      <p className="text-[11px] text-white/30">No orders yet.</p>
+                    )}
+                  </div>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="p-4 bg-white/5 border border-white/5 rounded">
+                <div className="p-4 bg-white/[0.03] border border-white/8 rounded-xl hover:border-white/15 transition-colors duration-200">
                   <p className="text-xs font-bold text-white mb-2">Awaiting Action</p>
                   <ul className="text-xs space-y-2 text-white/60">
                     <li className="flex justify-between">
@@ -679,6 +1177,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
                       <span>Unread Customer Queries</span>
                       <span className="font-semibold text-emerald-400">{stats.unreadMessages}</span>
                     </li>
+                    <li className="flex justify-between">
+                      <span>Pending Reviews</span>
+                      <span className="font-semibold text-emerald-400">{stats.pendingReviews}</span>
+                    </li>
                   </ul>
                 </div>
               </div>
@@ -687,9 +1189,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
 
           {/* TAB CONTENT: PRODUCTS (PRODUCT MANAGER) */}
           {activeTab === 'products' && (
-            <div className="space-y-8 flex-1 flex flex-col lg:flex-row gap-6 overflow-hidden min-h-0">
+            <div className="space-y-8 flex flex-col lg:flex-row gap-6 items-start">
               {/* Product Upload/Edit Form */}
-              <form onSubmit={handleAddProduct} className="w-full lg:w-96 flex flex-col gap-3 shrink-0 p-4 border border-white/5 bg-[#090909] text-xs overflow-y-auto">
+              <form onSubmit={handleAddProduct} className="w-full lg:w-96 flex flex-col gap-3 shrink-0 p-4 border border-white/8 rounded-xl bg-[#090909] text-xs lg:sticky lg:top-6">
                 <div className="flex justify-between items-center mb-1">
                   <h3 className="font-bold text-white uppercase tracking-wider">
                     {editingProduct ? 'Edit Product' : 'Add Custom Product'}
@@ -713,6 +1215,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
                       value={prodId} onChange={e => setProdId(e.target.value)}
                       className="w-full px-3 py-2 text-white bg-black border border-white/10 focus:border-emerald-500 outline-none"
                     />
+                    <p className="mt-1 text-[9px] text-white/30">
+                      Will be saved as:{' '}
+                      <span className="text-emerald-400 font-mono">
+                        {slugifyPreview(prodId) || slugifyPreview(prodName) || '(enter a name or ID)'}
+                      </span>
+                      {' '}— letters, numbers and hyphens only, enforced by the server either way.
+                    </p>
                   </div>
                 )}
                 
@@ -869,7 +1378,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
                   <div>
                     <label className="block text-[9px] uppercase text-white/40 mb-1">Stock Quantity</label>
                     <input
-                      type="number" placeholder="100"
+                      type="number" min="0" placeholder="100"
                       value={prodStock} onChange={e => setProdStock(e.target.value)}
                       className="w-full px-3 py-2 text-white bg-black border border-white/10 focus:border-emerald-500 outline-none"
                     />
@@ -914,10 +1423,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
               </form>
 
               {/* Product list */}
-              <div className="flex-1 overflow-y-auto space-y-3 min-h-0 pr-1">
+              <div className="flex-1 space-y-3 w-full">
                 <h3 className="font-bold text-xs uppercase tracking-wider text-white mb-2">Current Catalog ({products.length})</h3>
                 {products.length === 0 ? (
-                  <p className="text-xs text-white/30 italic">No products found.</p>
+                  <div className="flex flex-col items-center justify-center py-14 sm:py-20 text-center gap-2.5">
+                    <Database size={28} className="text-white/15" />
+                    <p className="text-xs text-white/30 italic">No products found.</p>
+                  </div>
                 ) : (
                   products.map((p) => {
                     const isLowStock = (p.stockQuantity ?? 0) <= (p.lowStockThreshold ?? 5);
@@ -969,9 +1481,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
 
           {/* TAB CONTENT: CATEGORIES (CATEGORY MANAGER) */}
           {activeTab === 'categories' && (
-            <div className="space-y-8 flex-1 flex flex-col lg:flex-row gap-6 overflow-hidden min-h-0">
+            <div className="space-y-8 flex flex-col lg:flex-row gap-6 items-start">
               {/* Category Upload/Edit Form */}
-              <form onSubmit={handleAddCategory} className="w-full lg:w-96 flex flex-col gap-3 shrink-0 p-4 border border-white/5 bg-[#090909] text-xs overflow-y-auto">
+              <form onSubmit={handleAddCategory} className="w-full lg:w-96 flex flex-col gap-3 shrink-0 p-4 border border-white/8 rounded-xl bg-[#090909] text-xs lg:sticky lg:top-6">
                 <div className="flex justify-between items-center mb-1">
                   <h3 className="font-bold text-white uppercase tracking-wider">
                     {editingCategory ? 'Edit Category' : 'Create New Category'}
@@ -1129,10 +1641,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
               </form>
 
               {/* Category list */}
-              <div className="flex-1 overflow-y-auto space-y-3 min-h-0 pr-1">
+              <div className="flex-1 space-y-3 w-full">
                 <h3 className="font-bold text-xs uppercase tracking-wider text-white mb-2">Category Configurations ({categories.length})</h3>
                 {categories.length === 0 ? (
-                  <p className="text-xs text-white/30 italic">No categories found in database.</p>
+                  <div className="flex flex-col items-center justify-center py-14 sm:py-20 text-center gap-2.5">
+                    <Layers size={28} className="text-white/15" />
+                    <p className="text-xs text-white/30 italic">No categories found in database.</p>
+                  </div>
                 ) : (
                   categories.map((c) => {
                     const cardImg = c.card_image || c.cardImage || c.image || "";
@@ -1175,35 +1690,90 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
 
           {/* TAB CONTENT: REVIEWS */}
           {activeTab === 'reviews' && (
-            <div className="space-y-4 flex-1 overflow-y-auto min-h-0 pr-1">
+            <div className="space-y-4">
+              {/* Filters */}
+              <div className="flex flex-wrap gap-2">
+                <input
+                  type="text"
+                  placeholder="Filter by Product ID"
+                  value={reviewFilters.productId}
+                  onChange={(e) => setReviewFilters(f => ({ ...f, productId: e.target.value }))}
+                  className="px-2 py-1.5 text-[11px] text-white border border-white/10 bg-black outline-none w-40"
+                />
+                <select
+                  value={reviewFilters.rating}
+                  onChange={(e) => setReviewFilters(f => ({ ...f, rating: e.target.value }))}
+                  className="px-2 py-1.5 text-[11px] text-white border border-white/10 bg-black outline-none cursor-pointer"
+                >
+                  <option value="">All Ratings</option>
+                  {[5, 4, 3, 2, 1].map(r => <option key={r} value={r}>{r}★</option>)}
+                </select>
+                <select
+                  value={reviewFilters.status}
+                  onChange={(e) => setReviewFilters(f => ({ ...f, status: e.target.value }))}
+                  className="px-2 py-1.5 text-[11px] text-white border border-white/10 bg-black outline-none cursor-pointer"
+                >
+                  <option value="">All Statuses</option>
+                  <option value="pending">Pending</option>
+                  <option value="approved">Approved</option>
+                  <option value="rejected">Rejected</option>
+                </select>
+                {(reviewFilters.productId || reviewFilters.rating || reviewFilters.status) && (
+                  <button
+                    onClick={() => setReviewFilters({ productId: '', rating: '', status: '' })}
+                    className="px-2 py-1.5 text-[11px] text-white/40 hover:text-white cursor-pointer"
+                  >
+                    Clear Filters
+                  </button>
+                )}
+              </div>
+
               {reviews.length === 0 ? (
-                <p className="text-xs text-white/30 italic">No reviews logged in database.</p>
+                <div className="flex flex-col items-center justify-center py-14 sm:py-20 text-center gap-2.5">
+                    <Star size={28} className="text-white/15" />
+                    <p className="text-xs text-white/30 italic">No reviews match these filters.</p>
+                  </div>
               ) : (
                 reviews.map((rev) => (
-                  <div key={rev.id} className="p-4 bg-white/5 border border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-white">{rev.username}</span>
-                        <span className="text-[10px] text-white/30">on Product ID: {rev.product_id}</span>
-                        <span className={`px-2 py-0.5 rounded-full text-[9px] uppercase font-bold ${
-                          rev.status === 'approved' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/25' :
-                          rev.status === 'rejected' ? 'bg-red-500/10 text-red-400 border border-red-500/25' :
-                          'bg-amber-500/10 text-amber-400 border border-amber-500/25'
-                        }`}>
-                          {rev.status}
-                        </span>
+                  <div key={rev.id} className="p-4 bg-white/5 border border-white/5 flex flex-col gap-3 text-xs">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-bold text-white">{rev.reviewerName}</span>
+                          <span className="text-[10px] text-white/30">
+                            {rev.productName ? rev.productName : `Product ID: ${rev.productId}`} · Order #{rev.orderId}
+                          </span>
+                          {rev.isVerifiedPurchase && (
+                            <span className="px-1.5 py-0.5 rounded-sm text-[8px] uppercase font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/25">
+                              Verified Purchase
+                            </span>
+                          )}
+                          <span className={`px-2 py-0.5 rounded-full text-[9px] uppercase font-bold ${
+                            rev.status === 'approved' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/25' :
+                            rev.status === 'rejected' ? 'bg-red-500/10 text-red-400 border border-red-500/25' :
+                            'bg-amber-500/10 text-amber-400 border border-amber-500/25'
+                          }`}>
+                            {rev.status}
+                          </span>
+                        </div>
+                        <div className="flex gap-0.5">
+                          {[1,2,3,4,5].map(star => (
+                            <Star key={star} size={10} fill={star <= rev.rating ? "#D4AF37" : "none"} stroke={star <= rev.rating ? "#D4AF37" : "white"} opacity={star <= rev.rating ? 1 : 0.2} />
+                          ))}
+                        </div>
+                        <p className="font-bold text-white/70">{rev.title}</p>
+                        <p className="text-white/60 leading-relaxed max-w-xl">{rev.review}</p>
+                        {rev.images && rev.images.length > 0 && (
+                          <div className="flex gap-1.5 flex-wrap pt-1">
+                            {rev.images.map((url, i) => (
+                              <img key={i} src={url} alt="" className="w-12 h-12 object-cover rounded-sm border border-white/10" />
+                            ))}
+                          </div>
+                        )}
                       </div>
-                      <div className="flex gap-0.5">
-                        {[1,2,3,4,5].map(star => (
-                          <Star key={star} size={10} fill={star <= rev.rating ? "#D4AF37" : "none"} stroke={star <= rev.rating ? "#D4AF37" : "white"} opacity={star <= rev.rating ? 1 : 0.2} />
-                        ))}
-                      </div>
-                      <p className="text-white/60 leading-relaxed max-w-xl">{rev.comment}</p>
-                    </div>
 
-                    <div className="flex items-center gap-2 self-end sm:self-center">
-                      {rev.status === 'pending' && (
-                        <>
+                      <div className="flex items-center gap-2 self-end sm:self-start">
+                        {rev.status !== 'approved' && (
                           <button
                             onClick={() => handleApproveReview(rev.id)}
                             className="p-1.5 text-emerald-400 hover:bg-emerald-500/10 rounded cursor-pointer"
@@ -1211,6 +1781,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
                           >
                             <CheckCircle2 size={16} />
                           </button>
+                        )}
+                        {rev.status !== 'rejected' && (
                           <button
                             onClick={() => handleRejectReview(rev.id)}
                             className="p-1.5 text-red-400 hover:bg-red-500/10 rounded cursor-pointer"
@@ -1218,15 +1790,41 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
                           >
                             <XCircle size={16} />
                           </button>
-                        </>
+                        )}
+                        <button
+                          onClick={() => handleDeleteReview(rev.id)}
+                          className="p-1.5 text-white/30 hover:text-red-400 cursor-pointer"
+                          title="Delete Review"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Admin reply */}
+                    <div className="border-t border-white/5 pt-3">
+                      {rev.adminReply ? (
+                        <div className="pl-3 border-l-2 border-emerald-500/40">
+                          <p className="text-[9px] font-bold uppercase tracking-wide text-white/40 mb-0.5">Your Reply</p>
+                          <p className="text-white/60">{rev.adminReply}</p>
+                        </div>
+                      ) : (
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            placeholder="Reply to this customer..."
+                            value={replyDrafts[rev.id] || ''}
+                            onChange={(e) => setReplyDrafts(prev => ({ ...prev, [rev.id]: e.target.value }))}
+                            className="flex-1 px-2 py-1.5 text-[11px] text-white border border-white/10 bg-black outline-none"
+                          />
+                          <button
+                            onClick={() => handleReplyToReview(rev.id)}
+                            className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 cursor-pointer"
+                          >
+                            Reply
+                          </button>
+                        </div>
                       )}
-                      <button
-                        onClick={() => handleDeleteReview(rev.id)}
-                        className="p-1.5 text-white/30 hover:text-red-400 cursor-pointer"
-                        title="Delete Review"
-                      >
-                        <Trash2 size={14} />
-                      </button>
                     </div>
                   </div>
                 ))
@@ -1236,8 +1834,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
 
           {/* TAB CONTENT: COUPONS */}
           {activeTab === 'coupons' && (
-            <div className="space-y-6 flex-1 flex flex-col lg:flex-row gap-6 overflow-hidden min-h-0">
-              <form onSubmit={handleAddCoupon} className="w-full lg:w-72 p-4 border border-white/5 bg-[#090909] text-xs shrink-0 flex flex-col gap-3">
+            <div className="space-y-6 flex flex-col lg:flex-row gap-6 items-start">
+              <form onSubmit={handleAddCoupon} className="w-full lg:w-72 p-4 border border-white/8 rounded-xl bg-[#090909] text-xs shrink-0 flex flex-col gap-3 lg:sticky lg:top-6">
                 <h3 className="font-bold text-white uppercase tracking-wider mb-1">Create Coupon Code</h3>
                 <div>
                   <label className="block text-[9px] uppercase text-white/40 mb-1">Coupon Code</label>
@@ -1265,10 +1863,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
                 </button>
               </form>
 
-              <div className="flex-1 overflow-y-auto space-y-3 min-h-0 pr-1">
+              <div className="flex-1 space-y-3 w-full">
                 <h3 className="font-bold text-xs uppercase tracking-wider text-white mb-2">Available Coupons ({coupons.length})</h3>
                 {coupons.length === 0 ? (
-                  <p className="text-xs text-white/30 italic">No coupons created.</p>
+                  <div className="flex flex-col items-center justify-center py-14 sm:py-20 text-center gap-2.5">
+                    <Award size={28} className="text-white/15" />
+                    <p className="text-xs text-white/30 italic">No coupons created.</p>
+                  </div>
                 ) : (
                   coupons.map((c) => (
                     <div key={c.id} className="flex justify-between items-center p-3 bg-white/5 border border-white/5 text-xs">
@@ -1290,186 +1891,615 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
 
           {/* TAB CONTENT: NUTRITION REQUESTS */}
           {activeTab === 'nutrition' && (
-            <div className="space-y-4 flex-1 overflow-y-auto min-h-0 pr-1">
+            <div className="nutri-scope space-y-6">
+              <style>{`
+                .nutri-scope {
+                  --nu-void: #050706;
+                  --nu-emerald: #10B981;
+                  --nu-emerald-soft: rgba(16,185,129,0.10);
+                  --nu-gold: #C9A961;
+                  --nu-gold-soft: rgba(201,169,97,0.35);
+                  --nu-cream: #F5F2EA;
+                }
+                .nutri-scope .nu-serif { font-family: 'Fraunces', 'Barlow Condensed', serif; }
+                .nutri-scope .nu-card {
+                  background: linear-gradient(160deg, rgba(255,255,255,0.035) 0%, rgba(0,0,0,0.25) 100%);
+                  border: 1px solid rgba(16,185,129,0.14);
+                  border-radius: 14px;
+                  position: relative;
+                  overflow: hidden;
+                  transition: border-color 0.25s ease, transform 0.25s ease;
+                }
+                .nutri-scope .nu-card::before {
+                  content: '';
+                  position: absolute; top: 0; left: 20px; right: 20px; height: 1px;
+                  background: linear-gradient(90deg, transparent, var(--nu-gold), transparent);
+                  opacity: 0.55;
+                }
+                .nutri-scope .nu-card:hover { border-color: rgba(16,185,129,0.32); }
+                .nutri-scope .nu-stat-card {
+                  background: linear-gradient(160deg, rgba(255,255,255,0.04) 0%, rgba(0,0,0,0.2) 100%);
+                  border: 1px solid rgba(255,255,255,0.07);
+                  border-radius: 12px;
+                  position: relative;
+                  overflow: hidden;
+                }
+                .nutri-scope .nu-stat-card::after {
+                  content: '';
+                  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+                  background: linear-gradient(90deg, var(--nu-emerald), var(--nu-gold));
+                  opacity: 0.7;
+                }
+                .nutri-scope .nu-avatar {
+                  background: conic-gradient(from 220deg, var(--nu-emerald), var(--nu-gold), var(--nu-emerald));
+                  padding: 2px;
+                  border-radius: 999px;
+                }
+                .nutri-scope .nu-avatar-inner {
+                  width: 100%; height: 100%; border-radius: 999px;
+                  background: #06110d;
+                  display: flex; align-items: center; justify-content: center;
+                }
+                .nutri-scope .nu-field {
+                  background: rgba(16,185,129,0.04);
+                  border: 1px solid rgba(16,185,129,0.14);
+                  border-radius: 10px;
+                  transition: all 0.25s ease;
+                }
+                .nutri-scope .nu-field:hover { border-color: rgba(16,185,129,0.28); }
+                .nutri-scope .nu-notes-panel {
+                  background: rgba(16,185,129,0.03);
+                  border: 1px solid rgba(16,185,129,0.16);
+                  border-radius: 12px;
+                  overflow: hidden;
+                  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+                }
+                .nutri-scope .nu-notes-panel:focus-within {
+                  border-color: var(--nu-gold);
+                  box-shadow: 0 0 0 3px rgba(201,169,97,0.1);
+                }
+                .nutri-scope .nu-notes-textarea {
+                  background: transparent;
+                  border: none;
+                  font-family: 'DM Sans', sans-serif;
+                }
+                .nutri-scope .nu-notes-textarea::placeholder { color: rgba(255,255,255,0.22); }
+                .nutri-scope .nu-notes-footer {
+                  background: rgba(0,0,0,0.22);
+                  border-top: 1px solid rgba(255,255,255,0.05);
+                }
+                .nutri-scope .nu-btn-gold {
+                  font-family: 'Barlow Condensed', sans-serif;
+                  letter-spacing: 0.14em;
+                  text-transform: uppercase;
+                  font-weight: 700;
+                  background: linear-gradient(135deg, #10B981 0%, #067A56 100%);
+                  color: #04120C;
+                  border: 1px solid rgba(16,185,129,0.5);
+                  transition: all 0.3s cubic-bezier(.2,.8,.2,1);
+                }
+                .nutri-scope .nu-btn-gold:hover {
+                  transform: translateY(-1px);
+                  box-shadow: 0 8px 26px rgba(16,185,129,0.3);
+                }
+                .nutri-scope .nu-btn-ghost-notes {
+                  font-family: 'Barlow Condensed', sans-serif;
+                  letter-spacing: 0.1em;
+                  text-transform: uppercase;
+                  font-weight: 700;
+                  background: transparent;
+                  border: 1px solid var(--nu-gold-soft);
+                  color: var(--nu-gold);
+                  transition: all 0.25s ease;
+                }
+                .nutri-scope .nu-btn-ghost-notes:hover {
+                  background: rgba(201,169,97,0.1);
+                  border-color: var(--nu-gold);
+                }
+                .nutri-scope .nu-chip {
+                  font-family: 'Barlow Condensed', sans-serif;
+                  letter-spacing: 0.12em;
+                }
+              `}</style>
+
+              {/* ---------- Summary Cards ---------- */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="nu-stat-card p-4 sm:p-5">
+                  <p className="text-[10px] uppercase text-white/40 font-bold tracking-[0.18em]">Total Requests</p>
+                  <p className="nu-serif text-white mt-1.5" style={{ fontSize: '1.9rem', fontWeight: 500 }}>
+                    {nutrition.length}
+                  </p>
+                </div>
+                <div className="nu-stat-card p-4 sm:p-5">
+                  <p className="text-[10px] uppercase text-white/40 font-bold tracking-[0.18em]">Pending Review</p>
+                  <p className="nu-serif text-amber-400 mt-1.5" style={{ fontSize: '1.9rem', fontWeight: 500 }}>
+                    {nutritionStatusCounts.pending}
+                  </p>
+                </div>
+                <div className="nu-stat-card p-4 sm:p-5">
+                  <p className="text-[10px] uppercase text-white/40 font-bold tracking-[0.18em]">Completed</p>
+                  <p className="nu-serif mt-1.5" style={{ fontSize: '1.9rem', fontWeight: 500, color: 'var(--nu-emerald)' }}>
+                    {nutritionStatusCounts.completed}
+                  </p>
+                </div>
+                <div className="nu-stat-card p-4 sm:p-5">
+                  <p className="text-[10px] uppercase text-white/40 font-bold tracking-[0.18em]">Cancelled</p>
+                  <p className="nu-serif text-red-400 mt-1.5" style={{ fontSize: '1.9rem', fontWeight: 500 }}>
+                    {nutritionStatusCounts.cancelled}
+                  </p>
+                </div>
+              </div>
+
+              {/* ---------- Search + Status Filter Bar ---------- */}
+              <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between p-4 nu-card">
+                <div className="relative flex-1 sm:max-w-xs">
+                  <Search size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30" />
+                  <input
+                    type="text"
+                    value={nutritionSearch}
+                    onChange={(e) => setNutritionSearch(e.target.value)}
+                    placeholder="Search name, email, or goal..."
+                    className="nu-field w-full pl-9 pr-3 py-2.5 text-xs text-white outline-none"
+                  />
+                </div>
+                <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide">
+                  <Filter size={12} className="text-[var(--nu-gold)] shrink-0" />
+                  {(['', 'pending', 'completed', 'cancelled'] as const).map((s) => (
+                    <button
+                      key={s || 'all'}
+                      onClick={() => setNutritionStatusFilter(s)}
+                      className={`nu-chip px-3 py-1.5 text-[10px] font-bold uppercase rounded-full whitespace-nowrap transition-colors cursor-pointer border ${
+                        nutritionStatusFilter === s
+                          ? 'bg-emerald-500 text-black border-emerald-500'
+                          : 'text-white/50 border-white/10 hover:text-white hover:border-white/25'
+                      }`}
+                    >
+                      {s === '' ? 'All' : s}
+                      {s !== '' && <span className="ml-1 opacity-70">({nutritionStatusCounts[s] || 0})</span>}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* ---------- Requests List ---------- */}
               {nutrition.length === 0 ? (
-                <p className="text-xs text-white/30 italic">No nutrition consultations requested.</p>
+                <div className="flex flex-col items-center justify-center py-16 sm:py-24 text-center gap-3 nu-card">
+                  <Leaf size={30} className="text-[var(--nu-gold)]/40" />
+                  <p className="nu-serif text-white/50 text-sm">No nutrition consultations requested yet.</p>
+                </div>
+              ) : filteredNutrition.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 sm:py-24 text-center gap-3 nu-card">
+                  <Search size={28} className="text-white/15" />
+                  <p className="text-xs text-white/30 italic">No requests match your search or filter.</p>
+                  <button
+                    onClick={() => { setNutritionSearch(''); setNutritionStatusFilter(''); }}
+                    className="text-[10px] uppercase font-bold text-emerald-400 hover:text-emerald-300 cursor-pointer mt-1"
+                  >
+                    Clear search & filters
+                  </button>
+                </div>
               ) : (
-                nutrition.map((req) => (
-                  <div key={req.id} className="p-4 bg-white/5 border border-white/5 rounded space-y-3 text-xs">
-                    <div className="flex flex-wrap justify-between items-center gap-2 pb-2 border-b border-white/5">
-                      <div>
-                        <span className="font-bold text-white">{req.name}</span>
-                        <span className="text-white/40 ml-2">({req.email})</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <select
-                          value={req.status}
-                          onChange={(e) => handleUpdateNutritionStatus(req.id, e.target.value as any)}
-                          className="bg-black border border-white/10 px-2 py-1 text-xs text-white outline-none"
-                        >
-                          <option value="pending">Pending Review</option>
-                          <option value="completed">Completed</option>
-                          <option value="cancelled">Cancelled</option>
-                        </select>
-                      </div>
-                    </div>
+                <div className="space-y-4">
+                  {filteredNutrition.map((req) => {
+                    const dotColor = NUTRITION_STATUS_COLORS[req.status] || '#6B7280';
+                    return (
+                      <div key={req.id} className="nu-card p-4 sm:p-6 space-y-5 text-xs">
+                        {/* Header row */}
+                        <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-white/5">
+                          <div className="flex items-center gap-3.5 min-w-0">
+                            <div className="nu-avatar w-11 h-11 shrink-0">
+                              <div className="nu-avatar-inner">
+                                <span className="nu-serif text-white text-[13px]" style={{ fontWeight: 500 }}>
+                                  {getInitials(req.name)}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="nu-serif text-white truncate" style={{ fontSize: '1.05rem', fontWeight: 500 }}>
+                                  {req.name}
+                                </span>
+                                <span
+                                  className="nu-chip px-2 py-0.5 rounded-full text-[9px] uppercase font-bold border"
+                                  style={{ color: dotColor, borderColor: `${dotColor}40`, background: `${dotColor}1A` }}
+                                >
+                                  {req.status === 'pending' ? 'Pending Review' : req.status}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-1.5 text-white/40 mt-1">
+                                <Mail size={10} className="shrink-0 text-[var(--nu-gold)]" />
+                                <span className="truncate">{req.email}</span>
+                              </div>
+                            </div>
+                          </div>
 
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-3 bg-black/30 rounded border border-white/5">
-                      <div>
-                        <p className="text-[9px] uppercase text-white/40 font-bold mb-0.5">Phone</p>
-                        <p className="text-white font-semibold">{req.phone || 'N/A'}</p>
-                      </div>
-                      <div>
-                        <p className="text-[9px] uppercase text-white/40 font-bold mb-0.5">Age / Gender</p>
-                        <p className="text-white font-semibold">{req.age || 'N/A'} yrs / {req.gender || 'N/A'}</p>
-                      </div>
-                      <div>
-                        <p className="text-[9px] uppercase text-white/40 font-bold mb-0.5">Weight / Height</p>
-                        <p className="text-white font-semibold">{req.weight || 'N/A'} kg / {req.height || 'N/A'} cm</p>
-                      </div>
-                      <div>
-                        <p className="text-[9px] uppercase text-white/40 font-bold mb-0.5">Diet Preference</p>
-                        <p className="text-emerald-400 font-semibold">{req.diet_preference || 'N/A'}</p>
-                      </div>
-                      <div>
-                        <p className="text-[9px] uppercase text-white/40 font-bold mb-0.5">Fitness Goal</p>
-                        <p className="text-emerald-400 font-semibold">{req.goal || 'N/A'}</p>
-                      </div>
-                      <div>
-                        <p className="text-[9px] uppercase text-white/40 font-bold mb-0.5">Activity Level</p>
-                        <p className="text-white font-semibold">{req.activity_level || 'N/A'}</p>
-                      </div>
-                      <div className="col-span-2 sm:col-span-2">
-                        <p className="text-[9px] uppercase text-white/40 font-bold mb-0.5">Medical Conditions</p>
-                        <p className="text-red-400/90 whitespace-pre-wrap">{req.medical_conditions || 'None stated'}</p>
-                      </div>
-                    </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <div className="relative">
+                              <div className="flex items-stretch rounded-lg overflow-hidden">
+                                <a
+                                  href={buildGmailComposeUrl(req)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="nu-btn-gold flex items-center gap-1.5 px-3.5 py-2 text-[10px] cursor-pointer rounded-l-lg"
+                                  title={`Compose email to ${req.name} in Gmail`}
+                                >
+                                  <Send size={12} /> Reply via Email
+                                </a>
+                                <button
+                                  type="button"
+                                  onClick={() => setEmailMenuOpenId((prev) => (prev === req.id ? null : req.id))}
+                                  className="nu-btn-gold flex items-center px-1.5 border-l border-black/15 cursor-pointer rounded-r-lg"
+                                  title="More email options"
+                                >
+                                  <ChevronDown size={13} className={`transition-transform ${emailMenuOpenId === req.id ? 'rotate-180' : ''}`} />
+                                </button>
+                              </div>
 
-                    {req.notes && (
-                      <div className="space-y-1">
-                        <p className="text-[10px] uppercase text-white/40 font-bold">Customer Additional Notes</p>
-                        <p className="text-white/70 leading-relaxed font-light whitespace-pre-wrap">{req.notes}</p>
-                      </div>
-                    )}
+                              {emailMenuOpenId === req.id && (
+                                <>
+                                  <div className="fixed inset-0 z-10" onClick={() => setEmailMenuOpenId(null)} />
+                                  <div className="absolute right-0 mt-1.5 w-56 bg-[#0a0f0c] border border-emerald-500/20 rounded-lg shadow-2xl z-20 overflow-hidden py-1">
+                                    <a
+                                      href={buildGmailComposeUrl(req)}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      onClick={() => setEmailMenuOpenId(null)}
+                                      className="flex items-center gap-2 px-3 py-2 text-[11px] text-white/80 hover:bg-emerald-500/5 hover:text-white cursor-pointer"
+                                    >
+                                      <ExternalLink size={12} className="text-[var(--nu-gold)] shrink-0" /> Open in Gmail
+                                    </a>
+                                    <a
+                                      href={buildOutlookComposeUrl(req)}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      onClick={() => setEmailMenuOpenId(null)}
+                                      className="flex items-center gap-2 px-3 py-2 text-[11px] text-white/80 hover:bg-emerald-500/5 hover:text-white cursor-pointer"
+                                    >
+                                      <ExternalLink size={12} className="text-[var(--nu-gold)] shrink-0" /> Open in Outlook Web
+                                    </a>
+                                    <a
+                                      href={buildMailtoUrl(req)}
+                                      onClick={() => setEmailMenuOpenId(null)}
+                                      className="flex items-center gap-2 px-3 py-2 text-[11px] text-white/80 hover:bg-emerald-500/5 hover:text-white cursor-pointer"
+                                    >
+                                      <Mail size={12} className="text-[var(--nu-gold)] shrink-0" /> Open in Default Mail App
+                                    </a>
+                                    <div className="border-t border-white/5 my-1" />
+                                    <button
+                                      type="button"
+                                      onClick={() => { handleCopyEmail(req.email); setEmailMenuOpenId(null); }}
+                                      className="w-full flex items-center gap-2 px-3 py-2 text-[11px] text-white/80 hover:bg-emerald-500/5 hover:text-white cursor-pointer text-left"
+                                    >
+                                      {copiedEmail === req.email ? (
+                                        <Check size={12} className="text-emerald-400 shrink-0" />
+                                      ) : (
+                                        <Copy size={12} className="text-[var(--nu-gold)] shrink-0" />
+                                      )}
+                                      Copy Email Address
+                                    </button>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                            <select
+                              value={req.status}
+                              onChange={(e) => handleUpdateNutritionStatus(req.id, e.target.value as any)}
+                              className="nu-field px-2.5 py-2 text-[11px] font-semibold text-white outline-none cursor-pointer"
+                            >
+                              <option value="pending">Pending Review</option>
+                              <option value="completed">Completed</option>
+                              <option value="cancelled">Cancelled</option>
+                            </select>
+                            <button
+                              onClick={() => handleDeleteNutrition(req.id)}
+                              className="p-2 text-white/30 hover:text-red-400 hover:bg-red-500/10 rounded-lg cursor-pointer transition-colors"
+                              title="Delete Request"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </div>
 
-                    <div className="pt-2">
-                      <label className="block text-[10px] uppercase text-white/40 font-bold mb-1">Advisor Notes (Admin Only)</label>
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          key={`${req.id}-${req.admin_notes}`}
-                          defaultValue={req.admin_notes || ''}
-                          onBlur={(e) => handleSaveNutritionNotes(req.id, e.target.value)}
-                          placeholder="e.g. Recommended Whey + Creatine cycle plan..."
-                          className="flex-1 px-3 py-1.5 text-xs text-white bg-black border border-white/10 focus:border-emerald-500 outline-none"
-                        />
-                        <button
-                          onClick={(e) => {
-                            const input = e.currentTarget.previousElementSibling as HTMLInputElement;
-                            handleSaveNutritionNotes(req.id, input.value);
-                          }}
-                          className="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white cursor-pointer"
-                        >
-                          Save Notes
-                        </button>
+                        {/* Profile stat grid */}
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                          <div className="nu-field p-2.5">
+                            <p className="text-[9px] uppercase text-[var(--nu-gold)]/80 font-bold mb-1 flex items-center gap-1"><Phone size={10} /> Phone</p>
+                            <p className="text-white font-semibold truncate">{req.phone || 'N/A'}</p>
+                          </div>
+                          <div className="nu-field p-2.5">
+                            <p className="text-[9px] uppercase text-[var(--nu-gold)]/80 font-bold mb-1 flex items-center gap-1"><Cake size={10} /> Age / Gender</p>
+                            <p className="text-white font-semibold">{req.age || 'N/A'} yrs · {req.gender || 'N/A'}</p>
+                          </div>
+                          <div className="nu-field p-2.5">
+                            <p className="text-[9px] uppercase text-[var(--nu-gold)]/80 font-bold mb-1 flex items-center gap-1"><Scale size={10} /> Weight / Height</p>
+                            <p className="text-white font-semibold">{req.weight || 'N/A'} kg · {req.height || 'N/A'} cm</p>
+                          </div>
+                          <div className="nu-field p-2.5">
+                            <p className="text-[9px] uppercase text-[var(--nu-gold)]/80 font-bold mb-1 flex items-center gap-1"><Utensils size={10} /> Diet Pref.</p>
+                            <p className="font-semibold truncate" style={{ color: 'var(--nu-emerald)' }}>{req.diet_preference || 'N/A'}</p>
+                          </div>
+                          <div className="nu-field p-2.5">
+                            <p className="text-[9px] uppercase text-[var(--nu-gold)]/80 font-bold mb-1 flex items-center gap-1"><Award size={10} /> Fitness Goal</p>
+                            <p className="font-semibold truncate" style={{ color: 'var(--nu-emerald)' }}>{req.goal || 'N/A'}</p>
+                          </div>
+                          <div className="nu-field p-2.5">
+                            <p className="text-[9px] uppercase text-[var(--nu-gold)]/80 font-bold mb-1 flex items-center gap-1"><Activity size={10} /> Activity</p>
+                            <p className="text-white font-semibold truncate">{req.activity_level || 'N/A'}</p>
+                          </div>
+                        </div>
+
+                        {/* Medical conditions callout */}
+                        <div className={`p-3 rounded-lg border flex items-start gap-2.5 ${
+                          req.medical_conditions ? 'bg-red-500/5 border-red-500/20' : 'bg-white/[0.02] border-white/5'
+                        }`}>
+                          <AlertTriangle size={13} className={`shrink-0 mt-0.5 ${req.medical_conditions ? 'text-red-400' : 'text-white/25'}`} />
+                          <div>
+                            <p className="text-[9px] uppercase text-white/40 font-bold mb-0.5 tracking-wider">Medical Conditions</p>
+                            <p className={`whitespace-pre-wrap ${req.medical_conditions ? 'text-red-400/90' : 'text-white/35'}`}>
+                              {req.medical_conditions || 'None stated'}
+                            </p>
+                          </div>
+                        </div>
+
+                        {req.notes && (
+                          <div className="space-y-1 pl-3.5" style={{ borderLeft: '2px solid var(--nu-gold-soft)' }}>
+                            <p className="text-[9px] uppercase text-[var(--nu-gold)] font-bold tracking-wider">Customer Additional Notes</p>
+                            <p className="text-white/65 leading-relaxed font-light whitespace-pre-wrap">{req.notes}</p>
+                          </div>
+                        )}
+
+                        <div className="pt-1 nu-notes-block">
+                          <label className="flex items-center gap-1.5 text-[9px] uppercase text-[var(--nu-gold)] font-bold mb-2 tracking-wider">
+                            <Edit2 size={10} /> Advisor Notes (Admin Only)
+                          </label>
+                          <div className="nu-notes-panel">
+                            <textarea
+                              rows={3}
+                              key={`${req.id}-${req.admin_notes}`}
+                              defaultValue={req.admin_notes || ''}
+                              onBlur={(e) => handleSaveNutritionNotes(req.id, e.target.value)}
+                              placeholder="e.g. Recommended Whey + Creatine cycle, daily calorie target, macro split..."
+                              className="nu-notes-textarea w-full px-3.5 py-3 text-xs text-white/85 outline-none resize-none leading-relaxed"
+                            />
+                            <div className="nu-notes-footer flex items-center justify-between px-3.5 py-2">
+                              <span className="text-[9px] text-white/25 italic">Saves automatically when you click away</span>
+                              <button
+                                onClick={(e) => {
+                                  const wrapper = e.currentTarget.closest('.nu-notes-block');
+                                  const textarea = wrapper?.querySelector('textarea');
+                                  if (textarea) handleSaveNutritionNotes(req.id, textarea.value);
+                                }}
+                                className="nu-btn-ghost-notes px-4 py-1.5 text-[10px] rounded-md cursor-pointer whitespace-nowrap"
+                              >
+                                Save Notes
+                              </button>
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                ))
+                    );
+                  })}
+                </div>
               )}
             </div>
           )}
 
           {/* TAB CONTENT: ORDERS */}
           {activeTab === 'orders' && (
-            <div className="space-y-4 flex-1 overflow-y-auto min-h-0 pr-1">
+            <div className="space-y-5">
+              {/* Order Summary Cards */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="p-4 bg-white/[0.03] border border-white/8 rounded-xl hover:border-white/15 transition-colors duration-200">
+                  <p className="text-[10px] uppercase text-white/40 font-bold tracking-wider">Total Orders</p>
+                  <p className="text-2xl sm:text-3xl font-black text-white mt-1" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
+                    {orders.length}
+                  </p>
+                </div>
+                <div className="p-4 bg-white/[0.03] border border-white/8 rounded-xl hover:border-white/15 transition-colors duration-200">
+                  <p className="text-[10px] uppercase text-white/40 font-bold tracking-wider">Total Revenue</p>
+                  <p className="text-2xl sm:text-3xl font-black text-emerald-400 mt-1" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
+                    €{ordersTotalRevenue.toFixed(2)}
+                  </p>
+                </div>
+                <div className="p-4 bg-white/[0.03] border border-white/8 rounded-xl hover:border-white/15 transition-colors duration-200">
+                  <p className="text-[10px] uppercase text-white/40 font-bold tracking-wider">Needs Action</p>
+                  <p className="text-2xl sm:text-3xl font-black text-amber-400 mt-1" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
+                    {orderStatusCounts.pending + orderStatusCounts.processing}
+                  </p>
+                </div>
+                <div className="p-4 bg-white/[0.03] border border-white/8 rounded-xl hover:border-white/15 transition-colors duration-200">
+                  <p className="text-[10px] uppercase text-white/40 font-bold tracking-wider">Unpaid Orders</p>
+                  <p className="text-2xl sm:text-3xl font-black text-red-400 mt-1" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
+                    {unpaidOrdersCount}
+                  </p>
+                </div>
+              </div>
+
+              {/* Search + Status Filter Bar */}
+              <div className="flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between p-3 bg-white/[0.03] border border-white/8 rounded-xl">
+                <div className="relative flex-1 sm:max-w-xs">
+                  <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
+                  <input
+                    type="text"
+                    value={orderSearch}
+                    onChange={(e) => setOrderSearch(e.target.value)}
+                    placeholder="Search order #, customer, email..."
+                    className="w-full pl-8 pr-3 py-2 text-xs text-white bg-black border border-white/10 focus:border-emerald-500 outline-none rounded-lg"
+                  />
+                </div>
+                <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide">
+                  <Filter size={12} className="text-white/30 shrink-0" />
+                  {(['', 'pending', 'processing', 'shipped', 'delivered', 'cancelled'] as const).map((s) => (
+                    <button
+                      key={s || 'all'}
+                      onClick={() => setOrderStatusFilter(s)}
+                      className={`px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wide rounded-lg whitespace-nowrap transition-colors cursor-pointer border ${
+                        orderStatusFilter === s
+                          ? 'bg-emerald-500 text-black border-emerald-500'
+                          : 'text-white/50 border-white/10 hover:text-white hover:border-white/25'
+                      }`}
+                    >
+                      {s === '' ? 'All' : s}
+                      {s !== '' && (
+                        <span className="ml-1 opacity-70">({orderStatusCounts[s] || 0})</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Orders List */}
               {orders.length === 0 ? (
-                <p className="text-xs text-white/30 italic">No orders found in database.</p>
+                <div className="flex flex-col items-center justify-center py-14 sm:py-20 text-center gap-2.5">
+                  <ShoppingBag size={28} className="text-white/15" />
+                  <p className="text-xs text-white/30 italic">No orders found in database.</p>
+                </div>
+              ) : filteredOrders.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-14 sm:py-20 text-center gap-2.5">
+                  <Search size={28} className="text-white/15" />
+                  <p className="text-xs text-white/30 italic">No orders match your search or filter.</p>
+                  <button
+                    onClick={() => { setOrderSearch(''); setOrderStatusFilter(''); }}
+                    className="text-[10px] uppercase font-bold text-emerald-400 hover:text-emerald-300 cursor-pointer mt-1"
+                  >
+                    Clear search & filters
+                  </button>
+                </div>
               ) : (
-                orders.map((order) => (
-                  <div key={order.id} className="p-4 bg-white/5 border border-white/5 rounded space-y-4 text-xs">
-                    <div className="flex flex-wrap justify-between items-center gap-2 pb-2 border-b border-white/5">
-                      <div>
-                        <span className="font-bold text-white">Order ID: #{order.id}</span>
-                        <span className="text-white/40 ml-2">({new Date(order.createdAt).toLocaleDateString()})</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className={`px-2 py-0.5 rounded-full text-[9px] uppercase font-bold ${
-                          order.status === 'delivered' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/25' :
-                          order.status === 'cancelled' ? 'bg-red-500/10 text-red-400 border border-red-500/25' :
-                          'bg-amber-500/10 text-amber-400 border border-amber-500/25'
-                        }`}>
-                          {order.status}
-                        </span>
-                        <select
-                          value={order.status}
-                          onChange={(e) => handleUpdateOrderStatus(order.id, e.target.value as any)}
-                          className="bg-black border border-white/10 px-2 py-1 text-xs text-white outline-none rounded-sm"
-                        >
-                          <option value="pending">Pending</option>
-                          <option value="processing">Processing</option>
-                          <option value="shipped">Shipped</option>
-                          <option value="delivered">Delivered</option>
-                          <option value="cancelled">Cancelled</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* Customer Details */}
-                      <div className="space-y-1">
-                        <p className="text-[9px] uppercase text-white/40 font-bold">Customer & Shipping Details</p>
-                        <p className="text-white font-semibold">{order.customerName}</p>
-                        <p className="text-white/60">{order.customerEmail}</p>
-                        <p className="text-white/60">{order.address}, {order.city}, {order.postalCode}, {order.country}</p>
-                        <div className="flex items-center gap-2 pt-1 text-[10px]">
-                          <span className="text-white/40">Payment:</span>
-                          <span className="text-emerald-400 uppercase font-semibold">
-                            {order.paymentMethod === 'gpay' ? 'Google Pay' : order.paymentMethod === 'applepay' ? 'Apple Pay' : 'Credit Card'}
-                          </span>
-                          <span className="text-white/30">·</span>
-                          <span className={`uppercase font-semibold ${
-                            order.paymentStatus === 'paid' ? 'text-emerald-400' :
-                            order.paymentStatus === 'unpaid' ? 'text-red-400' :
-                            'text-amber-400'
-                          }`}>{order.paymentStatus || 'pending'}</span>
+                <div className="space-y-3">
+                  {filteredOrders.map((order) => {
+                    const dotColor = STATUS_COLORS[order.status] || '#6B7280';
+                    return (
+                      <div
+                        key={order.id}
+                        className="p-4 sm:p-5 bg-white/[0.03] border border-white/8 rounded-xl hover:border-white/15 transition-colors duration-200 space-y-4 text-xs"
+                      >
+                        {/* Header row */}
+                        <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-white/5">
+                          <div className="flex items-center gap-2.5">
+                            <span
+                              className="w-2 h-2 rounded-full shrink-0"
+                              style={{ background: dotColor, boxShadow: `0 0 8px ${dotColor}` }}
+                            />
+                            <span className="font-black text-white text-sm" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
+                              Order #{order.id}
+                            </span>
+                            <span className="text-white/30">·</span>
+                            <span className="text-white/40">{new Date(order.createdAt).toLocaleDateString()}</span>
+                            <span
+                              className="px-2 py-0.5 rounded-full text-[9px] uppercase font-bold border"
+                              style={{ color: dotColor, borderColor: `${dotColor}40`, background: `${dotColor}1A` }}
+                            >
+                              {order.status}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="text-base sm:text-lg font-black text-emerald-400" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
+                              €{order.total.toFixed(2)}
+                            </span>
+                            <select
+                              value={order.status}
+                              onChange={(e) => handleUpdateOrderStatus(order.id, e.target.value as any)}
+                              className="bg-black border border-white/10 hover:border-white/25 px-2.5 py-1.5 text-[11px] font-semibold text-white outline-none rounded-lg cursor-pointer"
+                            >
+                              <option value="pending">Pending</option>
+                              <option value="processing">Processing</option>
+                              <option value="shipped">Shipped</option>
+                              <option value="delivered">Delivered</option>
+                              <option value="cancelled">Cancelled</option>
+                            </select>
+                            <button
+                              onClick={() => handleDeleteOrder(order.id)}
+                              className="p-1.5 text-white/30 hover:text-red-400 hover:bg-red-500/10 rounded-lg cursor-pointer transition-colors"
+                              title="Delete Order"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
                         </div>
-                        {order.stripePaymentIntentId && (
-                          <p className="text-[8px] text-white/30 truncate mt-1">Stripe TxID: {order.stripePaymentIntentId}</p>
-                        )}
-                      </div>
 
-                      {/* Items List */}
-                      <div className="space-y-1.5 border-t md:border-t-0 md:border-l border-white/5 pt-3 md:pt-0 md:pl-4">
-                        <p className="text-[9px] uppercase text-white/40 font-bold mb-1">Items Ordered</p>
-                        <div className="space-y-1 max-h-32 overflow-y-auto pr-1">
-                          {order.items.map((item, idx) => (
-                            <div key={idx} className="flex justify-between text-white/70">
-                              <span>{item.name} ({item.flavour}) x{item.quantity}</span>
-                              <span className="font-semibold text-white">€{(item.price * item.quantity).toFixed(2)}</span>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {/* Customer Details */}
+                          <div className="space-y-2.5">
+                            <p className="text-[9px] uppercase text-white/40 font-bold tracking-wider">Customer & Shipping</p>
+                            <div className="space-y-1.5">
+                              <p className="text-white font-semibold">{order.customerName}</p>
+                              <div className="flex items-center gap-1.5 text-white/50">
+                                <Mail size={11} className="shrink-0" />
+                                <span className="truncate">{order.customerEmail}</span>
+                              </div>
+                              <div className="flex items-start gap-1.5 text-white/50">
+                                <MapPin size={11} className="shrink-0 mt-0.5" />
+                                <span>{order.address}, {order.city}, {order.postalCode}, {order.country}</span>
+                              </div>
                             </div>
-                          ))}
-                        </div>
-                        <div className="flex justify-between border-t border-white/5 pt-1.5 mt-2 font-bold text-white text-xs">
-                          <span>Grand Total</span>
-                          <span className="text-emerald-400">€{order.total.toFixed(2)}</span>
+
+                            <div className="flex items-center gap-2 pt-2 mt-2 border-t border-white/5">
+                              <CreditCard size={12} className="text-white/40" />
+                              <span className="text-emerald-400 uppercase font-semibold text-[10px]">
+                                {paymentMethodLabel(order.paymentMethod)}
+                              </span>
+                              <span className="text-white/20">·</span>
+                              <span className={`uppercase font-bold text-[10px] px-1.5 py-0.5 rounded-full ${
+                                order.paymentStatus === 'paid' ? 'text-emerald-400 bg-emerald-500/10' :
+                                order.paymentStatus === 'unpaid' ? 'text-red-400 bg-red-500/10' :
+                                'text-amber-400 bg-amber-500/10'
+                              }`}>{order.paymentStatus || 'pending'}</span>
+                            </div>
+                            {order.stripePaymentIntentId && (
+                              <button
+                                onClick={() => handleCopyTxId(order.stripePaymentIntentId!)}
+                                className="flex items-center gap-1.5 text-[9px] text-white/30 hover:text-white/60 transition-colors cursor-pointer group"
+                                title="Copy Stripe Transaction ID"
+                              >
+                                {copiedTxId === order.stripePaymentIntentId ? (
+                                  <Check size={10} className="text-emerald-400" />
+                                ) : (
+                                  <Copy size={10} className="group-hover:text-emerald-400" />
+                                )}
+                                <span className="truncate max-w-[220px]">Tx: {order.stripePaymentIntentId}</span>
+                              </button>
+                            )}
+                          </div>
+
+                          {/* Items List */}
+                          <div className="space-y-1.5 border-t md:border-t-0 md:border-l border-white/5 pt-3 md:pt-0 md:pl-4">
+                            <p className="text-[9px] uppercase text-white/40 font-bold tracking-wider flex items-center gap-1.5 mb-1">
+                              <Package size={11} /> Items Ordered ({order.items.length})
+                            </p>
+                            <div className="space-y-1.5 max-h-32 overflow-y-auto pr-1">
+                              {order.items.map((item, idx) => (
+                                <div key={idx} className="flex justify-between items-center text-white/70 bg-black/20 px-2.5 py-1.5 rounded-lg">
+                                  <span className="truncate pr-2">{item.name} <span className="text-white/30">({item.flavour})</span> <span className="text-white/40">x{item.quantity}</span></span>
+                                  <span className="font-semibold text-white shrink-0">€{(item.price * item.quantity).toFixed(2)}</span>
+                                </div>
+                              ))}
+                            </div>
+                            <div className="flex justify-between border-t border-white/5 pt-2 mt-2 font-bold text-white text-xs">
+                              <span>Grand Total</span>
+                              <span className="text-emerald-400">€{order.total.toFixed(2)}</span>
+                            </div>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </div>
-                ))
+                    );
+                  })}
+                </div>
               )}
             </div>
           )}
 
           {/* TAB CONTENT: CONTACT BOX */}
           {activeTab === 'contact' && (
-            <div className="space-y-4 flex-1 overflow-y-auto min-h-0 pr-1">
+            <div className="space-y-4">
               {messages.length === 0 ? (
-                <p className="text-xs text-white/30 italic">No customer contact messages found.</p>
+                <div className="flex flex-col items-center justify-center py-14 sm:py-20 text-center gap-2.5">
+                    <MessageSquare size={28} className="text-white/15" />
+                    <p className="text-xs text-white/30 italic">No customer contact messages found.</p>
+                  </div>
               ) : (
                 messages.map((msg) => (
-                  <div key={msg.id} className="p-4 bg-white/5 border border-white/5 rounded space-y-2 text-xs">
+                  <div key={msg.id} className="p-4 bg-white/[0.03] border border-white/8 rounded-xl hover:border-white/15 transition-colors duration-200 space-y-2 text-xs">
                     <div className="flex justify-between items-start">
                       <div>
                         <div className="flex items-center gap-2">
@@ -1503,11 +2533,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
 
           {/* TAB CONTENT: ADMIN & CREDENTIALS */}
           {activeTab === 'admins' && (
-            <div className="space-y-6 flex-1 overflow-y-auto min-h-0 pr-1 text-xs">
+            <div className="space-y-6 text-xs">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 
                 {/* Section 1: Change Personal Credentials */}
-                <div className="p-4 bg-white/5 border border-white/5 rounded space-y-4">
+                <div className="p-4 bg-white/[0.03] border border-white/8 rounded-xl hover:border-white/15 transition-colors duration-200 space-y-4">
                   <h3 className="font-black text-xs uppercase tracking-wider text-emerald-400 flex items-center gap-1.5" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
                     <Key size={14} /> Update Credentials
                   </h3>
@@ -1559,7 +2589,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
                 </div>
 
                 {/* Section 2: Create Admin Profile (Main Admin Only) */}
-                <div className="p-4 bg-white/5 border border-white/5 rounded space-y-4">
+                <div className="p-4 bg-white/[0.03] border border-white/8 rounded-xl hover:border-white/15 transition-colors duration-200 space-y-4">
                   <h3 className="font-black text-xs uppercase tracking-wider text-emerald-400 flex items-center gap-1.5" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
                     <UserPlus size={14} /> Create Admin Profile
                   </h3>
@@ -1625,7 +2655,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
               </div>
 
               {/* Section 3: Registered Users & Admins Directory */}
-              <div className="p-4 bg-white/5 border border-white/5 rounded space-y-4">
+              <div className="p-4 bg-white/[0.03] border border-white/8 rounded-xl hover:border-white/15 transition-colors duration-200 space-y-4">
                 <h3 className="font-black text-xs uppercase tracking-wider text-emerald-400 flex items-center gap-1.5" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
                   <Database size={14} /> Registered Accounts Directory ({users.length})
                 </h3>
@@ -1695,6 +2725,5 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
           )}
         </div>
       </div>
-    </div>
-  );
+    );
 };

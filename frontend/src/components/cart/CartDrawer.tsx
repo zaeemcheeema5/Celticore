@@ -1,14 +1,18 @@
 import React, { useState } from 'react';
 import { X, Trash2, Plus, Minus, Tag, ShoppingBag, ArrowRight } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
+import { Product } from '../../types';
 
 interface CartDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   onOpenCheckout: () => void;
+  // Opens the product quick-view modal for a cart item — lets a shopper
+  // tap/click a line item to jump straight to that product's page.
+  onOpenDetails: (product: Product) => void;
 }
 
-export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, onOpenCheckout }) => {
+export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, onOpenCheckout, onOpenDetails }) => {
   if (!isOpen) return null;
 
   const {
@@ -44,6 +48,13 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, onOpenC
   const handleCheckout = () => {
     onClose();
     onOpenCheckout();
+  };
+
+  // Closes the drawer and opens the product's quick-view modal — used by
+  // both the thumbnail and the name/flavour so either is clickable.
+  const handleViewProduct = (product: Product) => {
+    onClose();
+    onOpenDetails(product);
   };
 
   return (
@@ -89,19 +100,29 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, onOpenC
                 key={`${item.product.id}-${item.flavour}`}
                 className="flex gap-3 bg-white/5 border border-white/5 p-3 relative group"
               >
-                {/* Product Image */}
-                <div className="w-14 h-14 sm:w-16 sm:h-16 bg-[#111] shrink-0 overflow-hidden">
+                {/* Product Image — click to view product */}
+                <button
+                  type="button"
+                  onClick={() => handleViewProduct(item.product)}
+                  className="w-14 h-14 sm:w-16 sm:h-16 bg-[#111] shrink-0 overflow-hidden cursor-pointer"
+                  title={`View ${item.product.name}`}
+                >
                   <img src={item.product.image} alt={item.product.name} className="w-full h-full object-cover" />
-                </div>
+                </button>
 
                 {/* Details */}
                 <div className="flex-1 flex flex-col justify-between min-w-0">
-                  <div>
-                    <h3 className="text-xs font-black uppercase text-white truncate pr-6" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
+                  <button
+                    type="button"
+                    onClick={() => handleViewProduct(item.product)}
+                    className="text-left cursor-pointer"
+                    title={`View ${item.product.name}`}
+                  >
+                    <h3 className="text-xs font-black uppercase text-white truncate pr-6 hover:text-emerald-400 transition-colors" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
                       {item.product.name}
                     </h3>
                     <p className="text-[10px] text-emerald-400 font-semibold">{item.flavour}</p>
-                  </div>
+                  </button>
 
                   <div className="flex items-center justify-between mt-2">
                     {/* Quantity controls */}
@@ -128,11 +149,16 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, onOpenC
                   </div>
                 </div>
 
-                {/* Remove button */}
+                {/* Remove button — always at least dimly visible on desktop
+                    now (not opacity-0), and full-opacity on hover OR
+                    keyboard focus. Pure hover-to-reveal was unusable for
+                    anyone on a touch-only laptop/desktop or navigating by
+                    keyboard, since neither triggers a CSS :hover state. */}
                 <button
                   onClick={() => removeFromCart(item.product.id, item.flavour)}
-                  className="absolute top-2 right-2 p-1.5 sm:p-1 text-white/30 sm:text-white/20 hover:text-red-400 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all cursor-pointer"
+                  className="absolute top-2 right-2 p-1.5 sm:p-1 text-white/30 sm:text-white/25 hover:text-red-400 focus-visible:text-red-400 opacity-100 sm:opacity-40 sm:group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline focus-visible:outline-1 focus-visible:outline-red-400/60 transition-all cursor-pointer"
                   title="Remove Item"
+                  aria-label={`Remove ${item.product.name} from cart`}
                 >
                   <Trash2 size={13} className="sm:hidden" />
                   <Trash2 size={12} className="hidden sm:block" />

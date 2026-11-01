@@ -7,10 +7,8 @@ const {
 } = require("../controllers/webhookController");
 
 router.post(
-    "/webhook",
-    express.raw({
-        type: "application/json"
-    }),
+    "/",
+    express.raw({ type: "application/json" }),
     stripeWebhook
 );
 

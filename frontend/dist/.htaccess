@@ -1,0 +1,79 @@
+# ============================================================
+# CeltiCore - React/Vite SPA Apache Configuration
+# ============================================================
+
+RewriteEngine On
+
+# ------------------------------------------------------------
+# 1. Do NOT rewrite real files or real directories
+# ------------------------------------------------------------
+
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+
+# ------------------------------------------------------------
+# 2. React SPA routing
+#
+# This is the IMPORTANT part.
+#
+# /product/testosterone-booster
+# /products
+# /protein
+# /creatine
+# /search?q=protein
+#
+# etc. will all load index.html and React will handle
+# the URL.
+# ------------------------------------------------------------
+
+RewriteRule ^ index.html [L]
+
+
+# ------------------------------------------------------------
+# 3. Browser caching
+# ------------------------------------------------------------
+
+<IfModule mod_headers.c>
+
+    # Do not cache index.html
+    <FilesMatch "^index\.html$">
+        Header set Cache-Control "no-cache, no-store, must-revalidate"
+        Header set Pragma "no-cache"
+        Header set Expires "0"
+    </FilesMatch>
+
+    # Cache Vite assets
+    <FilesMatch "\.(js|css|woff|woff2|png|jpg|jpeg|webp|svg|ico)$">
+        Header set Cache-Control "public, max-age=31536000, immutable"
+    </FilesMatch>
+
+</IfModule>
+
+
+# ------------------------------------------------------------
+# 4. Compression if Apache supports it
+# ------------------------------------------------------------
+
+<IfModule mod_deflate.c>
+
+    AddOutputFilterByType DEFLATE text/html
+    AddOutputFilterByType DEFLATE text/plain
+    AddOutputFilterByType DEFLATE text/css
+    AddOutputFilterByType DEFLATE text/javascript
+    AddOutputFilterByType DEFLATE application/javascript
+    AddOutputFilterByType DEFLATE application/json
+    AddOutputFilterByType DEFLATE application/xml
+    AddOutputFilterByType DEFLATE image/svg+xml
+
+</IfModule>
+
+
+# ------------------------------------------------------------
+# 5. Prevent MIME sniffing
+# ------------------------------------------------------------
+
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+</IfModule>

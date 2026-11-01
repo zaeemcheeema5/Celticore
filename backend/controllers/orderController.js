@@ -11,6 +11,102 @@ const orderConfirmation = require("../templates/orderConfirmation");
 // { product_id, name, price, quantity, flavour } — NOT { id, ... }.
 // Reading item.id here (instead of item.product_id) meant every order
 // item bound `undefined` to the INSERT and crashed the whole request.
+//
+// PRICING INTEGRITY
+// ------------------
+// Previously this endpoint trusted the client-submitted item prices,
+// subtotal, and discount for every field it stored (order_items.price,
+// orders.subtotal, orders.discount) and only cross-checked the *total*
+// against Stripe for card payments — and did no cross-check at all for
+// every other payment method (bank transfer, COD, gpay/applepay). That
+// meant:
+//   - A card payer could pay the correct total while submitting a
+//     fabricated line-item/discount breakdown, corrupting order_items,
+//     the confirmation email, and admin sales/revenue reports.
+//   - A non-card order's total/discount/prices were never verified
+//     against the database at all before being stored as the order's
+//     official record.
+//
+// Fixed by recomputing every price-affecting field here, from the
+// `products` table and (if a coupon code was supplied) the `coupons`
+// table, the same way paymentController.createPaymentIntent already
+// does for the Stripe charge itself. The client-submitted items/total/
+// discount are now only used to build the request; the *server's own*
+// recalculated values are what get stored and (for card orders)
+// compared against the Stripe-confirmed amount.
+async function recomputeOrderPricing(items, couponCode) {
+
+    if (!Array.isArray(items) || items.length === 0) {
+        throw { status: 400, message: "Order must contain at least one item" };
+    }
+
+    for (const item of items) {
+        const qty = Number(item.quantity);
+        if (!item.product_id || !Number.isFinite(qty) || qty <= 0) {
+            throw { status: 400, message: `Invalid item in cart (product id: ${item.product_id})` };
+        }
+    }
+
+    const productIds = [...new Set(items.map(i => i.product_id))];
+    const placeholders = productIds.map(() => "?").join(",");
+
+    const products = await new Promise((resolve, reject) => {
+        db.all(
+            `SELECT id, name, price FROM products WHERE id IN (${placeholders})`,
+            productIds,
+            (err, rows) => err ? reject(err) : resolve(rows)
+        );
+    });
+
+    const productById = {};
+    products.forEach(p => { productById[p.id] = p; });
+
+    const recomputedItems = items.map(item => {
+        const product = productById[item.product_id];
+        if (!product) {
+            throw { status: 400, message: `Product ${item.product_id} no longer exists` };
+        }
+        return {
+            product_id: product.id,
+            name: product.name,
+            price: Number(product.price),
+            quantity: Number(item.quantity),
+            flavour: typeof item.flavour === "string" ? item.flavour : ""
+        };
+    });
+
+    const subtotal = recomputedItems.reduce(
+        (sum, item) => sum + item.price * item.quantity,
+        0
+    );
+
+    let discount = 0;
+
+    if (couponCode) {
+
+        const coupon = await new Promise((resolve, reject) => {
+            db.get(
+                `SELECT * FROM coupons WHERE code = ? AND is_active = 1`,
+                [couponCode],
+                (err, row) => err ? reject(err) : resolve(row)
+            );
+        });
+
+        const isValid = coupon && (!coupon.expiry_date || new Date(coupon.expiry_date) >= new Date());
+
+        if (isValid) {
+            if (coupon.discount_type === "percentage") {
+                discount = (subtotal * Number(coupon.discount_value)) / 100;
+            } else if (coupon.discount_type === "fixed") {
+                discount = Number(coupon.discount_value);
+            }
+        }
+    }
+
+    const total = Math.max(0, subtotal - discount);
+
+    return { items: recomputedItems, subtotal, discount, total };
+}
 
 exports.placeOrder = async (req, res) => {
 
@@ -22,21 +118,13 @@ exports.placeOrder = async (req, res) => {
         city,
         postalCode,
         country,
-        items,
-        total,
-        discount,
+        items: rawItems,
+        couponCode,
         paymentMethod,
-        paymentStatus,
         stripePaymentIntentId,
         deliveryMethod,
         deliveryCost
     } = req.body;
-
-    if (!Array.isArray(items) || items.length === 0) {
-        return res.status(400).json({
-            error: 'Order must contain at least one item'
-        });
-    }
 
     if (!customerName || !customerEmail || !address || !city || !postalCode) {
         return res.status(400).json({
@@ -44,7 +132,24 @@ exports.placeOrder = async (req, res) => {
         });
     }
 
-    const subtotal = total + (discount || 0);
+    // Recompute items/subtotal/discount/total from the database. This is
+    // the single source of truth from here on — the client's own total/
+    // discount/item-price fields (if it still sends any) are ignored.
+    let subtotal, discount, total, items;
+
+    try {
+        ({ items, subtotal, discount, total } =
+            await recomputeOrderPricing(rawItems, couponCode));
+    } catch (pricingErr) {
+        return res.status(pricingErr.status || 500).json({
+            error: pricingErr.message || "Could not calculate order pricing."
+        });
+    }
+
+    // req.user is populated by optionalAuthMiddleware when a valid session
+    // cookie/token is present; guests simply get null here and the order
+    // is still created (email-only), exactly as before.
+    const userId = (req.user && (req.user.userId || req.user.id)) || null;
 
     // Only a real, server-verified card payment can mark an order as Paid.
     // Every other method (COD, bank transfer, gpay, applepay) starts as
@@ -70,6 +175,11 @@ exports.placeOrder = async (req, res) => {
         try {
 
             const intent = await stripe.paymentIntents.retrieve(stripePaymentIntentId);
+
+            // Compared against the server's own recomputed total, not the
+            // client's — so a client can no longer pay the correct amount
+            // while claiming a different discount/coupon or line-item
+            // breakdown for the stored order record.
             const expectedAmount = Math.round(total * 100);
 
             if (intent.status !== 'succeeded') {
@@ -80,7 +190,7 @@ exports.placeOrder = async (req, res) => {
 
             if (intent.amount !== expectedAmount) {
                 return res.status(400).json({
-                    error: "Payment amount does not match order total."
+                    error: "Payment amount does not match the current order total. Prices or your coupon may have changed — please refresh and try again."
                 });
             }
 
@@ -101,6 +211,7 @@ exports.placeOrder = async (req, res) => {
         const orderSql = `
         INSERT INTO orders
         (
+            user_id,
             customer_name,
             email,
             phone,
@@ -119,12 +230,13 @@ exports.placeOrder = async (req, res) => {
             status,
             paid_at
         )
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         `;
 
         db.run(
             orderSql,
             [
+                userId,
                 customerName,
                 customerEmail || "",
                 phone || "",
@@ -403,6 +515,11 @@ exports.getOrders = (req, res) => {
 // ==========================
 // Update Order Status
 // ==========================
+// Fires the matching customer email (Shipped / Delivered / Cancelled) after
+// a successful status change — but only when the status is genuinely
+// different from what it already was, so clicking "Save" again on an
+// unchanged status (or any other redundant update) never re-sends the
+// email.
 
 exports.updateOrderStatus = (req, res) => {
 
@@ -414,33 +531,326 @@ exports.updateOrderStatus = (req, res) => {
         });
     }
 
-    db.run(
+    db.get(
+        `SELECT * FROM orders WHERE id = ?`,
+        [req.params.id],
+        (fetchErr, existingOrder) => {
+
+            if (fetchErr) {
+                return res.status(500).json({ error: fetchErr.message });
+            }
+
+            if (!existingOrder) {
+                return res.status(404).json({ error: "Order not found." });
+            }
+
+            const previousStatus = (existingOrder.status || '').toLowerCase();
+            const newStatus = status.toLowerCase();
+
+            db.run(
+                `
+                UPDATE orders
+                SET status = ?
+                WHERE id = ?
+                `,
+                [status, req.params.id],
+                function (err) {
+
+                    if (err) {
+
+                        return res.status(500).json({
+                            error: err.message
+                        });
+
+                    }
+
+                    if (this.changes === 0) {
+                        return res.status(404).json({
+                            error: "Order not found."
+                        });
+                    }
+
+                    res.json({
+                        success: true,
+                        message: "Order status updated"
+                    });
+
+                    // ==========================
+                    // Best-effort status-change email (never blocks the response above)
+                    // ==========================
+                    if (previousStatus === newStatus) return; // no real change — don't re-send
+
+                    if (!['shipped', 'delivered', 'cancelled'].includes(newStatus)) return;
+
+                    db.all(
+                        `
+                        SELECT product_id, product_name AS name, quantity, price, flavour
+                        FROM order_items
+                        WHERE order_id = ?
+                        `,
+                        [req.params.id],
+                        async (itemsErr, items) => {
+
+                            if (itemsErr) {
+                                console.error("Could not load order items for status email:", itemsErr.message);
+                                return;
+                            }
+
+                            const emailOrder = {
+                                customerEmail: existingOrder.email,
+                                customerName: existingOrder.customer_name,
+                                orderId: existingOrder.id,
+                                items: items || [],
+                                total: existingOrder.total,
+                                paymentStatus: existingOrder.payment_status,
+                            };
+
+                            try {
+                                if (newStatus === 'shipped') {
+                                    await sendEmail.sendOrderShipped(emailOrder);
+                                } else if (newStatus === 'delivered') {
+                                    await sendEmail.sendOrderDelivered(emailOrder);
+                                } else if (newStatus === 'cancelled') {
+                                    await sendEmail.sendOrderCancelled(emailOrder);
+                                }
+                            } catch (emailErr) {
+                                console.error(`Order ${newStatus} email failed:`, emailErr.message);
+                            }
+
+                        }
+                    );
+
+                }
+            );
+
+        }
+    );
+
+};
+
+// ==========================
+// Get My Orders (logged-in customer)
+// ==========================
+// Powers the "My Orders" page: every order placed while logged in as this
+// user (guest/email-only orders placed before an account existed, or under
+// a different account, are intentionally not included here — there's no
+// reliable link to them without a shared user_id).
+
+exports.getMyOrders = (req, res) => {
+
+    const userId = req.user.userId || req.user.id;
+
+    db.all(
         `
-        UPDATE orders
-        SET status = ?
-        WHERE id = ?
+        SELECT
+            id,
+            customer_name,
+            email AS customer_email,
+            phone,
+            address,
+            city,
+            postal_code,
+            country,
+            delivery_method,
+            delivery_cost,
+            payment_method,
+            payment_status,
+            subtotal,
+            discount,
+            total,
+            tracking_number,
+            status,
+            created_at
+        FROM orders
+        WHERE user_id = ?
+        ORDER BY created_at DESC
         `,
-        [status, req.params.id],
-        function (err) {
+        [userId],
+        (err, orders) => {
 
             if (err) {
-
-                return res.status(500).json({
-                    error: err.message
-                });
-
+                return res.status(500).json({ error: err.message });
             }
 
-            if (this.changes === 0) {
+            if (orders.length === 0) {
+                return res.json([]);
+            }
+
+            const orderIds = orders.map(o => o.id);
+            const placeholders = orderIds.map(() => '?').join(',');
+
+            db.all(
+                `
+                SELECT
+                    order_id,
+                    product_id,
+                    product_name AS name,
+                    quantity,
+                    price,
+                    flavour
+                FROM order_items
+                WHERE order_id IN (${placeholders})
+                `,
+                orderIds,
+                (itemsErr, itemRows) => {
+
+                    if (itemsErr) {
+                        return res.status(500).json({ error: itemsErr.message });
+                    }
+
+                    // Pull this user's own reviews for these orders (any
+                    // status) so the UI can show "Edit Review" instead of
+                    // "Write a Review" once one exists, and reflect its
+                    // current moderation status.
+                    db.all(
+                        `
+                        SELECT
+                            id, order_id, product_id, rating, title, review,
+                            images, status, helpful_count, created_at, updated_at
+                        FROM reviews
+                        WHERE order_id IN (${placeholders}) AND user_id = ?
+                        `,
+                        [...orderIds, userId],
+                        (revErr, reviewRows) => {
+
+                            if (revErr) {
+                                return res.status(500).json({ error: revErr.message });
+                            }
+
+                            const itemsByOrder = {};
+                            itemRows.forEach(row => {
+                                if (!itemsByOrder[row.order_id]) {
+                                    itemsByOrder[row.order_id] = [];
+                                }
+                                itemsByOrder[row.order_id].push({
+                                    product_id: row.product_id,
+                                    name: row.name,
+                                    quantity: row.quantity,
+                                    price: row.price,
+                                    flavour: row.flavour || ''
+                                });
+                            });
+
+                            const reviewByOrderProduct = {};
+                            reviewRows.forEach(r => {
+                                reviewByOrderProduct[`${r.order_id}_${r.product_id}`] = {
+                                    ...r,
+                                    images: (() => {
+                                        try { return JSON.parse(r.images || '[]'); }
+                                        catch { return []; }
+                                    })()
+                                };
+                            });
+
+                            const isDelivered = (status) =>
+                                typeof status === 'string' && status.toLowerCase() === 'delivered';
+
+                            const withItems = orders.map(order => ({
+                                ...order,
+                                canReview: isDelivered(order.status),
+                                items: (itemsByOrder[order.id] || []).map(item => ({
+                                    ...item,
+                                    review: reviewByOrderProduct[`${order.id}_${item.product_id}`] || null
+                                }))
+                            }));
+
+                            res.json(withItems);
+                        }
+                    );
+                }
+            );
+        }
+    );
+
+};
+
+// ==========================
+// Track Order (public, guest — no auth)
+// ==========================
+// Checkout never offers account creation, and "My Orders" above requires a
+// login it never gave the shopper a way to get — so a guest who just paid
+// had no way to ever look their order up again. This is that path: the
+// Order ID plus the email it was placed under is enough to prove you
+// placed it, without needing an account.
+//
+// Requiring BOTH (not just the id) matters: order ids are sequential, so
+// id alone would let anyone page through ?orderId=1,2,3... and read out
+// other customers' names/addresses. The email match is the actual "prove
+// you placed this order" check. On a miss, the response is identical
+// whether the id doesn't exist or just doesn't match that email — telling
+// them apart would confirm an order with that id exists at all.
+exports.trackOrder = (req, res) => {
+
+    const { orderId, email } = req.body;
+
+    if (!orderId || !email) {
+        return res.status(400).json({
+            error: "Both an Order ID and the email used at checkout are required."
+        });
+    }
+
+    db.get(
+        `
+        SELECT
+            id,
+            customer_name,
+            email,
+            address,
+            city,
+            postal_code,
+            country,
+            payment_status,
+            total,
+            status,
+            created_at
+        FROM orders
+        WHERE id = ? AND LOWER(email) = LOWER(?)
+        `,
+        [orderId, email],
+        (err, order) => {
+
+            if (err) {
+                return res.status(500).json({ error: err.message });
+            }
+
+            if (!order) {
                 return res.status(404).json({
-                    error: "Order not found."
+                    error: "We couldn't find an order matching that Order ID and email."
                 });
             }
 
-            res.json({
-                success: true,
-                message: "Order status updated"
-            });
+            db.all(
+                `
+                SELECT product_name AS name, quantity, price, flavour
+                FROM order_items
+                WHERE order_id = ?
+                `,
+                [order.id],
+                (itemsErr, items) => {
+
+                    if (itemsErr) {
+                        return res.status(500).json({ error: itemsErr.message });
+                    }
+
+                    res.json({
+                        success: true,
+                        order: {
+                            id: order.id,
+                            status: order.status,
+                            paymentStatus: order.payment_status,
+                            total: order.total,
+                            createdAt: order.created_at,
+                            customerName: order.customer_name,
+                            address: order.address,
+                            city: order.city,
+                            postalCode: order.postal_code,
+                            country: order.country,
+                            items: items || []
+                        }
+                    });
+
+                }
+            );
 
         }
     );
@@ -453,18 +863,29 @@ exports.updateOrderStatus = (req, res) => {
 
 exports.deleteOrder = (req, res) => {
 
+    const orderId = req.params.id;
+
+    // Child rows must go before the parent — `order_items` (and any
+    // `reviews` left on this order) hold a foreign key on orders.id, so the
+    // database rejects deleting the order row while they still point at it.
+    // This previously deleted `orders` first and `order_items` second
+    // (backwards), and never checked whether the order_items delete even
+    // succeeded — which is exactly what produced the
+    // "Cannot delete or update a parent row: a foreign key constraint
+    // fails" error. Reviews are deleted here too since a review can't
+    // meaningfully exist once its order is gone.
     db.run(
         `
-        DELETE FROM orders
-        WHERE id = ?
+        DELETE FROM reviews
+        WHERE order_id = ?
         `,
-        req.params.id,
-        function (err) {
+        orderId,
+        function (reviewsErr) {
 
-            if (err) {
+            if (reviewsErr) {
 
                 return res.status(500).json({
-                    error: err.message
+                    error: reviewsErr.message
                 });
 
             }
@@ -474,12 +895,49 @@ exports.deleteOrder = (req, res) => {
                 DELETE FROM order_items
                 WHERE order_id = ?
                 `,
-                req.params.id
-            );
+                orderId,
+                function (itemsErr) {
 
-            res.json({
-                message: "Order deleted"
-            });
+                    if (itemsErr) {
+
+                        return res.status(500).json({
+                            error: itemsErr.message
+                        });
+
+                    }
+
+                    db.run(
+                        `
+                        DELETE FROM orders
+                        WHERE id = ?
+                        `,
+                        orderId,
+                        function (orderErr) {
+
+                            if (orderErr) {
+
+                                return res.status(500).json({
+                                    error: orderErr.message
+                                });
+
+                            }
+
+                            if (this.changes === 0) {
+                                return res.status(404).json({
+                                    error: "Order not found"
+                                });
+                            }
+
+                            res.json({
+                                success: true,
+                                message: "Order deleted"
+                            });
+
+                        }
+                    );
+
+                }
+            );
 
         }
     );

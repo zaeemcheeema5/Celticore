@@ -1,15 +1,18 @@
 const express = require("express");
 const router = express.Router();
 const adminAuthMiddleware = require("../middleware/adminAuthMiddleware");
+const authMiddleware = require("../middleware/authMiddleware");
 
 const {
     uploadProductImage,
-    uploadCategoryImage
+    uploadCategoryImage,
+    uploadReviewImages
 } = require("../controllers/uploadController");
 
 const {
     uploadProduct,
-    uploadCategory
+    uploadCategory,
+    uploadReview
 } = require("../middleware/uploadMiddleware");
 
 /**
@@ -71,6 +74,35 @@ router.post(
     adminAuthMiddleware,
     uploadCategory.single("image"),
     uploadCategoryImage
+);
+
+/**
+ * @swagger
+ * /api/upload/review:
+ *   post:
+ *     summary: Upload up to 5 review images (logged-in customers only)
+ *     tags: [Upload]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               images:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: binary
+ *     responses:
+ *       200:
+ *         description: Review images uploaded successfully
+ */
+router.post(
+    "/review",
+    authMiddleware,
+    uploadReview.array("images", 5),
+    uploadReviewImages
 );
 
 module.exports = router;
