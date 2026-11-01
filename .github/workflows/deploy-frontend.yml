@@ -1,3 +1,4 @@
+
 name: Unified Frontend & Backend Production Deployment
 
 on:
@@ -10,34 +11,49 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # 1. Get latest code from GitHub
       - name: Get latest code
         uses: actions/checkout@v4
 
+      # 2. Set up Node.js
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22.x
 
-      # --- FRONTEND BUILD STEP ---
+      # 3. Install frontend dependencies and build React app
       - name: Install dependencies & Build React App
+        working-directory: frontend
         run: |
           npm install
           npm run build
 
-      # --- AUTOMATED DEPLOYMENT STEP VIA SSH ---
-      - name: Deploy Frontend via rsync over SSH
+      # 4. Deploy frontend build to Hostinger
+      - name: Deploy Frontend via SSH
         uses: easingthemes/ssh-deploy@v5.1.0
         with:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-          ARGS: "-rlgoDzvO --delete"
+          ARGS: "-rlgoDzvO --delete --exclude=/api/"
           REMOTE_HOST: ${{ secrets.SSH_HOST }}
           REMOTE_USER: ${{ secrets.SSH_USERNAME }}
           REMOTE_PORT: ${{ secrets.SSH_PORT }}
           TARGET: "/home/${{ secrets.SSH_USERNAME }}/domains/thecelticore.com/public_html/"
-          SOURCE: "dist/"
+          SOURCE: "frontend/dist/"
 
-      # --- AUTOMATED BACKEND DEPLOY & SUBDOMAIN ROUTING STEP ---
-      - name: Deploy Backend and Configure Routing
+      # 5. Deploy backend source to Hostinger Node.js directory
+      - name: Deploy Backend via SSH
+        uses: easingthemes/ssh-deploy@v5.1.0
+        with:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          ARGS: "-rlgoDzvO --delete --exclude=.env --exclude=node_modules/ --exclude=tmp/"
+          REMOTE_HOST: ${{ secrets.SSH_HOST }}
+          REMOTE_USER: ${{ secrets.SSH_USERNAME }}
+          REMOTE_PORT: ${{ secrets.SSH_PORT }}
+          TARGET: "/home/${{ secrets.SSH_USERNAME }}/domains/thecelticore.com/nodejs/"
+          SOURCE: "backend/"
+
+      # 6. Configure API routing and restart backend
+      - name: Configure API Routing & Restart Backend
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -45,24 +61,23 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT }}
           script: |
-            # 1. Sync the backend source files into the nodejs environment root folder
             cd /home/${{ secrets.SSH_USERNAME }}/domains/thecelticore.com/
-            mkdir -p nodejs
-            rm -f nodejs/.htaccess
-            rm -rf nodejs/*
-            cp -r backend/* nodejs/
-            
-            # 2. Inject the proxy routing file into the exact subdomain directory path
+
+            # Create API routing directory
             mkdir -p public_html/api
+
+            # Configure API proxy
             cat << 'EOF' > public_html/api/.htaccess
             RewriteEngine On
             RewriteCond %{REQUEST_FILENAME} !-f
             RewriteCond %{REQUEST_FILENAME} !-d
             RewriteRule ^(.*)$ http://127.0.0.1:%{ENV:PORT}/$1 [P,L]
             EOF
-            
-            # 3. Complete the dependencies installation and clear Passenger app cache
+
+            # Install backend production dependencies
             cd nodejs
-            npm install --production
+            npm install --omit=dev
+
+            # Restart Passenger application
             mkdir -p tmp
             touch tmp/restart.txt
