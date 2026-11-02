@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronRight, ArrowRight, Shield, ShieldCheck, Star, Leaf, Zap, Droplets, Sun, Dumbbell, Flame, Sparkles } from 'lucide-react';
+import { ChevronRight, ArrowRight, Shield, Star, Leaf, Zap, Droplets, Sun, Dumbbell, Flame, Sparkles } from 'lucide-react';
 import { Category, Product } from '../types';
 import { ProductCard } from '../components/product/ProductCard';
 import { CardEffect } from '../components/category/CardEffect';
@@ -12,10 +12,13 @@ import backgroundImage3 from '../assets/background3.png';
 const HERO_BACKGROUNDS = [backgroundImage, backgroundImage1, backgroundImage2, backgroundImage3];
 // A duplicate of the first image is appended so the strip can keep sliding
 // forward past the last slide onto this "clone" of slide 1, instead of
-// snapping backward to loop — the reset back to the real index 0 happens
-// instantly (transition off) once the clone is fully in view, which is
-// invisible since it's the same picture.
+// snapping backward to loop.
 const HERO_BACKGROUNDS_LOOP = [...HERO_BACKGROUNDS, HERO_BACKGROUNDS[0]];
+
+// The hero photos are 1672×941. The hero stage uses this exact aspect ratio
+// on EVERY screen size, so `background-size: cover` never has anything to
+// crop — the full photo is always visible, on phone, tablet, laptop and PC.
+const HERO_ASPECT = '1672 / 941';
 
 interface HomeProps {
   onNavigate: (page: string) => void;
@@ -24,11 +27,6 @@ interface HomeProps {
   onOpenDetails: (product: Product) => void;
 }
 
-
-// Maps icon name from category string/model to React components.
-// Each category gets a genuinely distinct icon — Zap previously showed up
-// on creatine, pre-workout, AND the fallback, which read as repetitive.
-// Now it only appears on pre-workout, where an energy-burst mark actually fits.
 const getCategoryIcon = (id: string) => {
   switch (id) {
     case 'protein': return Dumbbell;
@@ -41,22 +39,83 @@ const getCategoryIcon = (id: string) => {
   }
 };
 
+/* ---------- Hero copy pieces ----------
+   Everything here is sized in `em`, so the whole block scales as one unit
+   from whatever font-size its wrapper sets (a container-query unit over the
+   photo on the overlay, a fixed size in the stacked block under the photo). */
+
+const HeroBadge = () => (
+  <div
+    className="hero-badge-dot inline-flex items-center border border-emerald-400/50 bg-emerald-400/[0.08] text-emerald-300 font-bold uppercase backdrop-blur-sm rounded-full"
+    style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 'max(8px, var(--hc-badge))', letterSpacing: '.3em', gap: '.9em', padding: '.6em 1.3em', marginBottom: '1.4em' }}
+  >
+    <span className="rounded-full bg-emerald-400 shadow-[0_0_10px_#10B981] shrink-0" style={{ width: '.6em', height: '.6em' }} />
+    Premium Supplements
+  </div>
+);
+
+const HeroHeading = () => (
+  <h1
+    className="hero-heading-glow font-black uppercase text-white"
+    style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: '5em', lineHeight: 0.96, letterSpacing: '-.02em', margin: 0, padding: 0 }}
+  >
+    BUILD MUSCLE.
+    <br />
+    <span className="hero-heading-accent">FUEL GROWTH.</span>
+  </h1>
+);
+
+// Short tagline — sits on the photo at every screen size (right under the
+// heading). Floors at 11px so it stays readable on phones.
+const HeroTagline = () => (
+  <p
+    className="text-zinc-200"
+    style={{ fontFamily: "'DM Sans',sans-serif", maxWidth: '24em', fontSize: 'max(11px, 1em)', lineHeight: 1.4, margin: 0, padding: 0, marginTop: 'max(4px, .9em)' }}
+  >
+    Train Hard. Recover Smarter.
+  </p>
+);
+
+// Buttons — on the photo on desktop, directly under it on phones/tablets.
+const HeroBottom = () => (
+  <>
+    <div className="flex items-center" style={{ gap: 'max(6px, .9em)' }}>
+      <button
+        onClick={() => document.getElementById('all-products')?.scrollIntoView({ behavior: 'smooth' })}
+        className="hero-cta-primary group inline-flex items-center justify-center bg-emerald-500 hover:bg-emerald-400 text-black font-black uppercase transition-all duration-300 hover:-translate-y-1"
+        style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 'max(8px, .72em)', letterSpacing: '.15em', padding: '1.1em 2.2em', whiteSpace: 'nowrap' }}
+      >
+        <span className="relative z-10 inline-flex items-center" style={{ gap: '.9em' }}>
+          Shop Now <ArrowRight size="1.3em" className="transition-transform group-hover:translate-x-1.5" />
+        </span>
+      </button>
+      <button
+        onClick={() => document.getElementById('footer-contact')?.scrollIntoView({ behavior: 'smooth' })}
+        className="inline-flex items-center justify-center border border-white/40 text-white hover:border-emerald-400/80 hover:text-emerald-300 font-black uppercase transition-all duration-300 hover:-translate-y-1"
+        style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 'max(8px, .72em)', letterSpacing: '.15em', padding: '1.1em 2.2em', whiteSpace: 'nowrap' }}
+      >
+        Learn More
+      </button>
+    </div>
+
+  </>
+);
+
 export const Home: React.FC<HomeProps> = ({ onNavigate, categories, products, onOpenDetails }) => {
   const [hoveredCard, setHoveredCard] = useState<string | null>(null);
 
-  // Hero background carousel — slides through all 4 photos, left → right,
-  // one at a time, always moving forward (never snapping back to slide 1).
   const [bgIndex, setBgIndex] = useState(0);
   const [bgTransitionOn, setBgTransitionOn] = useState(true);
 
   useEffect(() => {
-    const t = setInterval(() => setBgIndex((i) => i + 1), 4200);
+    // Clamp at the clone slide so a throttled background tab can never push
+    // the index past the end of the strip (that rendered as a black hero).
+    const t = setInterval(() => {
+      setBgIndex((i) => (i >= HERO_BACKGROUNDS.length ? i : i + 1));
+    }, 4200);
     return () => clearInterval(t);
   }, []);
 
-  // Once the strip has slid onto the appended clone of slide 1, jump back
-  // to the real index 0 with the transition briefly switched off, so the
-  // loop point is invisible and every subsequent slide keeps moving forward.
   const handleBgTransitionEnd = () => {
     if (bgIndex === HERO_BACKGROUNDS.length) {
       setBgTransitionOn(false);
@@ -73,49 +132,63 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, categories, products, on
 
   return (
     <div className="w-full overflow-x-hidden">
-      {/* HERO SECTION — photo-real gym backdrop (src/assets/background.png)
-          with animated colored smoke rising behind the product bottles. */}
-      <section
-        className="celticore-photo-hero relative min-h-[92svh] sm:min-h-screen flex items-center overflow-hidden"
-      >
+      {/* HERO SECTION
+          One layout for every device:
+          - The photo "stage" always has the photo's own aspect ratio, so the
+            whole picture shows (no cropping) on phone, tablet, laptop, PC.
+          - Everything inside the stage (heading, smoke, badge) is sized in
+            container-query units (cqw), so it scales with the photo and the
+            composition looks identical at any width.
+          - Desktop (≥1024px): the whole copy block (badge, heading,
+            paragraph, buttons, stats) sits over the photo like the design.
+          - Below 1024px: badge + heading stay on the photo exactly as on
+            desktop; paragraph, buttons and stats continue directly under it
+            on the same dark color, so they stay readable instead of
+            shrinking to a few pixels. */}
+      <section className="celticore-photo-hero relative w-full" style={{ background: '#030a08' }}>
         <style>{`
-          /* 4-photo hero carousel — each slide sits side by side and the
-             whole strip translates so the active photo slides in from the
-             left and pushes the previous one off to the right. */
+          .hero-stage {
+            position:relative; width:100%; overflow:hidden;
+            aspect-ratio:${HERO_ASPECT};
+            container-type:inline-size;
+            background:#030a08;
+          }
+
+          /* Sliding photo strip */
           .hero-photo-track {
             position:absolute; inset:0; display:flex;
             width:${HERO_BACKGROUNDS_LOOP.length * 100}%;
           }
-          /* overflow:hidden here is what contains each slide's own Ken
-             Burns zoom to its own box — without it, a scaled-up slide
-             (even one waiting off-screen) renders past its box edge and
-             bleeds a sliver of itself into the neighboring slide. */
           .hero-photo-slide {
             position:relative; flex-shrink:0; overflow:hidden;
             width:${100 / HERO_BACKGROUNDS_LOOP.length}%; height:100%;
           }
+          /* Stage has the photo's own ratio, so cover == the full photo. */
           .hero-photo-slide-img {
             position:absolute; inset:0;
-            background-size:cover; background-position:center 38%;
+            background-size:cover; background-position:center;
+            background-repeat:no-repeat;
             animation: kenBurns 22s ease-in-out infinite alternate;
           }
           @keyframes kenBurns {
-            0%   { transform:scale(1) translate(0,0); }
-            100% { transform:scale(1.08) translate(-1%, -1.5%); }
+            0%   { transform:scale(1); }
+            100% { transform:scale(1.035); }
           }
 
-          /* Left-to-right dark wash so the headline stays legible over the
-             photo without hiding the product shot on the right. */
           .hero-photo-scrim {
             position:absolute; inset:0; pointer-events:none;
             background:
-              linear-gradient(90deg, rgba(3,10,8,.92) 0%, rgba(3,10,8,.82) 28%, rgba(3,10,8,.38) 52%, rgba(3,10,8,.12) 68%, rgba(3,10,8,.05) 100%),
-              linear-gradient(to top, rgba(0,0,0,.55) 0%, transparent 28%),
-              linear-gradient(to bottom, rgba(0,0,0,.35) 0%, transparent 18%);
+              linear-gradient(90deg, rgba(3,10,8,.88) 0%, rgba(3,10,8,.7) 24%, rgba(3,10,8,.3) 48%, rgba(3,10,8,.1) 66%, rgba(3,10,8,.04) 100%),
+              linear-gradient(to top, rgba(0,0,0,.45) 0%, transparent 26%),
+              linear-gradient(to bottom, rgba(0,0,0,.3) 0%, transparent 16%);
+          }
+          /* Phones/tablets: fade the bottom of the photo into the solid dark
+             fill of the text block underneath so there is no visible seam. */
+          .hero-bottom-fade {
+            position:absolute; left:0; right:0; bottom:-1px; height:22%; pointer-events:none;
+            background: linear-gradient(to top, #030a08 0%, rgba(3,10,8,.7) 40%, transparent 100%);
           }
 
-          /* Periodic diagonal light sweep across the whole hero for extra
-             motion in the background. */
           .hero-light-sweep {
             position:absolute; inset:0; pointer-events:none; mix-blend-mode:overlay;
             background: linear-gradient(115deg, transparent 40%, rgba(255,255,255,.12) 48%, rgba(255,255,255,.22) 50%, rgba(255,255,255,.12) 52%, transparent 60%);
@@ -127,17 +200,12 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, categories, products, on
             50% { background-position: -20% 100%; }
           }
 
-          /* Real rising smoke behind the bottles — tall, narrow, soft-edged
-             tendrils that sway side to side and stretch/fade as they climb,
-             built from stacked blurred ellipses per column so the stream
-             looks continuous rather than one shape pulsing in place. This
-             sits on its own fixed overlay (not inside a sliding photo
-             slide), so it can never bleed across slide edges. */
+          /* Smoke — sized in cqw so it scales with the photo on every device */
           .hero-smoke-col { position:absolute; bottom:4%; pointer-events:none; }
           .hero-smoke-wisp {
             position:absolute; bottom:0; left:50%;
             border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
-            filter: blur(16px);
+            filter: blur(.85cqw);
             mix-blend-mode: screen;
             animation-name: smokeRise;
             animation-timing-function: ease-in-out;
@@ -155,18 +223,39 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, categories, products, on
           .hero-smoke-amber   { background: linear-gradient(to top, rgba(245,158,11,.5), rgba(253,230,138,.25) 45%, transparent 90%); }
           .hero-smoke-red     { background: linear-gradient(to top, rgba(239,68,68,.42), rgba(252,165,165,.2) 45%, transparent 90%); }
 
-          /* Soft pulsing glow seated at the base of each smoke column, as
-             if light were spilling out from behind the bottle. */
-          .hero-smoke-glow { position:absolute; bottom:-6%; left:50%; translate:-50% 0; border-radius:50%; filter:blur(22px); animation:smokeGlowPulse 3.4s ease-in-out infinite; pointer-events:none; }
+          .hero-smoke-glow { position:absolute; bottom:-6%; left:50%; translate:-50% 0; border-radius:50%; filter:blur(1.15cqw); animation:smokeGlowPulse 3.4s ease-in-out infinite; pointer-events:none; }
           @keyframes smokeGlowPulse { 0%,100% { opacity:.35; transform:translate(-50%,0) scale(1); } 50% { opacity:.65; transform:translate(-50%,0) scale(1.18); } }
+
+          /* Overlay copy: base font-size is the paragraph size; everything
+             else is in em, so it all scales together with the photo. */
+          .hero-overlay {
+            position:absolute; inset:0; z-index:10;
+            display:flex; align-items:center;
+            padding-left:6cqw; padding-right:4cqw;
+          }
+          .hero-copy {
+            --hc-badge: .8em;
+            font-size: 1.55cqw;          /* heading = 5em ≈ 7.75cqw on phones */
+            width:100%;
+          }
+          /* Buttons sit right under the tagline on every screen size.
+             On small screens they shrink (with a readable floor) so they
+             fit on the photo. */
+          .hero-cta-wrap { margin-top: max(8px, 1.6em); }
+          @media (min-width: 1024px) {
+            .hero-cta-wrap { margin-top: 2.2em; }
+            .hero-overlay { padding-left:13cqw; padding-right:4cqw; }
+            .hero-copy {
+              --hc-badge: .65em;
+              font-size: clamp(11px, 1.05cqw, 26px);  /* heading ≈ 5.25cqw */
+              max-width: 34em;
+            }
+          }
 
           .hero-enter { animation:heroEnter .8s cubic-bezier(.2,.75,.25,1) both; }
           @keyframes heroEnter { from {opacity:0; transform:translateY(22px)} to {opacity:1; transform:translateY(0)} }
 
           .hero-heading-glow { text-shadow: 0 3px 24px rgba(0,0,0,.65); }
-          /* Rich color cycle for "FUEL GROWTH." — hard color bands sweep
-             left → right continuously, each new color taking over from
-             roughly where the last one ended, about once per second. */
           .hero-heading-accent {
             background: linear-gradient(90deg,
               #10b981 0%, #10b981 16.66%,
@@ -194,8 +283,8 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, categories, products, on
             50% { box-shadow: 0 10px 34px rgba(16,185,129,.45); }
           }
 
-          .hero-badge-dot { position:relative; }
-          .hero-badge-dot::after {
+          .hero-badge-dot span { position:relative; }
+          .hero-badge-dot span::after {
             content:""; position:absolute; inset:-5px; border-radius:50%; border:1px solid rgba(16,185,129,.55);
             animation: badgePing 2.2s cubic-bezier(0,.7,.4,1) infinite;
           }
@@ -217,97 +306,94 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, categories, products, on
           }
         `}</style>
 
-        <div
-          className="hero-photo-track"
-          onTransitionEnd={handleBgTransitionEnd}
-          style={{
-            transform: `translateX(-${bgIndex * (100 / HERO_BACKGROUNDS_LOOP.length)}%)`,
-            transition: bgTransitionOn ? 'transform 1.6s cubic-bezier(.45,0,.2,1)' : 'none',
-          }}
-        >
-          {HERO_BACKGROUNDS_LOOP.map((bg, i) => (
-            <div key={i} className="hero-photo-slide">
-              <div className="hero-photo-slide-img" style={{ backgroundImage: `url(${bg})` }} />
-            </div>
-          ))}
-        </div>
+        {/* ---- PHOTO STAGE (always the photo's own aspect ratio) ---- */}
+        <div className="hero-stage">
+          <div
+            className="hero-photo-track"
+            onTransitionEnd={handleBgTransitionEnd}
+            style={{
+              transform: `translateX(-${bgIndex * (100 / HERO_BACKGROUNDS_LOOP.length)}%)`,
+              transition: bgTransitionOn ? 'transform 1.6s cubic-bezier(.45,0,.2,1)' : 'none',
+            }}
+          >
+            {HERO_BACKGROUNDS_LOOP.map((bg, i) => (
+              <div key={i} className="hero-photo-slide">
+                <div className="hero-photo-slide-img" style={{ backgroundImage: `url(${bg})` }} />
+              </div>
+            ))}
+          </div>
 
-        {/* Slide position dots */}
-        <div className="absolute top-6 right-6 sm:top-8 sm:right-10 z-20 flex items-center gap-2">
-          {HERO_BACKGROUNDS.map((_, i) => (
-            <button
-              key={i}
-              onClick={() => { setBgTransitionOn(true); setBgIndex(i); }}
-              aria-label={`Show background ${i + 1}`}
-              className="transition-all duration-300 cursor-pointer rounded-full"
-              style={{
-                width: i === (bgIndex % HERO_BACKGROUNDS.length) ? 22 : 7,
-                height: 7,
-                background: i === (bgIndex % HERO_BACKGROUNDS.length) ? '#10B981' : 'rgba(255,255,255,0.35)',
-                boxShadow: i === (bgIndex % HERO_BACKGROUNDS.length) ? '0 0 10px rgba(16,185,129,.8)' : 'none',
-              }}
-            />
-          ))}
-        </div>
+          {/* Slide position dots */}
+          <div className="absolute z-20 flex items-center gap-1.5 sm:gap-2" style={{ top: '2.2cqw', right: '3cqw' }}>
+            {HERO_BACKGROUNDS.map((_, i) => {
+              const active = i === (bgIndex % HERO_BACKGROUNDS.length);
+              return (
+                <button
+                  key={i}
+                  onClick={() => { setBgTransitionOn(true); setBgIndex(i); }}
+                  aria-label={`Show background ${i + 1}`}
+                  className="transition-all duration-300 cursor-pointer rounded-full"
+                  style={{
+                    width: active ? 18 : 6,
+                    height: 6,
+                    background: active ? '#10B981' : 'rgba(255,255,255,0.35)',
+                    boxShadow: active ? '0 0 10px rgba(16,185,129,.8)' : 'none',
+                  }}
+                />
+              );
+            })}
+          </div>
 
-        <div className="hero-photo-scrim" />
-        <div className="hero-light-sweep" />
+          <div className="hero-photo-scrim" />
+          <div className="hero-light-sweep" />
 
-        <div className="relative z-10 w-full max-w-7xl mx-auto px-5 sm:px-8 md:px-14 lg:px-20 pt-16 sm:pt-20 pb-24 sm:pb-28">
-          <div className="hero-enter max-w-[640px]">
-            <div className="hero-badge-dot inline-flex items-center gap-2.5 px-3.5 py-2 mb-6 border border-emerald-400/50 bg-emerald-400/[0.08] text-emerald-300 text-[9px] sm:text-[10px] font-bold tracking-[.3em] uppercase backdrop-blur-sm rounded-full" style={{fontFamily:"'DM Sans',sans-serif"}}>
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_10px_#10B981]"/>
-              Premium Supplements
-            </div>
+          {/* Animated colored smoke rising behind the bottles */}
+          <div className="absolute inset-0 pointer-events-none overflow-hidden z-[1]">
+            {[
+              { left: '66%', color: 'hero-smoke-emerald', glow: 'rgba(16,185,129,.5)', width: 70, height: 230, dur: 6.2 },
+              { left: '72%', color: 'hero-smoke-emerald', glow: 'rgba(16,185,129,.55)', width: 110, height: 300, dur: 7.6 },
+              { left: '79%', color: 'hero-smoke-amber', glow: 'rgba(245,158,11,.45)', width: 90, height: 270, dur: 7 },
+              { left: '85%', color: 'hero-smoke-red', glow: 'rgba(239,68,68,.4)', width: 65, height: 210, dur: 6.6 },
+            ].map((col, ci) => {
+              const cq = (px: number) => `${((px / 1900) * 100).toFixed(2)}cqw`;
+              return (
+                <div key={`smokecol-${ci}`} className="hero-smoke-col" style={{ left: col.left }}>
+                  <div className="hero-smoke-glow" style={{ width: cq(col.width * 1.6), height: cq(col.width * 1.6), background: col.glow }} />
+                  {[0, 1, 2, 3].map((wi) => (
+                    <div
+                      key={wi}
+                      className={`hero-smoke-wisp ${col.color}`}
+                      style={{
+                        width: cq(col.width),
+                        height: cq(col.height),
+                        animationDuration: `${col.dur}s`,
+                        animationDelay: `${wi * (col.dur / 4)}s`,
+                      }}
+                    />
+                  ))}
+                </div>
+              );
+            })}
+          </div>
 
-            <h1 className="hero-heading-glow font-black uppercase leading-[.96] tracking-[-.025em] text-white mb-6" style={{fontFamily:"'Barlow Condensed',sans-serif", fontSize:"clamp(2.9rem, 6.2vw, 5.4rem)"}}>
-              BUILD MUSCLE.
-              <br />
-              <span className="hero-heading-accent">FUEL GROWTH.</span>
-            </h1>
-
-            <p className="max-w-[460px] text-sm sm:text-base leading-7 text-zinc-200 mb-9" style={{fontFamily:"'DM Sans',sans-serif"}}>
-              Premium quality supplements for peak performance, faster recovery and a stronger you.
-            </p>
-
-            <div className="flex flex-wrap items-center gap-3 mb-12">
-              <button onClick={() => document.getElementById('all-products')?.scrollIntoView({behavior:'smooth'})} className="hero-cta-primary group inline-flex items-center justify-center gap-3 px-7 sm:px-8 py-4 bg-emerald-500 hover:bg-emerald-400 text-black font-black text-[12px] tracking-[.15em] uppercase transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_14px_40px_rgba(16,185,129,.4)]" style={{fontFamily:"'Barlow Condensed',sans-serif"}}>
-                <span className="relative z-10 inline-flex items-center gap-3">
-                  Shop Now <ArrowRight size={16} className="transition-transform group-hover:translate-x-1.5"/>
-                </span>
-              </button>
-              <button onClick={() => document.getElementById('footer-contact')?.scrollIntoView({behavior:'smooth'})} className="inline-flex items-center justify-center px-7 sm:px-8 py-4 border border-white/40 text-white hover:border-emerald-400/80 hover:text-emerald-300 font-black text-[12px] tracking-[.15em] uppercase transition-all duration-300 hover:-translate-y-1" style={{fontFamily:"'Barlow Condensed',sans-serif"}}>
-                Learn More
-              </button>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-6 sm:gap-8">
-              {[
-                { icon: Dumbbell, val: '50K+', label: 'Athletes' },
-                { icon: Star, val: '4.9★', label: 'Avg Rating' },
-                { icon: ShieldCheck, val: '100%', label: 'Lab-Tested' },
-              ].map((s, i) => (
-                <React.Fragment key={s.label}>
-                  {i > 0 && <div className="hidden sm:block w-px h-9 bg-white/15" />}
-                  <div className="hero-stat flex items-center gap-2.5 cursor-default">
-                    <div className="hero-stat-icon w-9 h-9 sm:w-10 sm:h-10 rounded-full border border-emerald-400/40 bg-emerald-400/10 flex items-center justify-center shrink-0">
-                      <s.icon size={16} className="text-emerald-400" />
-                    </div>
-                    <div className="leading-tight">
-                      <div className="hero-stat-val text-base sm:text-lg font-black text-white" style={{fontFamily:"'Barlow Condensed',sans-serif"}}>{s.val}</div>
-                      <div className="text-[9px] sm:text-[10px] uppercase tracking-[.14em] text-zinc-300" style={{fontFamily:"'DM Sans',sans-serif"}}>{s.label}</div>
-                    </div>
-                  </div>
-                </React.Fragment>
-              ))}
+          {/* Copy over the photo: badge + heading everywhere; the rest too on desktop */}
+          <div className="hero-overlay">
+            <div className="hero-copy hero-enter">
+              <HeroBadge />
+              <HeroHeading />
+              <HeroTagline />
+              <div className="hero-cta-wrap">
+                <HeroBottom />
+              </div>
             </div>
           </div>
+
+          <div className="hidden lg:block absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald-500/40 to-transparent" />
         </div>
 
-        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald-500/40 to-transparent"/>
       </section>
 
-      {/* CATEGORY EXPLORATION — Design 01 "Vivid Tiles" look, background driven by cat.accentColor, decorative motion driven by cat.effect (both set from Admin → Category Manager) */}
+      {/* CATEGORY EXPLORATION */}
       <section className="relative py-6 pb-14 sm:pb-20 md:pb-28 px-4 sm:px-6 md:px-14 lg:px-20" style={{ background: "#ffffff" }}>
         <div className="max-w-7xl mx-auto mb-8 sm:mb-12">
           <div className="flex items-center gap-3 sm:gap-4 mb-3">
@@ -341,31 +427,23 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, categories, products, on
                 onMouseLeave={() => setHoveredCard(null)}
                 onClick={() => onNavigate(cat.id)}
               >
-                {/* Decorative ring accent, matches Design 01 tile */}
                 <span
                   className="absolute -top-8 -right-8 sm:-top-10 sm:-right-10 w-28 h-28 sm:w-40 sm:h-40 rounded-full pointer-events-none"
                   style={{ border: "1.5px solid rgba(255,255,255,0.28)" }}
                 />
 
-                {/* Admin-controlled decorative effect layer — this is what
-                    was previously defined but never rendered. Now it
-                    actually reflects the "Animation Effect" chosen per
-                    category in the Admin Dashboard. */}
                 <CardEffect effect={cardEffect} color={accent} />
 
-                {/* Subtle dark-to-transparent wash for text legibility, still shows accent color through */}
                 <div
                   className="absolute inset-0 pointer-events-none"
                   style={{ background: "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.18) 100%)" }}
                 />
 
-                {/* Large translucent ghost icon */}
                 <div className="absolute -bottom-3 -right-3 sm:-bottom-4 sm:-right-4 opacity-[0.14] group-hover:opacity-[0.22] transition-opacity duration-400 pointer-events-none">
                   <Icon size={72} className="sm:hidden" color="#ffffff" />
                   <Icon size={110} className="hidden sm:block" color="#ffffff" />
                 </div>
 
-                {/* Information */}
                 <div className="absolute inset-0 flex flex-col justify-between p-4 sm:p-5 md:p-6">
                   <div className="flex items-start justify-between">
                     <div
@@ -466,7 +544,6 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, categories, products, on
 
             return (
               <div key={`shelf-${cat.id}`}>
-                {/* Category Shelf Header */}
                 <div className="flex flex-wrap items-center sm:items-end justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
                   <div className="min-w-0">
                     <p
@@ -512,7 +589,6 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, categories, products, on
                   </button>
                 </div>
 
-                {/* Product Row */}
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-5">
                   {catProducts.map((p) => (
                     <ProductCard
@@ -528,6 +604,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, categories, products, on
           })}
         </div>
       </section>
+
       {/* TRUST AND VALUES SECTION */}
       <section className="py-6 sm:py-8 px-4 sm:px-6 md:px-14" style={{ background: "#ffffff", borderTop: "1px solid rgba(0,0,0,0.06)", borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
         <div className="max-w-7xl mx-auto grid grid-cols-2 sm:flex sm:flex-wrap justify-center md:justify-between gap-x-4 gap-y-5 sm:gap-x-6 md:gap-0">
