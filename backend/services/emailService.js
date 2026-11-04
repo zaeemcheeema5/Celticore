@@ -46,6 +46,8 @@ const sendEmail = async ({ to, subject, html }) => {
 // ==========================
 const orderConfirmationTemplate = require("../templates/orderConfirmation");
 const orderShippedTemplate = require("../templates/orderShipped");
+const orderProcessingTemplate = require("../templates/orderProcessing");
+const trackingUpdatedTemplate = require("../templates/trackingUpdated");
 const orderDeliveredTemplate = require("../templates/orderDelivered");
 const orderCancelledTemplate = require("../templates/orderCancelled");
 const paymentSuccessTemplate = require("../templates/paymentSuccess");
@@ -78,23 +80,69 @@ const sendOrderConfirmation = async (order) => {
     });
 };
 
-const sendOrderShipped = async (order) => {
+const sendOrderProcessing = async (order) => {
     if (!order.customerEmail) return { success: false, error: "No customer email" };
-
-    const today = new Date();
-    const from = new Date(today); from.setDate(today.getDate() + 3);
-    const to = new Date(today); to.setDate(today.getDate() + 5);
-    const fmt = (d) => d.toLocaleDateString('en-IE', { day: 'numeric', month: 'short' });
 
     return sendEmail({
         to: order.customerEmail,
-        subject: `Your theCeltiCore Order #${order.orderId} Has Shipped 🚚`,
+        subject: `We're Preparing Your CeltiCore Order #${order.orderId}`,
+        html: orderProcessingTemplate({
+            customerName: order.customerName,
+            orderId: order.orderId,
+            items: order.items,
+            total: order.total,
+            deliveryMethodName: order.deliveryMethodName,
+            estimatedDays: order.estimatedDays,
+            address: order.address,
+            trackOrderUrl: CLIENT_URL ? `${CLIENT_URL}/my-orders` : undefined,
+        })
+    });
+};
+
+// `order.estimatedDays` is the estimate wording of the delivery method the
+// customer was charged for (an estimate, never a guarantee). If none was
+// recorded (older orders), no estimate is shown rather than inventing one.
+const sendOrderShipped = async (order) => {
+    if (!order.customerEmail) return { success: false, error: "No customer email" };
+
+    return sendEmail({
+        to: order.customerEmail,
+        subject: `Your theCeltiCore Order #${order.orderId} Has Been Dispatched 🚚`,
         html: orderShippedTemplate({
             customerName: order.customerName,
             orderId: order.orderId,
             items: order.items,
             total: order.total,
-            estimatedDelivery: `${fmt(from)} - ${fmt(to)}`,
+            deliveryFee: order.deliveryMethodName ? order.deliveryFee : undefined,
+            estimatedDays: order.estimatedDays,
+            deliveryNotice: order.deliveryNotice,
+            deliveryMethodName: order.deliveryMethodName,
+            address: order.address,
+            courierName: order.courierName,
+            trackingNumber: order.trackingNumber,
+            trackingUrl: order.trackingUrl,
+            trackOrderUrl: CLIENT_URL ? `${CLIENT_URL}/my-orders` : undefined,
+        })
+    });
+};
+
+const sendTrackingUpdated = async (order) => {
+    if (!order.customerEmail) return { success: false, error: "No customer email" };
+
+    return sendEmail({
+        to: order.customerEmail,
+        subject: `Tracking Updated - CeltiCore Order #${order.orderId}`,
+        html: trackingUpdatedTemplate({
+            customerName: order.customerName,
+            orderId: order.orderId,
+            items: order.items,
+            status: order.status ? order.status.charAt(0).toUpperCase() + order.status.slice(1) : undefined,
+            deliveryMethodName: order.deliveryMethodName,
+            estimatedDays: order.estimatedDays,
+            address: order.address,
+            courierName: order.courierName,
+            trackingNumber: order.trackingNumber,
+            trackingUrl: order.trackingUrl,
             trackOrderUrl: CLIENT_URL ? `${CLIENT_URL}/my-orders` : undefined,
         })
     });
@@ -112,6 +160,11 @@ const sendOrderDelivered = async (order) => {
             items: order.items,
             total: order.total,
             deliveryDate: new Date().toLocaleDateString('en-IE', { day: 'numeric', month: 'long', year: 'numeric' }),
+            deliveryMethodName: order.deliveryMethodName,
+            address: order.address,
+            courierName: order.courierName,
+            trackingNumber: order.trackingNumber,
+            trackingUrl: order.trackingUrl,
             reviewUrl: CLIENT_URL ? `${CLIENT_URL}/my-orders` : undefined,
         })
     });
@@ -204,7 +257,9 @@ const sendPasswordReset = async ({ username, email, otp }) => {
 module.exports = sendEmail;
 module.exports.sendEmail = sendEmail;
 module.exports.sendOrderConfirmation = sendOrderConfirmation;
+module.exports.sendOrderProcessing = sendOrderProcessing;
 module.exports.sendOrderShipped = sendOrderShipped;
+module.exports.sendTrackingUpdated = sendTrackingUpdated;
 module.exports.sendOrderDelivered = sendOrderDelivered;
 module.exports.sendOrderCancelled = sendOrderCancelled;
 module.exports.sendPaymentSuccess = sendPaymentSuccess;

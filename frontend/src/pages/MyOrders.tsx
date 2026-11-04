@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowLeft, Package, Star, Loader2, CreditCard, Search, LogIn, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Package, Star, Loader2, CreditCard, Search, LogIn, AlertCircle, Truck, ExternalLink, Check, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../context/AuthContext';
 import { ordersService } from '../api/orders';
 import { reviewsService } from '../api/reviews';
 import { Order, OrderItem } from '../types';
+import { formatDbDate, estimateLabel, euro, safeHttpUrl } from '../utils/delivery';
 
 interface MyOrdersProps {
   onNavigate: (page: string) => void;
@@ -24,6 +25,11 @@ const STATUS_STYLES: Record<string, string> = {
   delivered: 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/25',
   cancelled: 'bg-red-500/10 text-red-400 border border-red-500/25',
 };
+
+// 'shipped' is the stored value; customers see it as "Dispatched".
+function statusLabel(status?: string) {
+  return (status || '').toLowerCase() === 'shipped' ? 'dispatched' : status;
+}
 
 function statusStyle(status: string) {
   return STATUS_STYLES[status?.toLowerCase()] || 'bg-amber-500/10 text-amber-400 border border-amber-500/25';
@@ -61,6 +67,158 @@ interface ReviewFormState {
   review: string;
 }
 
+// ── Delivery timeline ───────────────────────────────────────────────────
+// Built only from what is actually stored on the order: a stage is "done"
+// when the order data proves it (payment_status, status, dispatch/delivery
+// dates). Nothing is invented.
+const STATUS_RANK: Record<string, number> = {
+  pending: 0, paid: 0, processing: 2, shipped: 3, delivered: 4,
+};
+
+function DeliveryTimeline({ order }: { order: Order }) {
+  const status = (order.status || '').toLowerCase();
+  const cancelled = status === 'cancelled';
+  const rank = STATUS_RANK[status] ?? 0;
+  const paid = (order.paymentStatus || '').toLowerCase() === 'paid';
+
+  const stages: { key: string; label: string; date?: string | null; done: boolean; bad?: boolean }[] = [
+    { key: 'placed', label: 'Order Placed', date: order.createdAt, done: true },
+    { key: 'paid', label: 'Payment Confirmed', date: order.paidAt, done: paid },
+  ];
+
+  if (cancelled) {
+    stages.push({ key: 'cancelled', label: 'Cancelled', date: null, done: true, bad: true });
+  } else {
+    stages.push(
+      { key: 'processing', label: 'Processing', date: order.processingAt, done: rank >= 2 },
+      { key: 'shipped', label: 'Dispatched', date: order.dispatchedAt, done: rank >= 3 },
+      { key: 'delivered', label: 'Delivered', date: order.deliveredAt, done: rank >= 4 },
+    );
+  }
+
+  return (
+    <ol className="grid gap-1" style={{ gridTemplateColumns: `repeat(${stages.length}, minmax(0, 1fr))` }} aria-label="Delivery progress">
+      {stages.map((stage, i) => {
+        const color = stage.bad ? '#EF4444' : ACCENT;
+        return (
+          <li key={stage.key} className="flex flex-col items-center text-center gap-1 relative">
+            {i > 0 && (
+              <span
+                className="absolute top-[9px] right-1/2 w-full h-px"
+                style={{ background: stage.done ? color : 'rgba(255,255,255,0.1)' }}
+                aria-hidden="true"
+              />
+            )}
+            <span
+              className="relative z-10 w-[18px] h-[18px] rounded-full flex items-center justify-center border"
+              style={
+                stage.done
+                  ? { background: color, borderColor: color, color: '#000' }
+                  : { background: '#0d0d0d', borderColor: 'rgba(255,255,255,0.2)' }
+              }
+            >
+              {stage.done && (stage.bad ? <X size={10} strokeWidth={3} /> : <Check size={10} strokeWidth={3} />)}
+            </span>
+            <span className={`text-[8px] sm:text-[9px] leading-tight uppercase font-bold tracking-wide ${stage.done ? 'text-white/80' : 'text-white/30'}`}>
+              {stage.label}
+            </span>
+            {stage.done && stage.date && (
+              <span className="text-[8px] text-white/30 leading-tight">{formatDbDate(stage.date)}</span>
+            )}
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+// Subtotal / discount / delivery / total. Orders placed before the delivery
+// system existed have no delivery info, so they only show their total.
+function OrderTotals({ order }: { order: Order }) {
+  const hasDelivery = !!order.deliveryMethodName;
+  const discount = Number(order.discount) || 0;
+
+  return (
+    <div className="pt-2 border-t border-white/5 space-y-1 text-[11px]">
+      {hasDelivery && order.subtotal !== undefined && (
+        <div className="flex justify-between text-white/50">
+          <span>Subtotal</span><span className="text-white/80">{euro(order.subtotal)}</span>
+        </div>
+      )}
+      {hasDelivery && discount > 0 && (
+        <div className="flex justify-between text-emerald-400">
+          <span>Discount</span><span>-{euro(discount)}</span>
+        </div>
+      )}
+      {hasDelivery && (
+        <div className="flex justify-between text-white/50">
+          <span>Delivery ({order.deliveryMethodName})</span>
+          {Number(order.deliveryCost) > 0
+            ? <span className="text-white/80">{euro(order.deliveryCost)}</span>
+            : <span className="text-emerald-400 font-bold">FREE</span>}
+        </div>
+      )}
+      <div className="flex justify-between font-bold text-white text-xs pt-1">
+        <span>Total</span><span className="text-emerald-400">{euro(order.total)}</span>
+      </div>
+    </div>
+  );
+}
+
+function DetailRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex gap-2 text-[11px]">
+      <span className="w-28 shrink-0 text-white/35 uppercase text-[9px] tracking-wider pt-0.5">{label}</span>
+      <span className="text-white/75 min-w-0 break-words">{children}</span>
+    </div>
+  );
+}
+
+function DeliveryDetails({ order }: { order: Order }) {
+  const address = [order.address, order.address2, order.city, order.county, order.postalCode, order.country]
+    .filter(Boolean).join(', ');
+  const estimate = estimateLabel(order.deliveryEstimateText, order.deliveryEstMinDays, order.deliveryEstMaxDays);
+  const trackUrl = safeHttpUrl(order.trackingUrl);
+  const dispatched = formatDbDate(order.dispatchedAt);
+  const delivered = formatDbDate(order.deliveredAt);
+
+  const hasAnything = address || order.deliveryMethodName || order.courierName || order.trackingNumber;
+  if (!hasAnything) return null;
+
+  return (
+    <div className="pt-3 border-t border-white/5 space-y-1.5">
+      <p className="flex items-center gap-1.5 text-[9px] uppercase text-white/40 font-bold tracking-wider">
+        <Truck size={11} /> Delivery
+      </p>
+      {address && <DetailRow label="Delivering to">{address}</DetailRow>}
+      {order.deliveryMethodName && (
+        <DetailRow label="Method">
+          {order.deliveryMethodName}
+          {estimate && <span className="text-white/40"> · Estimated: {estimate}</span>}
+        </DetailRow>
+      )}
+      {estimate && (
+        <p className="text-[9px] text-white/30 pl-[7.5rem]">Estimates only, not guaranteed. Weekend and public holiday delivery depends on courier availability.</p>
+      )}
+      {order.courierName && <DetailRow label="Courier">{order.courierName}</DetailRow>}
+      {order.trackingNumber && <DetailRow label="Tracking no.">{order.trackingNumber}</DetailRow>}
+      {dispatched && <DetailRow label="Dispatched">{dispatched}</DetailRow>}
+      {delivered && <DetailRow label="Delivered">{delivered}</DetailRow>}
+      {trackUrl && (
+        <a
+          href={trackUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 mt-1 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide"
+          style={{ border: `1px solid ${ACCENT}`, color: ACCENT, background: `${ACCENT}0c` }}
+        >
+          <ExternalLink size={11} /> Track Parcel
+        </a>
+      )}
+    </div>
+  );
+}
+
 // Shared order card — used both for the authenticated "My Orders" list and
 // for the single result of a guest order-tracking lookup. Review actions
 // only render when `onReview` is passed (the guest tracking flow has no
@@ -80,9 +238,11 @@ function OrderCard({
           <span className="text-white/40 ml-2">({new Date(order.createdAt).toLocaleDateString()})</span>
         </div>
         <span className={`px-2 py-0.5 rounded-full text-[9px] uppercase font-bold ${statusStyle(order.status)}`}>
-          {order.status}
+          {statusLabel(order.status)}
         </span>
       </div>
+
+      <DeliveryTimeline order={order} />
 
       <div className="flex items-center gap-1.5 text-[10px] text-white/40">
         <CreditCard size={12} />
@@ -124,11 +284,9 @@ function OrderCard({
         ))}
       </div>
 
-      {(order.address || order.city) && (
-        <div className="pt-2 border-t border-white/5 text-[10px] text-white/40">
-          Shipping to: {[order.address, order.city, order.postalCode, order.country].filter(Boolean).join(', ')}
-        </div>
-      )}
+      <OrderTotals order={order} />
+
+      <DeliveryDetails order={order} />
     </div>
   );
 }

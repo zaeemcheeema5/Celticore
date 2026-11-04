@@ -26,10 +26,14 @@ interface CartContextType {
   placeOrder: (shippingDetails: {
     customerName: string;
     customerEmail: string;
+    phone?: string;
     address: string;
+    address2?: string;
     city: string;
+    county?: string;
     postalCode: string;
     country: string;
+    deliveryMethod?: string;
     paymentMethod: 'card' | 'gpay' | 'applepay';
     paymentStatus: 'paid' | 'unpaid' | 'pending';
     stripePaymentIntentId?: string;
@@ -142,10 +146,14 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const placeOrder = async (shippingDetails: {
     customerName: string;
     customerEmail: string;
+    phone?: string;
     address: string;
+    address2?: string;
     city: string;
+    county?: string;
     postalCode: string;
     country: string;
+    deliveryMethod?: string;
     paymentMethod: 'card' | 'gpay' | 'applepay';
     paymentStatus: 'paid' | 'unpaid' | 'pending';
     stripePaymentIntentId?: string;

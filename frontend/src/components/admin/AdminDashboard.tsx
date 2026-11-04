@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { X, ShieldAlert, BarChart3, Database, Award, ClipboardCheck, MessageSquare, Plus, Trash2, CheckCircle2, XCircle, Star, ShoppingBag, Layers, Edit2, Upload, Eye, UserPlus, Key, Download, TrendingUp, TrendingDown, Search, Copy, Check, MapPin, Mail, CreditCard, Package, Filter, Phone, Activity, Utensils, AlertTriangle, Send, Cake, Scale, ChevronDown, ExternalLink, Leaf } from 'lucide-react';
+import { Truck, X, ShieldAlert, BarChart3, Database, Award, ClipboardCheck, MessageSquare, Plus, Trash2, CheckCircle2, XCircle, Star, ShoppingBag, Layers, Edit2, Upload, Eye, UserPlus, Key, Download, TrendingUp, TrendingDown, Search, Copy, Check, MapPin, Mail, CreditCard, Package, Filter, Phone, Activity, Utensils, AlertTriangle, Send, Cake, Scale, ChevronDown, ExternalLink, Leaf } from 'lucide-react';
 import { AreaChart, Area, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { dashboardService } from '../../api/dashboard';
 import { productsService } from '../../api/products';
@@ -13,6 +13,8 @@ import { useAuth } from '../../context/AuthContext';
 import { API_URL } from '../../api/client';
 import { Product, Category, Review, Coupon, ContactMessage, NutritionRequest, DashboardStats, Order } from '../../types';
 import { toast } from 'sonner';
+import { DeliverySettingsPanel } from './DeliverySettingsPanel';
+import { OrderDeliveryEditor } from './OrderDeliveryEditor';
 
 interface AdminDashboardProps {
   onClose: () => void;
@@ -36,7 +38,7 @@ function slugifyPreview(value: string): string {
     .replace(/-{2,}/g, '-');
 }
 
-type TabType = 'stats' | 'orders' | 'products' | 'categories' | 'reviews' | 'coupons' | 'contact' | 'nutrition' | 'admins';
+type TabType = 'stats' | 'orders' | 'products' | 'categories' | 'reviews' | 'coupons' | 'contact' | 'nutrition' | 'admins' | 'delivery';
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, onCatalogChange }) => {
 
@@ -938,6 +940,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, onCatal
               [
                 { id: 'stats', label: 'Dashboard Stats', icon: BarChart3 },
                 { id: 'orders', label: 'Order Manager', icon: ShoppingBag },
+                { id: 'delivery', label: 'Delivery Settings', icon: Truck },
                 { id: 'products', label: 'Product Manager', icon: Database },
                 { id: 'categories', label: 'Category Manager', icon: Layers },
                 { id: 'reviews', label: 'Review Moderation', icon: MessageSquare },
@@ -978,6 +981,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, onCatal
           <h2 className="text-base sm:text-xl font-black uppercase tracking-wider text-white" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
             {activeTab === 'stats' && 'Sales & Store Statistics'}
             {activeTab === 'orders' && 'Customer Order Management'}
+              {activeTab === 'delivery' && 'Delivery Settings'}
               {activeTab === 'products' && 'Product Sourcing / Uploads'}
               {activeTab === 'categories' && 'Category Management Console'}
               {activeTab === 'reviews' && 'Reviews Moderation Portal'}
@@ -2284,6 +2288,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, onCatal
             </div>
           )}
 
+          {/* TAB CONTENT: DELIVERY SETTINGS */}
+          {activeTab === 'delivery' && <DeliverySettingsPanel />}
+
           {/* TAB CONTENT: ORDERS */}
           {activeTab === 'orders' && (
             <div className="space-y-5">
@@ -2390,7 +2397,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, onCatal
                               className="px-2 py-0.5 rounded-full text-[9px] uppercase font-bold border"
                               style={{ color: dotColor, borderColor: `${dotColor}40`, background: `${dotColor}1A` }}
                             >
-                              {order.status}
+                              {order.status === 'shipped' ? 'dispatched' : order.status}
                             </span>
                           </div>
                           <div className="flex items-center gap-3">
@@ -2404,7 +2411,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, onCatal
                             >
                               <option value="pending">Pending</option>
                               <option value="processing">Processing</option>
-                              <option value="shipped">Shipped</option>
+                              <option value="shipped">Dispatched</option>
                               <option value="delivered">Delivered</option>
                               <option value="cancelled">Cancelled</option>
                             </select>
@@ -2430,7 +2437,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, onCatal
                               </div>
                               <div className="flex items-start gap-1.5 text-white/50">
                                 <MapPin size={11} className="shrink-0 mt-0.5" />
-                                <span>{order.address}, {order.city}, {order.postalCode}, {order.country}</span>
+                                <span>{[order.address, order.address2, order.city, order.county, order.postalCode, order.country].filter(Boolean).join(', ')}</span>
                               </div>
                             </div>
 
@@ -2475,12 +2482,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, onCatal
                                 </div>
                               ))}
                             </div>
+                            {order.deliveryMethodName && (
+                              <div className="flex justify-between text-white/50 text-[11px] pt-1">
+                                <span>Delivery ({order.deliveryMethodName})</span>
+                                <span>{Number(order.deliveryCost) > 0 ? `€${Number(order.deliveryCost).toFixed(2)}` : 'FREE'}</span>
+                              </div>
+                            )}
                             <div className="flex justify-between border-t border-white/5 pt-2 mt-2 font-bold text-white text-xs">
                               <span>Grand Total</span>
                               <span className="text-emerald-400">€{order.total.toFixed(2)}</span>
                             </div>
                           </div>
                         </div>
+
+                        <OrderDeliveryEditor
+                          order={order}
+                          onChange={(patch) => setOrders(prev => prev.map(o => o.id === order.id ? { ...o, ...patch } : o))}
+                        />
                       </div>
                     );
                   })}

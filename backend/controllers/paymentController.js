@@ -1,5 +1,6 @@
 const stripe = require("../utils/stripeClient");
 const db = require("../db");
+const { resolveCheckoutDelivery, toCents } = require("../utils/delivery");
 
 /*
 =====================================
@@ -22,8 +23,12 @@ exports.createPaymentIntent = async (req, res) => {
     const {
         items,
         couponCode,
-        currency,
+        paymentIntentId,
         receipt_email
+        // NOTE: `currency` from the request body is deliberately ignored.
+        // Previously the client could choose the currency, so a shopper could
+        // pay "49.99" in a weaker currency than the EUR price shown. The
+        // currency is now fixed on the server.
     } = req.body;
 
     if (!Array.isArray(items) || items.length === 0) {
@@ -34,60 +39,40 @@ exports.createPaymentIntent = async (req, res) => {
 
     try {
 
-        const productIds = [...new Set(items.map(i => i.id))];
-        const placeholders = productIds.map(() => "?").join(",");
+        // 1) Product prices + coupon, recalculated from the database
+        //    (same function placeOrder uses, so both always agree).
+        const { recomputeOrderPricing } = require("./orderController");
 
-        const products = await new Promise((resolve, reject) => {
-            db.all(
-                `SELECT id, price FROM products WHERE id IN (${placeholders})`,
-                productIds,
-                (err, rows) => err ? reject(err) : resolve(rows)
+        let pricing;
+        try {
+            pricing = await recomputeOrderPricing(
+                items.map(i => ({ product_id: i && i.id, quantity: i && i.quantity })),
+                couponCode
             );
-        });
-
-        const priceById = {};
-        products.forEach(p => { priceById[p.id] = p.price; });
-
-        let subtotal = 0;
-
-        for (const item of items) {
-            const price = priceById[item.id];
-            const quantity = Number(item.quantity);
-
-            if (price === undefined || !Number.isFinite(quantity) || quantity <= 0) {
-                return res.status(400).json({
-                    error: `Invalid item in cart (product id: ${item.id})`
-                });
-            }
-
-            subtotal += price * quantity;
-        }
-
-        let discount = 0;
-
-        if (couponCode) {
-
-            const coupon = await new Promise((resolve, reject) => {
-                db.get(
-                    `SELECT * FROM coupons WHERE code = ? AND is_active = 1`,
-                    [couponCode],
-                    (err, row) => err ? reject(err) : resolve(row)
-                );
+        } catch (pricingErr) {
+            return res.status(pricingErr.status || 500).json({
+                error: pricingErr.message || "Could not calculate order pricing."
             });
-
-            const isValid = coupon && (!coupon.expiry_date || new Date(coupon.expiry_date) >= new Date());
-
-            if (isValid) {
-                if (coupon.discount_type === "percentage") {
-                    discount = (subtotal * coupon.discount_value) / 100;
-                } else if (coupon.discount_type === "fixed") {
-                    discount = coupon.discount_value;
-                }
-            }
         }
 
-        const total = Math.max(0, subtotal - discount);
-        const amount = Math.round(total * 100);
+        const { subtotal, discount } = pricing;
+        const goodsTotal = Math.max(0, subtotal - discount);
+
+        // 2) Delivery fee: customers don't choose a method — the business-
+        //    defined one is applied and priced on the server (fixed nationwide
+        //    fee, free over the configured minimum).
+        let delivery;
+        try {
+            delivery = await resolveCheckoutDelivery(goodsTotal);
+        } catch (deliveryErr) {
+            return res.status(deliveryErr.status || 500).json({
+                error: deliveryErr.message || "Could not calculate delivery."
+            });
+        }
+
+        // 3) Final payable amount, in cents. Final = Subtotal - Discount + Delivery.
+        const amount = toCents(goodsTotal) + toCents(delivery.fee);
+        const total = amount / 100;
 
         if (amount <= 0) {
             return res.status(400).json({
@@ -95,45 +80,85 @@ exports.createPaymentIntent = async (req, res) => {
             });
         }
 
+        const currency = (process.env.STORE_CURRENCY || "eur").toLowerCase();
+
+        const metadata = {
+            source: "celticore_checkout",
+            subtotal: subtotal.toFixed(2),
+            discount: discount.toFixed(2),
+            delivery_method: delivery.code,
+            delivery_fee: delivery.fee.toFixed(2),
+            total: total.toFixed(2),
+            couponCode: couponCode || ""
+        };
+
+        const responseBody = (intent) => ({
+            success: true,
+            clientSecret: intent.client_secret,
+            paymentIntentId: intent.id,
+            amount,
+            subtotal,
+            discount,
+            deliveryMethod: delivery.code,
+            deliveryFee: delivery.fee,
+            deliveryFree: delivery.freeApplied,
+            total
+        });
+
+        // 4) The shopper changed delivery method / cart / coupon AFTER the
+        //    payment form was created: update that same PaymentIntent instead
+        //    of creating another one (no orphan or duplicate intents). Only
+        //    intents created by this checkout and still waiting for a payment
+        //    method can be updated; anything else falls through to "create".
+        if (paymentIntentId && typeof paymentIntentId === "string" && paymentIntentId.startsWith("pi_")) {
+            try {
+                const existing = await stripe.paymentIntents.retrieve(paymentIntentId);
+
+                if (
+                    existing.metadata &&
+                    existing.metadata.source === "celticore_checkout" &&
+                    existing.status === "requires_payment_method" &&
+                    existing.currency === currency
+                ) {
+                    const unchanged =
+                        existing.amount === amount &&
+                        existing.metadata.delivery_method === metadata.delivery_method &&
+                        existing.metadata.delivery_fee === metadata.delivery_fee &&
+                        existing.metadata.discount === metadata.discount &&
+                        existing.metadata.couponCode === metadata.couponCode;
+
+                    const updated = unchanged
+                        ? existing
+                        : await stripe.paymentIntents.update(existing.id, {
+                            amount,
+                            metadata,
+                            receipt_email: receipt_email || undefined
+                        });
+
+                    return res.json(responseBody(updated));
+                }
+            } catch (lookupErr) {
+                // Unknown / unusable intent id — just create a fresh one below.
+                console.warn("Could not reuse PaymentIntent, creating a new one:", lookupErr.message);
+            }
+        }
+
         const paymentIntent = await stripe.paymentIntents.create({
             amount,
-            currency: (currency || process.env.STORE_CURRENCY || "gbp").toLowerCase(),
+            currency,
             receipt_email: receipt_email || undefined,
             // Lets Stripe automatically surface payment methods enabled in
             // the Stripe Dashboard inside the same embedded
             // <PaymentElement/> on the frontend — card, Google Pay, Apple
-            // Pay, and Link all "just work" here regardless of the
-            // customer's country.
+            // Pay, and Link all "just work".
             //
             // `allow_redirects: "never"` restricts that to methods that
-            // settle inline, without a redirect. This deliberately EXCLUDES
-            // country-locked local methods such as Bancontact (Belgium
-            // only), Satispay (Italy only) or MB WAY (Portugal only) — they
-            // all require a redirect. Without this flag, Stripe could offer
-            // e.g. Bancontact to a shopper whose shipping country isn't
-            // even Belgium, which is exactly the "7 countries can check
-            // out but the payment methods don't match any of them" bug.
-            // Card + wallets work for every country in the shipping list,
-            // so this is what makes checkout genuinely worldwide instead
-            // of quietly favouring whichever few countries have a matching
-            // local method turned on in the Dashboard.
+            // settle inline, without a redirect.
             automatic_payment_methods: { enabled: true, allow_redirects: "never" },
-            metadata: {
-                subtotal: subtotal.toFixed(2),
-                discount: discount.toFixed(2),
-                total: total.toFixed(2),
-                couponCode: couponCode || ""
-            }
+            metadata
         });
 
-        res.json({
-            success: true,
-            clientSecret: paymentIntent.client_secret,
-            amount,
-            subtotal,
-            discount,
-            total
-        });
+        res.json(responseBody(paymentIntent));
 
     } catch (e) {
 
@@ -145,149 +170,72 @@ exports.createPaymentIntent = async (req, res) => {
 
 };
 
-exports.createCheckoutSession = (req, res) => {
+/*
+-------------------------------------
+LEGACY: Stripe Checkout Session for an EXISTING order
+-------------------------------------
+The website uses the PaymentIntent flow above; this is kept only so the old
+route keeps working. It now charges exactly what the order was verified to
+cost when it was placed (products - discount + delivery, stored in
+orders.total), in EUR, as one line. It never rebuilds the price from client
+data and never uses any other currency.
+*/
+exports.createCheckoutSession = async (req, res) => {
 
-    const { orderId } = req.body;
+    try {
 
-    if (!orderId) {
-        return res.status(400).json({
-            error: "Order ID is required"
-        });
-    }
+        const orderId = req.body && req.body.orderId;
 
-    db.get(
-        "SELECT value FROM settings WHERE key='currency'",
-        [],
-        (err, currencyRow) => {
-
-            if (err) {
-                return res.status(500).json({
-                    error: err.message
-                });
-            }
-
-            const currency = (
-                currencyRow?.value || "GBP"
-            ).toLowerCase();
-
-            db.get(
-                `
-                SELECT *
-                FROM orders
-                WHERE id=?
-                `,
-                [orderId],
-                (err, order) => {
-
-                    if (err)
-                        return res.status(500).json({
-                            error: err.message
-                        });
-
-                    if (!order)
-                        return res.status(404).json({
-                            error: "Order not found"
-                        });
-
-                    db.all(
-                        `
-                        SELECT *
-                        FROM order_items
-                        WHERE order_id=?
-                        `,
-                        [orderId],
-                        async (err, items) => {
-
-                            if (err)
-                                return res.status(500).json({
-                                    error: err.message
-                                });
-
-                            try {
-
-                                const lineItems = items.map(item => ({
-
-                                    price_data: {
-
-                                        currency,
-
-                                        product_data: {
-
-                                            name: item.product_name
-
-                                        },
-
-                                        unit_amount:
-                                            Math.round(item.price * 100)
-
-                                    },
-
-                                    quantity: item.quantity
-
-                                }));
-
-                                const session =
-                                    await stripe.checkout.sessions.create({
-
-                                        payment_method_types: ["card"],
-
-                                        mode: "payment",
-
-                                        line_items: lineItems,
-
-                                        success_url:
-                                            `${process.env.CLIENT_URL}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
-
-                                        cancel_url:
-                                            `${process.env.CLIENT_URL}/payment-cancel`,
-
-                                        metadata: {
-
-                                            orderId: order.id
-
-                                        }
-
-                                    });
-
-                                db.run(
-                                    `
-                                    UPDATE orders
-                                    SET stripe_session_id=?
-                                    WHERE id=?
-                                    `,
-                                    [
-                                        session.id,
-                                        order.id
-                                    ]
-                                );
-
-                                res.json({
-
-                                    success: true,
-
-                                    url: session.url,
-
-                                    sessionId: session.id
-
-                                });
-
-                            } catch (e) {
-
-                                res.status(500).json({
-
-                                    error: e.message
-
-                                });
-
-                            }
-
-                        }
-                    );
-
-                }
-            );
-
+        if (!orderId) {
+            return res.status(400).json({ error: "Order ID is required" });
         }
-    );
 
+        const rows = await new Promise((resolve, reject) => {
+            db.all("SELECT id, total, status, payment_status FROM orders WHERE id = ?", [orderId],
+                (err, r) => (err ? reject(err) : resolve(r)));
+        });
+        const order = rows && rows[0];
+
+        if (!order) {
+            return res.status(404).json({ error: "Order not found" });
+        }
+
+        const status = String(order.status || "").toLowerCase();
+        if (String(order.payment_status || "").toLowerCase() === "paid" ||
+            !["pending", ""].includes(status)) {
+            return res.status(400).json({ error: "This order cannot be paid online." });
+        }
+
+        const amount = toCents(Number(order.total));
+        if (!Number.isInteger(amount) || amount < 50) {
+            return res.status(400).json({ error: "Order total is invalid." });
+        }
+
+        const session = await stripe.checkout.sessions.create({
+            payment_method_types: ["card"],
+            mode: "payment",
+            line_items: [{
+                price_data: {
+                    currency: (process.env.STORE_CURRENCY || "eur").toLowerCase(),
+                    product_data: { name: `CeltiCore order #${order.id}` },
+                    unit_amount: amount
+                },
+                quantity: 1
+            }],
+            success_url: `${process.env.CLIENT_URL}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+            cancel_url: `${process.env.CLIENT_URL}/payment-cancel`,
+            metadata: { orderId: String(order.id) }
+        });
+
+        await new Promise((resolve, reject) => {
+            db.run("UPDATE orders SET stripe_session_id = ? WHERE id = ?", [session.id, order.id],
+                (err) => (err ? reject(err) : resolve()));
+        });
+
+        res.json({ success: true, url: session.url, sessionId: session.id });
+
+    } catch (e) {
+        console.error("Checkout session error:", e.message);
+        res.status(500).json({ error: "Could not start payment." });
+    }
 };

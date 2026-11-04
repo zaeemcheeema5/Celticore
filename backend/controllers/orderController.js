@@ -4,6 +4,16 @@ const stripe = require("../utils/stripeClient");
 const sendEmail = require("../services/emailService");
 const orderConfirmation = require("../templates/orderConfirmation");
 
+const {
+    validateIrishAddress,
+    resolveCheckoutDelivery,
+    loadDeliveryNotice,
+    toCents,
+    formatEstimate,
+    formatOrderAddress
+} = require("../utils/delivery");
+const { COURIER_OPTIONS, isValidCourier, DEFAULT_COURIER } = require("../services/courierService");
+
 // ==========================
 // Place Order
 // ==========================
@@ -108,6 +118,78 @@ async function recomputeOrderPricing(items, couponCode) {
     return { items: recomputedItems, subtotal, discount, total };
 }
 
+// Shared with paymentController + deliveryController so the PaymentIntent,
+// the delivery quote and the saved order are always priced identically.
+exports.recomputeOrderPricing = recomputeOrderPricing;
+
+// Small promise wrappers over the sqlite-style db helper.
+const dbRun = (sql, params = []) =>
+    new Promise((resolve, reject) => {
+        db.run(sql, params, function (err) {
+            if (err) return reject(err);
+            resolve({ lastID: this.lastID, changes: this.changes });
+        });
+    });
+
+const dbGet = (sql, params = []) =>
+    new Promise((resolve, reject) => {
+        db.get(sql, params, (err, row) => (err ? reject(err) : resolve(row)));
+    });
+
+const dbAll = (sql, params = []) =>
+    new Promise((resolve, reject) => {
+        db.all(sql, params, (err, rows) => (err ? reject(err) : resolve(rows)));
+    });
+
+// The order object returned to the browser after checkout (and again if the
+// same payment is submitted twice). Always built from the saved row so what
+// the customer sees is exactly what was stored.
+async function loadOrderResponse(orderId) {
+
+    const o = await dbGet(`SELECT * FROM orders WHERE id = ?`, [orderId]);
+    if (!o) return null;
+
+    const itemRows = await dbAll(
+        `SELECT product_id, product_name AS name, quantity, price, flavour FROM order_items WHERE order_id = ?`,
+        [orderId]
+    );
+
+    return {
+        id: o.id,
+        customer_name: o.customer_name,
+        customer_email: o.email || "",
+        phone: o.phone || "",
+        address: o.address || "",
+        address2: o.address2 || "",
+        city: o.city || "",
+        county: o.county || "",
+        postal_code: o.postal_code || "",
+        country: o.country || "",
+        items: itemRows.map(item => ({
+            product_id: item.product_id,
+            name: item.name,
+            quantity: item.quantity,
+            price: item.price,
+            flavour: item.flavour || ""
+        })),
+        total: o.total,
+        subtotal: o.subtotal,
+        discount: o.discount || 0,
+        payment_method: o.payment_method,
+        payment_status: o.payment_status,
+        stripe_payment_intent_id: o.stripe_payment_intent || "",
+        delivery_method: o.delivery_method,
+        delivery_method_name: o.delivery_method_name || "",
+        delivery_cost: o.delivery_cost || 0,
+        delivery_free: Number(o.delivery_free) === 1,
+        delivery_est_min_days: o.delivery_est_min_days,
+        delivery_est_max_days: o.delivery_est_max_days,
+        delivery_estimate_text: o.delivery_estimate_text || "",
+        status: o.status,
+        created_at: o.created_at
+    };
+}
+
 exports.placeOrder = async (req, res) => {
 
     const {
@@ -115,31 +197,91 @@ exports.placeOrder = async (req, res) => {
         customerEmail,
         phone,
         address,
+        address2,
         city,
+        county,
         postalCode,
         country,
         items: rawItems,
         couponCode,
         paymentMethod,
-        stripePaymentIntentId,
-        deliveryMethod,
-        deliveryCost
+        stripePaymentIntentId
+        // NOTE: `deliveryMethod` / `deliveryCost` from the browser is deliberately NOT read any
+        // more. The delivery fee is always recalculated below from the
+        // admin-configured delivery settings.
     } = req.body;
 
-    if (!customerName || !customerEmail || !address || !city || !postalCode) {
+    // ==========================
+    // 1) Address — validated again here even though the checkout form
+    //    validates it too (never trust the browser). Republic of Ireland only.
+    // ==========================
+    const addressCheck = validateIrishAddress({
+        customerName, customerEmail, phone, address, address2,
+        city, county, postalCode, country
+    });
+
+    if (!addressCheck.ok) {
         return res.status(400).json({
-            error: "Customer name, email, address, city and postal code are required."
+            error: Object.values(addressCheck.errors)[0],
+            errors: addressCheck.errors
         });
     }
 
-    // Recompute items/subtotal/discount/total from the database. This is
-    // the single source of truth from here on — the client's own total/
-    // discount/item-price fields (if it still sends any) are ignored.
-    let subtotal, discount, total, items;
+    const addr = addressCheck.value;
+
+    // ==========================
+    // 2) Same payment submitted twice (double click, retry, flaky network):
+    //    hand back the order that already exists instead of creating a
+    //    second one for the same charge.
+    // ==========================
+    if (paymentMethod === 'card' && stripePaymentIntentId) {
+        try {
+            const dupe = await dbGet(
+                `SELECT id, email FROM orders WHERE stripe_payment_intent = ?`,
+                [stripePaymentIntentId]
+            );
+
+            if (dupe) {
+                if (String(dupe.email || "").toLowerCase() !== addr.customerEmail.toLowerCase()) {
+                    return res.status(409).json({
+                        error: "This payment has already been used for another order."
+                    });
+                }
+                const existingOrder = await loadOrderResponse(dupe.id);
+                return res.json({
+                    success: true,
+                    orderId: dupe.id,
+                    message: "Order already placed",
+                    duplicate: true,
+                    order: existingOrder
+                });
+            }
+        } catch (dupeErr) {
+            return res.status(500).json({ error: dupeErr.message });
+        }
+    }
+
+    // ==========================
+    // 3) Recompute items/subtotal/discount from the database, then price the
+    //    chosen delivery method. This is the single source of truth from
+    //    here on — the client's own totals/prices/delivery fee are ignored.
+    //
+    //    Final Total = Product Subtotal - Discount + Delivery Fee
+    // ==========================
+    let subtotal, discount, items, delivery, total, chargeCents;
 
     try {
-        ({ items, subtotal, discount, total } =
+
+        ({ items, subtotal, discount } =
             await recomputeOrderPricing(rawItems, couponCode));
+
+        const goodsTotal = Math.max(0, subtotal - discount);
+
+        delivery = await resolveCheckoutDelivery(goodsTotal);
+
+        chargeCents = toCents(goodsTotal) + toCents(delivery.fee);
+        total = chargeCents / 100;
+
     } catch (pricingErr) {
         return res.status(pricingErr.status || 500).json({
             error: pricingErr.message || "Could not calculate order pricing."
@@ -153,15 +295,7 @@ exports.placeOrder = async (req, res) => {
 
     // Only a real, server-verified card payment can mark an order as Paid.
     // Every other method (COD, bank transfer, gpay, applepay) starts as
-    // Pending regardless of what the client claims — the client's
-    // paymentStatus field is never trusted for these. COD is paid on
-    // delivery and bank transfer needs manual verification, so Pending is
-    // correct there anyway. gpay/applepay are a simulated (non-real)
-    // integration in this codebase, not a live payment rail, so treating
-    // them as automatically "paid" let anyone create a free order via a
-    // direct API call — they now require the same manual admin
-    // confirmation as bank transfer until they're wired to real,
-    // server-verified payment processing.
+    // Pending regardless of what the client claims.
     let isPaid = false;
 
     if (paymentMethod === 'card') {
@@ -176,21 +310,24 @@ exports.placeOrder = async (req, res) => {
 
             const intent = await stripe.paymentIntents.retrieve(stripePaymentIntentId);
 
-            // Compared against the server's own recomputed total, not the
-            // client's — so a client can no longer pay the correct amount
-            // while claiming a different discount/coupon or line-item
-            // breakdown for the stored order record.
-            const expectedAmount = Math.round(total * 100);
-
             if (intent.status !== 'succeeded') {
                 return res.status(402).json({
                     error: `Payment has not succeeded (status: ${intent.status}).`
                 });
             }
 
-            if (intent.amount !== expectedAmount) {
+            // The amount Stripe actually charged must equal the amount the
+            // server just recalculated (products - coupon + delivery).
+            if (intent.amount !== chargeCents) {
                 return res.status(400).json({
-                    error: "Payment amount does not match the current order total. Prices or your coupon may have changed — please refresh and try again."
+                    error: "Payment amount does not match the current order total. Prices, your coupon or the delivery charge may have changed — please contact support with your payment reference " + stripePaymentIntentId + "."
+                });
+            }
+
+            const expectedCurrency = (process.env.STORE_CURRENCY || "eur").toLowerCase();
+            if (String(intent.currency).toLowerCase() !== expectedCurrency) {
+                return res.status(400).json({
+                    error: "Payment currency does not match the store currency."
                 });
             }
 
@@ -206,46 +343,63 @@ exports.placeOrder = async (req, res) => {
 
     }
 
-    db.serialize(() => {
+    // ==========================
+    // 4) Save the order
+    // ==========================
+    let orderId;
 
-        const orderSql = `
-        INSERT INTO orders
-        (
-            user_id,
-            customer_name,
-            email,
-            phone,
-            address,
-            city,
-            postal_code,
-            country,
-            delivery_method,
-            delivery_cost,
-            payment_method,
-            payment_status,
-            stripe_payment_intent,
-            subtotal,
-            discount,
-            total,
-            status,
-            paid_at
-        )
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-        `;
+    try {
 
-        db.run(
-            orderSql,
+        const inserted = await dbRun(
+            `
+            INSERT INTO orders
+            (
+                user_id,
+                customer_name,
+                email,
+                phone,
+                address,
+                address2,
+                city,
+                county,
+                postal_code,
+                country,
+                delivery_method,
+                delivery_method_name,
+                delivery_cost,
+                delivery_free,
+                delivery_est_min_days,
+                delivery_est_max_days,
+                delivery_estimate_text,
+                payment_method,
+                payment_status,
+                stripe_payment_intent,
+                subtotal,
+                discount,
+                total,
+                status,
+                paid_at
+            )
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            `,
             [
                 userId,
-                customerName,
-                customerEmail || "",
-                phone || "",
-                address || "",
-                city || "",
-                postalCode || "",
-                country || "",
-                deliveryMethod || "standard",
-                deliveryCost || 0,
+                addr.customerName,
+                addr.customerEmail,
+                addr.phone,
+                addr.address,
+                addr.address2,
+                addr.city,
+                addr.county,
+                addr.postalCode,
+                addr.country,
+                delivery.code,
+                delivery.name,
+                delivery.fee,
+                delivery.freeApplied ? 1 : 0,
+                delivery.estMinDays,
+                delivery.estMaxDays,
+                delivery.estimateText || null,
                 paymentMethod || "card",
                 isPaid ? 'paid' : 'pending',
                 stripePaymentIntentId || null,
@@ -254,155 +408,138 @@ exports.placeOrder = async (req, res) => {
                 total,
                 isPaid ? 'Paid' : 'Pending',
                 isPaid ? new Date().toISOString() : null
-            ],
-            async function (err) {
-
-                if (err) {
-                    return res.status(500).json({
-                        error: err.message
-                    });
-                }
-
-                const orderId = this.lastID;
-
-                try {
-
-                    const itemSql = `
-                    INSERT INTO order_items
-                    (
-                        order_id,
-                        product_id,
-                        product_name,
-                        quantity,
-                        price,
-                        flavour
-                    )
-                    VALUES (?,?,?,?,?,?)
-                    `;
-
-                    const stmt = db.prepare(itemSql);
-
-                    items.forEach(item => {
-
-                        stmt.run(
-                            orderId,
-                            item.product_id,
-                            item.name,
-                            item.quantity,
-                            item.price,
-                            item.flavour || ''
-                        );
-
-                    });
-
-                    await new Promise((resolve, reject) => {
-                        stmt.finalize(err2 => err2 ? reject(err2) : resolve());
-                    });
-
-                } catch (itemErr) {
-
-                    return res.status(500).json({
-                        error: "Order was created but items failed to save: " + itemErr.message
-                    });
-
-                }
-
-                // ==========================
-                // Send Confirmation Email (best-effort — never fails the order)
-                // ==========================
-
-                try {
-
-                    if (customerEmail) {
-
-                        await sendEmail({
-
-                            to: customerEmail,
-
-                            subject: `Order Confirmation #${orderId} - CeltiCore`,
-
-                            html: orderConfirmation({
-
-                                customerName,
-
-                                orderId,
-
-                                items: items.map(item => ({
-                                    product_name: item.name,
-                                    quantity: item.quantity,
-                                    price: item.price
-                                })),
-
-                                subtotal,
-
-                                discount: discount || 0,
-
-                                total,
-
-                                paymentMethod: paymentMethod || 'card',
-
-                                deliveryMethod: deliveryMethod || 'standard',
-
-                                address: `${address}, ${city}, ${postalCode}, ${country || ''}`,
-
-                                currency: "€"
-
-                            })
-
-                        });
-
-                    }
-
-                } catch (emailError) {
-
-                    console.error("Order confirmation email failed:", emailError.message);
-
-                }
-
-                // Return the full order object — the frontend's success screen
-                // (and ordersService.placeOrder mapping) reads fields like
-                // id/total/customerName/address off this.
-                res.json({
-
-                    success: true,
-
-                    orderId,
-
-                    message: "Order placed successfully",
-
-                    order: {
-                        id: orderId,
-                        customer_name: customerName,
-                        customer_email: customerEmail || "",
-                        phone: phone || "",
-                        address: address || "",
-                        city: city || "",
-                        postal_code: postalCode || "",
-                        country: country || "",
-                        items: items.map(item => ({
-                            product_id: item.product_id,
-                            name: item.name,
-                            quantity: item.quantity,
-                            price: item.price,
-                            flavour: item.flavour || ''
-                        })),
-                        total,
-                        subtotal,
-                        discount: discount || 0,
-                        payment_method: paymentMethod || "card",
-                        payment_status: isPaid ? 'paid' : 'pending',
-                        stripe_payment_intent_id: stripePaymentIntentId || '',
-                        delivery_method: deliveryMethod || "standard",
-                        delivery_cost: deliveryCost || 0,
-                        status: isPaid ? 'Paid' : 'Pending',
-                        created_at: new Date().toISOString()
-                    }
-
-                });
-
-            }
+            ]
         );
 
+        orderId = inserted.lastID;
+
+    } catch (err) {
+
+        // Two requests for the same PaymentIntent arrived at the same moment:
+        // the unique index rejected the second one. Return the first order.
+        if (err && err.errno === 1062 && stripePaymentIntentId) {
+            try {
+                const dupe = await dbGet(
+                    `SELECT id FROM orders WHERE stripe_payment_intent = ?`,
+                    [stripePaymentIntentId]
+                );
+                if (dupe) {
+                    return res.json({
+                        success: true,
+                        orderId: dupe.id,
+                        message: "Order already placed",
+                        duplicate: true,
+                        order: await loadOrderResponse(dupe.id)
+                    });
+                }
+            } catch (lookupErr) {
+                return res.status(500).json({ error: lookupErr.message });
+            }
+        }
+
+        return res.status(500).json({
+            error: err.message
+        });
+
+    }
+
+    try {
+
+        await Promise.all(items.map(item =>
+            dbRun(
+                `
+                INSERT INTO order_items
+                (order_id, product_id, product_name, quantity, price, flavour)
+                VALUES (?,?,?,?,?,?)
+                `,
+                [
+                    orderId,
+                    item.product_id,
+                    item.name,
+                    item.quantity,
+                    item.price,
+                    item.flavour || ''
+                ]
+            )
+        ));
+
+    } catch (itemErr) {
+
+        return res.status(500).json({
+            error: "Order was created but items failed to save: " + itemErr.message
+        });
+
+    }
+
+    // ==========================
+    // 5) Confirmation email (best-effort — never fails the order)
+    // ==========================
+    try {
+
+        await sendEmail({
+
+            to: addr.customerEmail,
+
+            subject: `Order Confirmation #${orderId} - CeltiCore`,
+
+            html: orderConfirmation({
+
+                customerName: addr.customerName,
+
+                orderId,
+
+                items: items.map(item => ({
+                    product_name: item.name,
+                    quantity: item.quantity,
+                    price: item.price
+                })),
+
+                subtotal,
+
+                discount: discount || 0,
+
+                deliveryFee: delivery.fee,
+
+                deliveryFree: delivery.freeApplied,
+
+                total,
+
+                paymentMethod: paymentMethod || 'card',
+
+                deliveryMethod: delivery.name,
+
+                estimatedDelivery: delivery.estimateText || formatEstimate(delivery.estMinDays, delivery.estMaxDays),
+
+                deliveryNotice: await loadDeliveryNotice(),
+
+                address: formatOrderAddress({
+                    address: addr.address,
+                    address2: addr.address2,
+                    city: addr.city,
+                    county: addr.county,
+                    postal_code: addr.postalCode,
+                    country: addr.country
+                }),
+
+                currency: "€"
+
+            })
+
+        });
+
+    } catch (emailError) {
+
+        console.error("Order confirmation email failed:", emailError.message);
+
+    }
+
+    // Return the full order object — the frontend's success screen reads
+    // fields like id/total/customerName/address off this.
+    res.json({
+        success: true,
+        orderId,
+        message: "Order placed successfully",
+        order: await loadOrderResponse(orderId)
     });
 
 };
@@ -434,6 +571,19 @@ exports.getOrders = (req, res) => {
             discount,
             total,
             tracking_number,
+            tracking_url,
+            courier_name,
+            address2,
+            county,
+            delivery_method_name,
+            delivery_free,
+            delivery_est_min_days,
+            delivery_est_max_days,
+            delivery_estimate_text,
+            processing_at,
+            dispatched_at,
+            delivered_at,
+            label_uploaded_at,
             notes,
             is_sameday,
             sameday_area,
@@ -513,118 +663,247 @@ exports.getOrders = (req, res) => {
 };
 
 // ==========================
-// Update Order Status
+// Update Order Status / Delivery Details (admin only)
 // ==========================
-// Fires the matching customer email (Shipped / Delivered / Cancelled) after
-// a successful status change — but only when the status is genuinely
-// different from what it already was, so clicking "Save" again on an
-// unchanged status (or any other redundant update) never re-sends the
-// email.
+// One endpoint for everything the admin does to an order's delivery:
+//   { status }                         -> Processing / Dispatched ("shipped") / Delivered ...
+//   { courierName, trackingNumber, trackingUrl }  -> manual courier details
+// Any combination can be sent together. Courier/tracking are plain manual
+// entries — nothing here calls a courier API.
+//
+// Emails: sent only when something REALLY changed (status, or tracking
+// details), so saving the same values again never re-sends an email:
+//   -> processing  : "Order is being prepared"
+//   -> shipped     : "Order dispatched" (+ courier & tracking if entered)
+//   -> delivered   : "Order delivered"
+//   -> cancelled   : "Order cancelled"
+//   tracking added/changed without a status change: "Tracking updated"
 
-exports.updateOrderStatus = (req, res) => {
+const ALLOWED_STATUSES = ['pending', 'paid', 'processing', 'shipped', 'delivered', 'cancelled'];
+const TRACKING_NUMBER_REGEX = /^[A-Za-z0-9][A-Za-z0-9 \-_./]{0,99}$/;
 
-    const { status } = req.body;
+function isHttpUrl(value) {
+    try {
+        const u = new URL(value);
+        return u.protocol === 'http:' || u.protocol === 'https:';
+    } catch {
+        return false;
+    }
+}
 
-    if (!status) {
+exports.updateOrderStatus = async (req, res) => {
+
+    const body = req.body || {};
+
+    const hasStatus = typeof body.status === 'string' && body.status.trim() !== '';
+    const hasCourier = body.courierName !== undefined;
+    const hasTracking = body.trackingNumber !== undefined;
+    const hasUrl = body.trackingUrl !== undefined;
+
+    if (!hasStatus && !hasCourier && !hasTracking && !hasUrl) {
         return res.status(400).json({
             error: "A 'status' value is required."
         });
     }
 
-    db.get(
-        `SELECT * FROM orders WHERE id = ?`,
-        [req.params.id],
-        (fetchErr, existingOrder) => {
+    // ---- validate input -------------------------------------------------
+    let requestedStatus = null;
+    if (hasStatus) {
+        requestedStatus = body.status.trim().toLowerCase();
+        if (!ALLOWED_STATUSES.includes(requestedStatus)) {
+            return res.status(400).json({
+                error: `Invalid status. Use one of: ${ALLOWED_STATUSES.join(', ')}.`
+            });
+        }
+    }
 
-            if (fetchErr) {
-                return res.status(500).json({ error: fetchErr.message });
+    let courierName = null;
+    if (hasCourier) {
+        courierName = String(body.courierName || '').trim();
+        if (courierName && !isValidCourier(courierName)) {
+            return res.status(400).json({
+                error: `Invalid courier. Use one of: ${COURIER_OPTIONS.map(c => c.value).join(', ')}.`
+            });
+        }
+    }
+
+    let trackingNumber = null;
+    if (hasTracking) {
+        trackingNumber = String(body.trackingNumber || '').trim();
+        if (trackingNumber && !TRACKING_NUMBER_REGEX.test(trackingNumber)) {
+            return res.status(400).json({
+                error: "Tracking number can only contain letters, numbers, spaces and - _ . / (max 100 characters)."
+            });
+        }
+    }
+
+    let trackingUrl = null;
+    if (hasUrl) {
+        trackingUrl = String(body.trackingUrl || '').trim();
+        if (trackingUrl && (trackingUrl.length > 500 || !isHttpUrl(trackingUrl))) {
+            return res.status(400).json({
+                error: "Tracking URL must be a valid http(s) link (max 500 characters)."
+            });
+        }
+    }
+
+    try {
+
+        const existingOrder = await dbGet(`SELECT * FROM orders WHERE id = ?`, [req.params.id]);
+
+        if (!existingOrder) {
+            return res.status(404).json({ error: "Order not found." });
+        }
+
+        const previousStatus = (existingOrder.status || '').toLowerCase();
+        const newStatus = requestedStatus || previousStatus;
+
+        // Everything ships with DPD: when an order is dispatched and no courier
+        // was chosen yet, record DPD.
+        let mergedCourier = hasCourier ? courierName : (existingOrder.courier_name || '');
+        if (requestedStatus === 'shipped' && !mergedCourier) mergedCourier = DEFAULT_COURIER;
+        const mergedNumber = hasTracking ? trackingNumber : (existingOrder.tracking_number || '');
+        const mergedUrl = hasUrl ? trackingUrl : (existingOrder.tracking_url || '');
+
+        // Keep existing capitalisation untouched when status isn't being changed.
+        const statusToStore = requestedStatus || existingOrder.status;
+
+        // Dispatch / delivery dates are set by the server — never by the browser.
+        const stamps = [];
+        if (requestedStatus && requestedStatus !== previousStatus) {
+            if (requestedStatus === 'processing') {
+                stamps.push('processing_at = COALESCE(processing_at, CURRENT_TIMESTAMP)', 'dispatched_at = NULL', 'delivered_at = NULL');
+            } else if (requestedStatus === 'shipped') {
+                stamps.push('dispatched_at = COALESCE(dispatched_at, CURRENT_TIMESTAMP)', 'delivered_at = NULL');
+            } else if (requestedStatus === 'delivered') {
+                stamps.push('delivered_at = COALESCE(delivered_at, CURRENT_TIMESTAMP)');
+            } else if (requestedStatus === 'pending' || requestedStatus === 'paid') {
+                stamps.push('processing_at = NULL', 'dispatched_at = NULL', 'delivered_at = NULL');
             }
+        }
 
-            if (!existingOrder) {
-                return res.status(404).json({ error: "Order not found." });
+        const result = await dbRun(
+            `
+            UPDATE orders
+            SET status = ?,
+                courier_name = ?,
+                tracking_number = ?,
+                tracking_url = ?
+                ${stamps.length ? ',' + stamps.join(', ') : ''}
+            WHERE id = ?
+            `,
+            [
+                statusToStore,
+                mergedCourier || null,
+                mergedNumber || null,
+                mergedUrl || null,
+                req.params.id
+            ]
+        );
+
+        if (result.changes === 0 && previousStatus === newStatus && !hasCourier && !hasTracking && !hasUrl) {
+            return res.status(404).json({ error: "Order not found." });
+        }
+
+        const fresh = await dbGet(`SELECT * FROM orders WHERE id = ?`, [req.params.id]);
+
+        res.json({
+            success: true,
+            message: "Order updated",
+            order: {
+                status: fresh.status,
+                courier_name: fresh.courier_name || '',
+                tracking_number: fresh.tracking_number || '',
+                tracking_url: fresh.tracking_url || '',
+                processing_at: fresh.processing_at || null,
+                dispatched_at: fresh.dispatched_at || null,
+                delivered_at: fresh.delivered_at || null
             }
+        });
 
-            const previousStatus = (existingOrder.status || '').toLowerCase();
-            const newStatus = status.toLowerCase();
-
-            db.run(
-                `
-                UPDATE orders
-                SET status = ?
-                WHERE id = ?
-                `,
-                [status, req.params.id],
-                function (err) {
-
-                    if (err) {
-
-                        return res.status(500).json({
-                            error: err.message
-                        });
-
-                    }
-
-                    if (this.changes === 0) {
-                        return res.status(404).json({
-                            error: "Order not found."
-                        });
-                    }
-
-                    res.json({
-                        success: true,
-                        message: "Order status updated"
-                    });
-
-                    // ==========================
-                    // Best-effort status-change email (never blocks the response above)
-                    // ==========================
-                    if (previousStatus === newStatus) return; // no real change — don't re-send
-
-                    if (!['shipped', 'delivered', 'cancelled'].includes(newStatus)) return;
-
-                    db.all(
-                        `
-                        SELECT product_id, product_name AS name, quantity, price, flavour
-                        FROM order_items
-                        WHERE order_id = ?
-                        `,
-                        [req.params.id],
-                        async (itemsErr, items) => {
-
-                            if (itemsErr) {
-                                console.error("Could not load order items for status email:", itemsErr.message);
-                                return;
-                            }
-
-                            const emailOrder = {
-                                customerEmail: existingOrder.email,
-                                customerName: existingOrder.customer_name,
-                                orderId: existingOrder.id,
-                                items: items || [],
-                                total: existingOrder.total,
-                                paymentStatus: existingOrder.payment_status,
-                            };
-
-                            try {
-                                if (newStatus === 'shipped') {
-                                    await sendEmail.sendOrderShipped(emailOrder);
-                                } else if (newStatus === 'delivered') {
-                                    await sendEmail.sendOrderDelivered(emailOrder);
-                                } else if (newStatus === 'cancelled') {
-                                    await sendEmail.sendOrderCancelled(emailOrder);
-                                }
-                            } catch (emailErr) {
-                                console.error(`Order ${newStatus} email failed:`, emailErr.message);
-                            }
-
-                        }
-                    );
-
-                }
+        // ==========================
+        // Best-effort emails (never block the response above)
+        // ==========================
+        const statusChanged = previousStatus !== newStatus;
+        const trackingChanged =
+            mergedNumber !== '' &&
+            (
+                mergedNumber !== (existingOrder.tracking_number || '') ||
+                mergedCourier !== (existingOrder.courier_name || '') ||
+                mergedUrl !== (existingOrder.tracking_url || '')
             );
 
+        let emailKind = null;
+
+        if (statusChanged && ['processing', 'shipped', 'delivered', 'cancelled'].includes(newStatus)) {
+            emailKind = newStatus;
+        } else if (!statusChanged && trackingChanged && newStatus !== 'cancelled') {
+            emailKind = 'tracking';
         }
-    );
+
+        if (!emailKind) return;
+
+        try {
+
+            const items = await dbAll(
+                `
+                SELECT product_id, product_name AS name, quantity, price, flavour
+                FROM order_items
+                WHERE order_id = ?
+                `,
+                [req.params.id]
+            );
+
+            const emailOrder = {
+                customerEmail: fresh.email,
+                customerName: fresh.customer_name,
+                orderId: fresh.id,
+                items: items || [],
+                total: fresh.total,
+                subtotal: fresh.subtotal,
+                discount: fresh.discount,
+                paymentStatus: fresh.payment_status,
+                status: newStatus,
+                deliveryFee: fresh.delivery_cost,
+                deliveryFree: Number(fresh.delivery_free) === 1,
+                deliveryMethodName: fresh.delivery_method_name || '',
+                // Estimate wording comes from the delivery method the customer
+                // was charged for. It is an estimate only, never a promise.
+                estimatedDelivery: '',
+                estimatedDays: fresh.delivery_estimate_text || formatEstimate(fresh.delivery_est_min_days, fresh.delivery_est_max_days),
+                deliveryNotice: await loadDeliveryNotice(),
+                address: formatOrderAddress(fresh),
+                courierName: fresh.courier_name || '',
+                trackingNumber: fresh.tracking_number || '',
+                trackingUrl: fresh.tracking_url || ''
+            };
+
+            if (emailKind === 'processing') {
+                await sendEmail.sendOrderProcessing(emailOrder);
+            } else if (emailKind === 'shipped') {
+                await sendEmail.sendOrderShipped(emailOrder);
+            } else if (emailKind === 'delivered') {
+                await sendEmail.sendOrderDelivered(emailOrder);
+            } else if (emailKind === 'cancelled') {
+                await sendEmail.sendOrderCancelled(emailOrder);
+            } else if (emailKind === 'tracking') {
+                await sendEmail.sendTrackingUpdated(emailOrder);
+            }
+
+        } catch (emailErr) {
+            console.error(`Order ${emailKind} email failed:`, emailErr.message);
+        }
+
+    } catch (err) {
+
+        if (!res.headersSent) {
+            return res.status(500).json({
+                error: err.message
+            });
+        }
+        console.error("Order update follow-up failed:", err.message);
+
+    }
 
 };
 
@@ -659,6 +938,19 @@ exports.getMyOrders = (req, res) => {
             discount,
             total,
             tracking_number,
+            tracking_url,
+            courier_name,
+            address2,
+            county,
+            delivery_method_name,
+            delivery_free,
+            delivery_est_min_days,
+            delivery_est_max_days,
+            delivery_estimate_text,
+            processing_at,
+            dispatched_at,
+            delivered_at,
+            paid_at,
             status,
             created_at
         FROM orders
@@ -796,11 +1088,29 @@ exports.trackOrder = (req, res) => {
             customer_name,
             email,
             address,
+            address2,
             city,
+            county,
             postal_code,
             country,
             payment_status,
+            subtotal,
+            discount,
             total,
+            delivery_method,
+            delivery_method_name,
+            delivery_cost,
+            delivery_free,
+            delivery_est_min_days,
+            delivery_est_max_days,
+            delivery_estimate_text,
+            courier_name,
+            tracking_number,
+            tracking_url,
+            paid_at,
+            processing_at,
+            dispatched_at,
+            delivered_at,
             status,
             created_at
         FROM orders
@@ -842,9 +1152,27 @@ exports.trackOrder = (req, res) => {
                             createdAt: order.created_at,
                             customerName: order.customer_name,
                             address: order.address,
+                            address2: order.address2 || '',
                             city: order.city,
+                            county: order.county || '',
                             postalCode: order.postal_code,
                             country: order.country,
+                            subtotal: order.subtotal,
+                            discount: order.discount || 0,
+                            deliveryMethod: order.delivery_method,
+                            deliveryMethodName: order.delivery_method_name || '',
+                            deliveryCost: order.delivery_cost || 0,
+                            deliveryFree: Number(order.delivery_free) === 1,
+                            deliveryEstMinDays: order.delivery_est_min_days,
+                            deliveryEstMaxDays: order.delivery_est_max_days,
+                            deliveryEstimateText: order.delivery_estimate_text || '',
+                            courierName: order.courier_name || '',
+                            trackingNumber: order.tracking_number || '',
+                            trackingUrl: order.tracking_url || '',
+                            paidAt: order.paid_at || null,
+                            processingAt: order.processing_at || null,
+                            dispatchedAt: order.dispatched_at || null,
+                            deliveredAt: order.delivered_at || null,
                             items: items || []
                         }
                     });
@@ -864,6 +1192,14 @@ exports.trackOrder = (req, res) => {
 exports.deleteOrder = (req, res) => {
 
     const orderId = req.params.id;
+
+    // Best effort: remove the uploaded DPD label file (it contains the
+    // customer's address) when the order is deleted.
+    db.get(`SELECT label_file FROM orders WHERE id = ?`, [orderId], (labelErr, labelRow) => {
+        if (!labelErr && labelRow && labelRow.label_file) {
+            require("./deliveryController").removeLabelFile(labelRow.label_file);
+        }
+    });
 
     // Child rows must go before the parent — `order_items` (and any
     // `reviews` left on this order) hold a foreign key on orders.id, so the

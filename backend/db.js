@@ -161,7 +161,7 @@ const db = {
 // This adds a column only if it isn't already there, and silently no-ops
 // (rather than crashing startup) if the column already exists — so it's
 // safe to run on every boot, on both fresh and pre-existing databases.
-async function addColumnIfMissing(table, columnName, columnDef) {
+async function addColumnIfMissing(table, columnName, columnDef, strict = false) {
     try {
         await promisePool.query(
             `ALTER TABLE \`${table}\` ADD COLUMN \`${columnName}\` ${columnDef}`
@@ -169,7 +169,10 @@ async function addColumnIfMissing(table, columnName, columnDef) {
     } catch (err) {
         // 1060 = ER_DUP_FIELD_NAME (column already exists) — expected and fine.
         if (err && err.errno === 1060) return;
-        console.error(`Migration warning: could not add column ${table}.${columnName}:`, err.message);
+        console.error(`Migration ERROR: could not add column ${table}.${columnName}:`, err.message);
+        // strict = delivery columns the checkout depends on: stop the boot
+        // loudly instead of running with a half-migrated database.
+        if (strict) throw err;
     }
 }
 
@@ -378,6 +381,78 @@ async function initSchema() {
     await addColumnIfMissing('reviews', 'updated_at', 'DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP');
     await addIndexIfMissing('reviews', 'uniq_order_product_review', 'UNIQUE KEY uniq_order_product_review (order_id, product_id)');
 
+    // ==========================
+    // DELIVERY SYSTEM (Republic of Ireland) — additive, non-destructive.
+    // Existing orders keep every value they already have; new columns are
+    // simply NULL for them (the UI treats NULL as "no delivery info").
+    //
+    // Reused existing columns instead of duplicating them:
+    //   delivery_method  (already existed -> method code: standard / express)
+    //   delivery_cost    (already existed -> delivery fee in EUR)
+    //   tracking_number  (already existed)
+    //   postal_code      (already existed -> holds the Eircode)
+    //   country          (already existed -> "Ireland")
+    //   status           (already existed -> order / delivery lifecycle)
+    // ==========================
+    await addColumnIfMissing('orders', 'address2', 'TEXT', true);
+    await addColumnIfMissing('orders', 'county', 'VARCHAR(100)', true);
+    await addColumnIfMissing('orders', 'delivery_method_name', 'VARCHAR(100)', true);
+    await addColumnIfMissing('orders', 'delivery_free', 'INT DEFAULT 0', true);
+    await addColumnIfMissing('orders', 'delivery_est_min_days', 'INT', true);
+    await addColumnIfMissing('orders', 'delivery_est_max_days', 'INT', true);
+    await addColumnIfMissing('orders', 'courier_name', 'VARCHAR(100)', true);
+    await addColumnIfMissing('orders', 'tracking_url', 'TEXT', true);
+    await addColumnIfMissing('orders', 'processing_at', 'DATETIME', true);
+    await addColumnIfMissing('orders', 'dispatched_at', 'DATETIME', true);
+    await addColumnIfMissing('orders', 'delivered_at', 'DATETIME', true);
+    // Wording of the delivery estimate the customer saw at checkout (snapshot).
+    await addColumnIfMissing('orders', 'delivery_estimate_text', 'VARCHAR(255)', true);
+    // Manually uploaded DPD shipping label (file lives in private storage on the
+    // server, never in a public folder).
+    await addColumnIfMissing('orders', 'label_file', 'VARCHAR(100)', true);
+    await addColumnIfMissing('orders', 'label_mime', 'VARCHAR(50)', true);
+    await addColumnIfMissing('orders', 'label_uploaded_at', 'DATETIME', true);
+
+    // One order per Stripe PaymentIntent — stops a double-click / retry from
+    // creating a duplicate order for the same payment. NULLs (non-card
+    // orders) are allowed many times. If old duplicate rows exist, MySQL
+    // refuses to add this and a warning is logged instead (nothing breaks).
+    await addIndexIfMissing('orders', 'uniq_orders_payment_intent', 'UNIQUE KEY uniq_orders_payment_intent (stripe_payment_intent)');
+    await addIndexIfMissing('orders', 'idx_orders_status', 'INDEX idx_orders_status (status)');
+
+    await promisePool.query(`
+        CREATE TABLE IF NOT EXISTS delivery_methods (
+            id INT PRIMARY KEY AUTO_INCREMENT,
+            code VARCHAR(32) NOT NULL UNIQUE,
+            name VARCHAR(100) NOT NULL,
+            description VARCHAR(255),
+            fee DOUBLE NOT NULL DEFAULT 0,
+            est_min_days INT NOT NULL DEFAULT 1,
+            est_max_days INT NOT NULL DEFAULT 3,
+            free_eligible INT NOT NULL DEFAULT 0,
+            is_enabled INT NOT NULL DEFAULT 1,
+            sort_order INT NOT NULL DEFAULT 0,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        )
+    `);
+
+    await addColumnIfMissing('delivery_methods', 'estimate_text', 'VARCHAR(255)', true);
+
+    // Starter rows (fresh installs only - INSERT IGNORE never overwrites).
+    // FINAL CLIENT RULE: Next-Day Delivery (code `express`) is the ONLY
+    // delivery method: EUR 6.00, DPD, next working day (99%, estimate only),
+    // free from EUR 70. The old `standard` row is kept but DISABLED (never
+    // deleted, so old orders that reference it still make sense).
+    // Customers never choose: `checkout_delivery_method` is applied to all orders.
+    const NEXT_DAY_ESTIMATE = 'Next working day (99% of parcels) - estimate only, not guaranteed';
+    await promisePool.query(`
+        INSERT IGNORE INTO delivery_methods
+            (code, name, description, fee, est_min_days, est_max_days, estimate_text, free_eligible, is_enabled, sort_order)
+        VALUES
+            ('express',  'Next-Day Delivery', 'Next-day delivery by DPD', 6.00, 1, 1, ?, 1, 1, 1),
+            ('standard', 'Standard Delivery', 'Tracked delivery by DPD', 6.00, 1, 1, ?, 1, 0, 2)
+    `, [NEXT_DAY_ESTIMATE, NEXT_DAY_ESTIMATE]);
+
     // One-time backfill: any reviews approved before the rating-sync logic
     // existed never pushed their number onto products.rating/reviews, so the
     // shop grid can be showing "(0)" for a product that actually has
@@ -543,6 +618,15 @@ async function initSchema() {
 
         ['enable_sameday', '0'],
 
+        // Free delivery rule (edited from Admin > Delivery Settings).
+        // Off by default so no order is ever shipped free by accident.
+        // Client-confirmed: free delivery for orders of EUR 70.00 or more.
+        ['free_delivery_enabled', '1'],
+        ['free_delivery_threshold', '70'],
+        // Which delivery method is applied to every order (customers don't pick).
+        ['checkout_delivery_method', 'express'],
+        ['delivery_notice', 'Weekend and public holiday delivery depends on courier availability.'],
+
         ['admin_password', bcrypt.hashSync('password123', 10)],
         ['admin_name', 'Administrator'],
         ['admin_email', 'admin@celticore.com'],
@@ -565,6 +649,63 @@ async function initSchema() {
         await promisePool.query(
             'INSERT IGNORE INTO settings (`key`, value) VALUES (?, ?)',
             [key, value]
+        );
+    }
+
+    // Earlier placeholder (free delivery OFF, minimum 50) -> client-confirmed
+    // values (ON, 70). Only applied while both are still the untouched placeholders.
+    await promisePool.query(`
+        UPDATE settings s1 JOIN settings s2
+            ON s1.\`key\` = 'free_delivery_enabled' AND s2.\`key\` = 'free_delivery_threshold'
+        SET s1.value = '1', s2.value = '70'
+        WHERE s1.value = '0' AND s2.value = '50'
+    `);
+
+    // ONE-TIME "Next-Day only" migration for databases that already hold
+    // delivery rows/settings (INSERT IGNORE above cannot change those).
+    // Runs here, after the `settings` table and its defaults exist.
+    // It is guarded by a flag row in `settings`, so:
+    //   - it runs once, then never again (admin edits made later are kept);
+    //   - if it fails half-way the flag is not written and it simply re-runs
+    //     on next start (every statement below is safe to repeat).
+    const [flagRows] = await promisePool.query(
+        "SELECT value FROM settings WHERE `key` = 'migration_delivery_nextday_only_v1'"
+    );
+    if (!flagRows.length) {
+        // Next-Day: the single enabled method, EUR 6.00, 1 working day, DPD estimate wording.
+        await promisePool.query(`
+            UPDATE delivery_methods
+            SET name = 'Next-Day Delivery',
+                description = 'Next-day delivery by DPD',
+                fee = 6.00, est_min_days = 1, est_max_days = 1,
+                estimate_text = ?,
+                free_eligible = 1, is_enabled = 1, sort_order = 1
+            WHERE code = 'express'
+        `, [NEXT_DAY_ESTIMATE]);
+
+        // Standard: safely disabled (row kept).
+        await promisePool.query(`
+            UPDATE delivery_methods SET is_enabled = 0, sort_order = 2
+            WHERE code = 'standard'
+        `);
+
+        // Settings: apply Next-Day to every order; free delivery from EUR 70.
+        const forced = [
+            ['checkout_delivery_method', 'express'],
+            ['free_delivery_enabled', '1'],
+            ['free_delivery_threshold', '70']
+        ];
+        for (const [k, v] of forced) {
+            await promisePool.query(
+                'INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value = VALUES(value)',
+                [k, v]
+            );
+        }
+
+        // Written last, only after everything above succeeded.
+        await promisePool.query(
+            "INSERT IGNORE INTO settings (`key`, value) VALUES ('migration_delivery_nextday_only_v1', ?)",
+            [new Date().toISOString()]
         );
     }
 }

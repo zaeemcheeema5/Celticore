@@ -124,4 +124,56 @@ ${rows}
 `;
 }
 
-module.exports = { BRAND, wrapEmail, ctaButton, itemsTable };
+// Escapes text that came from a customer/admin before it is placed in HTML.
+function esc(value) {
+    return String(value == null ? "" : value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+}
+
+function safeHttpUrl(value) {
+    return /^https?:\/\//i.test(String(value || "")) ? String(value) : "";
+}
+
+/**
+ * Delivery details box shared by the processing / dispatched / tracking /
+ * delivered emails. Rows only appear when there is real data for them.
+ */
+function deliveryDetailsBlock({
+    status,
+    deliveryMethodName,
+    estimatedDays,
+    address,
+    courierName,
+    trackingNumber,
+    trackingUrl
+} = {}) {
+    const rows = [];
+    const row = (label, valueHtml) => rows.push(`
+<tr>
+<td style="padding:6px 0;color:#999999;font-size:11px;text-transform:uppercase;letter-spacing:1px;width:130px;vertical-align:top;">${label}</td>
+<td style="padding:6px 0;color:#111111;font-size:13px;">${valueHtml}</td>
+</tr>`);
+
+    if (status) row("Status", `<strong>${esc(status)}</strong>`);
+    if (deliveryMethodName) row("Delivery", esc(deliveryMethodName) + (estimatedDays ? ` <span style="color:#999999;">(${esc(estimatedDays)})</span>` : ""));
+    if (address) row("Delivering to", esc(address));
+    if (courierName) row("Courier", esc(courierName));
+    if (trackingNumber) row("Tracking no.", `<strong>${esc(trackingNumber)}</strong>`);
+    const url = safeHttpUrl(trackingUrl);
+    if (url) row("Tracking link", `<a href="${esc(url)}" style="color:#047857;">Track your parcel</a>`);
+
+    if (rows.length === 0) return "";
+
+    return `
+<table width="100%" cellpadding="0" cellspacing="0" style="margin:18px 0;background:#f8f8f8;border-radius:8px;">
+<tr><td style="padding:12px 18px;">
+<table width="100%" cellpadding="0" cellspacing="0">${rows.join("")}</table>
+</td></tr>
+</table>
+`;
+}
+
+module.exports = { BRAND, wrapEmail, ctaButton, itemsTable, esc, deliveryDetailsBlock };

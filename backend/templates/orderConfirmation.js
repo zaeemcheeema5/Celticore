@@ -4,9 +4,13 @@ module.exports = ({
     items,
     subtotal,
     discount,
+    deliveryFee,
+    deliveryFree,
     total,
     paymentMethod,
     deliveryMethod,
+    estimatedDelivery,
+    deliveryNotice,
     address,
     currency = "€"
 }) => {
@@ -138,6 +142,18 @@ ${currency}${Number(discount).toFixed(2)}
 
 </tr>
 
+${deliveryFee !== undefined && deliveryFee !== null ? `
+<tr>
+
+<td>Delivery</td>
+
+<td align="right">
+${Number(deliveryFee) > 0 ? `${currency}${Number(deliveryFee).toFixed(2)}` : (deliveryFree ? "FREE" : `${currency}0.00`)}
+</td>
+
+</tr>
+` : ""}
+
 <tr>
 
 <td>
@@ -172,9 +188,11 @@ ${paymentMethod}
 
 <b>Delivery Method:</b>
 
-${deliveryMethod}
+${deliveryMethod}${estimatedDelivery ? ` <span style="color:#777;">(Estimated: ${estimatedDelivery})</span>` : ""}
 
 </p>
+
+${estimatedDelivery || deliveryNotice ? `<p style="font-size:12px;color:#777;">Delivery times are estimates, not guarantees. ${deliveryNotice || ""}</p>` : ""}
 
 <p>
 

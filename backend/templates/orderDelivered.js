@@ -1,4 +1,4 @@
-const { wrapEmail, ctaButton, itemsTable } = require("./_emailLayout");
+const { wrapEmail, ctaButton, itemsTable, deliveryDetailsBlock } = require("./_emailLayout");
 
 module.exports = ({
     customerName,
@@ -6,12 +6,26 @@ module.exports = ({
     items = [],
     total,
     deliveryDate,
+    deliveryMethodName,
+    address,
+    courierName,
+    trackingNumber,
+    trackingUrl,
     reviewUrl,
     currency = "€"
 }) => {
     const bodyHtml = `
 <p>Hi ${customerName},</p>
 <p>Your order <strong>#${orderId}</strong> has been delivered${deliveryDate ? ` on <strong>${deliveryDate}</strong>` : ""}. We hope you enjoy it!</p>
+
+${deliveryDetailsBlock({
+        status: "Delivered",
+        deliveryMethodName,
+        address,
+        courierName,
+        trackingNumber,
+        trackingUrl
+    })}
 
 <h3 style="margin:22px 0 4px 0;font-size:14px;">Order Details</h3>
 ${itemsTable(items, currency)}

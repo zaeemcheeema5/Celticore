@@ -11,6 +11,16 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://thecelticore.com/isolate-protien</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://thecelticore.com/carb-powder</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
     <loc>https://thecelticore.com/wellbeing</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
@@ -39,6 +49,11 @@
     <loc>https://thecelticore.com/protein</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://thecelticore.com/product/cream-of-rice</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
   </url>
   <url>
     <loc>https://thecelticore.com/product/supplement-needs-vitamin-d3-k2</loc>
